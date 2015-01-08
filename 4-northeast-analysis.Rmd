@@ -1,0 +1,125 @@
+---
+title: "4-northeast-analysis"
+author: "Daniel Hocking"
+date: "August 28, 2014"
+output: html_document
+---
+
+```{r}
+
+rm(list=ls())
+gc()
+
+```
+
+
+```{r results = 'hide', warning=FALSE, message=FALSE}
+library(dplyr)
+library(devtools)
+install_github("Conte-Ecology/conteStreamTemperature")
+library(conteStreamTemperature)
+
+baseDir <- getwd() # works as long as you have the project loaded in RStudio - does not work for kniting
+
+dataInDir <- paste0(baseDir, '/dataIn/')
+dataOutDir <- paste0(baseDir, '/dataOut/')
+dataLocalDir <- paste0(baseDir, '/localData/')
+graphsDir <- paste0(baseDir, '/graphs/')
+
+#source(paste0(baseDir, 'code/functions/temperatureModelingFunctions.R'))
+
+# load standardized and formatted data created with the 3-statModelPrep.Rmd script
+load(paste0(dataLocalDir, 'tempDataSync.RData'))
+```
+
+```{r eval = FALSE}
+print(getwd())
+```
+
+```{r site within HUC model with residual AR1}
+
+######
+# rename all variables before setting the fixed and random, then select them by list?
+####
+
+fixed.ef <- c("intercept" 
+              , "Latitude" 
+              , "Longitude" 
+              , "TotDASqKM" 
+              , "Forest" 
+              , "ReachElevationM" 
+              , "SurficialCoarseC" 
+              , "CONUSWetland" 
+              , "ImpoundmentsAllSqKM" 
+              , "airTemp.TotDASqKM"
+              #, "airTempLagged1.TotDASqKM"
+              #, "airTempLagged2.TotDASqKM"
+              #, "prcp.Forest"
+              )
+
+site.ef <- c( "intercept.site" 
+              , "airTemp" 
+              #, "airTempLagged1"
+              , "airTempLagged2" 
+              , "prcp" 
+              , "prcpLagged1" 
+              #, "prcpLagged2"
+              , "airTemp.prcp" # add combos of air*prcp or do longer moving means????
+              #, "airTemp.prcpLagged1"
+              #, "airTemp.prcpLagged2"
+              #, "airTempLagged1.prcpLagged1"
+              #, "airTempLagged1.prcpLagged2"
+              #, "airTempLagged2.prcpLagged2"
+              )
+
+year.ef <- c( "intercept.year"
+              , "dOY" 
+              , "dOY2"
+              , "dOY3"
+              )
+
+cov.list <- list(fixed.ef = fixed.ef, site.ef = site.ef, year.ef = year.ef, huc.ef = site.ef, ar1.ef = site.ef)
+# model matrix not working because creates a design matrix
+
+#data.cal <- prepDF(tempDataSyncS, formulae = formulae)
+#str(data.cal)
+
+monitor.params <- c(#"residuals",
+            #"deviance",
+            "sigma",
+            "B.ar1",
+            "mu.ar1",
+            "sigma.ar1",
+            "B.0",
+            "B.site",
+            "rho.B.site",
+            "mu.site",
+            "sigma.b.site",
+            "B.huc",
+            "rho.B.huc",
+            "mu.huc",
+            "sigma.b.huc",
+            "B.year",
+            "rho.B.year",
+            "mu.year",
+            "sigma.b.year")
+
+coda.tf <- T # currently only works in full for TRUE (using coda.samples)
+system.time(M.ar1 <- modelRegionalTempAR1(tempDataSyncS, cov.list, firstObsRows = firstObsRows, evalRows = evalRows, n.burn = 1000, n.it = 1000, n.thin = 1, nc = 3, coda = coda.tf, param.list = monitor.params)) # Slow with AR1: ~3-6 min per 100 iterations (13 min per 100 iter for site AR)
+
+save(M.ar1, file = paste0(dataLocalDir, "jags.RData"))
+save(cov.list, file = paste0(dataLocalDir, "covariate_list.RData"))
+
+```
+
+
+```{r ending info}
+
+print(sessionInfo())
+
+```
+
+
+
+
+

@@ -1,0 +1,352 @@
+---
+title: "5-model-summary"
+author: "Daniel Hocking"
+date: "August 28, 2014"
+output: html_document
+---
+
+```{r}
+rm(list = ls()) 
+gc(verbose = FALSE)
+
+library(ggplot2)
+library(ggmcmc)
+library(dplyr)
+#library(nlme)
+library(devtools)
+#install_github("Conte-Ecology/conteStreamTemperature")
+library(conteStreamTemperature)
+library(rjags)
+# need to load data.fixed, data.random.sites, data.random.years
+
+baseDir <- getwd() # works as long as you have the project loaded in RStudio - does not work for kniting
+
+dataInDir <- paste0(baseDir, '/dataIn/')
+dataOutDir <- paste0(baseDir, '/dataOut/')
+dataLocalDir <- paste0(baseDir, '/localData/')
+graphsDir <- paste0(baseDir, '/graphs/')
+
+load('localData/jags.RData')
+load(paste0(dataLocalDir, 'tempDataSync.RData'))
+load(paste0(dataLocalDir, "covariate_list.RData"))
+
+# memory.limit(size = 1e6)
+
+#system.time(summary.stats <- summary(M.ar1)) # takes a long time for full dataset. look for better solution
+
+
+```
+
+
+## Evaluate MCMC Iterations
+
+```{r check model convergence and mixing}
+system.time(ggs.ar1 <- ggs(M.ar1)) # slow and memory intensive - 2 minutes with residuals saved in mcmc object and no other programs running but uses most of the memory on my 8 GB laptop
+gc(verbose = FALSE) # clears all of the temporary variables stored by ggs and cuts hanging memory more than in half.
+
+ggmcmc(ggs.ar1, file = 'localData/ggmcmc-B0.pdf', family = "B.0", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
+
+ggmcmc(ggs.ar1, file = 'localData/ggmcmc-mu-huc.pdf', family = "mu.huc", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
+
+ggmcmc(ggs.ar1, file = 'localData/ggmcmc-mu-year.pdf', family = "mu.year", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
+
+ggmcmc(ggs.ar1, file = 'localData/ggmcmc-mu-ar1.pdf', family = "mu.ar1", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
+
+ggmcmc(ggs.ar1, file = 'localData/ggmcmc-sigma-ar1.pdf', family = "sigma.ar1", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
+
+ggmcmc(ggs.ar1, file = 'localData/ggmcmc-sigma-site.pdf', family = "sigma.b.site", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
+
+ggmcmc(ggs.ar1, file = 'localData/ggmcmc-sigma-huc.pdf', family = "sigma.b.huc", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
+
+ggmcmc(ggs.ar1, file = 'localData/ggmcmc-sigma-year.pdf', family = "sigma.b.year", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
+
+ggmcmc(ggs.ar1, file = 'localData/ggmcmc-ar1-rho-huc.pdf', family = "rho.B.huc", plot = "ggs_traceplot")
+
+ggmcmc(ggs.ar1, file = 'localData/ggmcmc-ar1-B-ar1.pdf', family = "B.ar1", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
+
+gc(verbose = FALSE)
+
+```
+
+```{r means tables with rHat}
+
+intersectSeveral <- function(...) { Reduce(intersect, list(...)) } 
+
+# exclude the variables in the grep() statement
+# intersect works on pairs. the intersectSeveral function generates the intersection of multiple lists
+keepRows <- 
+  intersectSeveral(grep("B.site", x=ggs.ar1$Parameter,invert=TRUE),
+                   grep("B.huc", x=ggs.ar1$Parameter,invert=TRUE),
+                   grep("B.year", x=ggs.ar1$Parameter,invert=TRUE),
+                   grep("B.ar1", x=ggs.ar1$Parameter,invert=TRUE),
+                   grep("rho.B.huc", x=ggs.ar1$Parameter,invert=TRUE),
+                   grep("rho.B.year",x=ggs.ar1$Parameter,invert=TRUE)
+                  )
+
+rHat <- unique( ggs_Rhat(ggs.ar1[keepRows,])$data )
+
+ggmcmc(ggs.ar1[keepRows,], file = "localData/ggmcmc-ar1-Rhat", plot = c("ggs_caterpillar"))
+
+```
+
+## Check model fit
+
+```{r check model fit}
+#------ Check residual patterns------
+
+system.time(coef.summary <- avgCoefs(ggs.ar1)) # 15s
+#tempDataSyncS$resid.ar1 <- dplyr::filter(coef.summary, grepl('^residuals', coef.summary$Parameter))$mean
+
+gc(verbose = FALSE)
+
+B.fixed <- dplyr::filter(coef.summary, grepl('^B.0', coef.summary$Parameter))
+B.fixed$coef <- cov.list$fixed.ef
+
+mu.huc <- nameCoefs(coef.summary = coef.summary, rand.levels = levels(as.factor(tempDataSyncS$HUC8)), family = "mu.huc", name = "coef", conditional = FALSE, coefs = cov.list$site.ef)
+
+mu.year <- nameCoefs(coef.summary = coef.summary, rand.levels = levels(as.factor(tempDataSyncS$year)), family = "mu.year", name = "coef", conditional = FALSE, coefs = cov.list$year.ef)
+
+mu.ar1 <- dplyr::filter(coef.summary, grepl('^mu.ar1', coef.summary$Parameter))
+mu.ar1$coef <- mu.ar1$Parameter
+
+sigma.b.site <- nameCoefs(coef.summary = coef.summary, rand.levels = levels(as.factor(tempDataSyncS$site)), family = "sigma.b.site", conditional = FALSE, coefs = cov.list$site.ef, name = "coef")
+
+sigma.b.huc <- nameCoefs(coef.summary = coef.summary, rand.levels = levels(as.factor(tempDataSyncS$site)), family = "sigma.b.huc", conditional = FALSE, coefs = cov.list$site.ef, name = "coef")
+
+sigma.b.year <- nameCoefs(coef.summary = coef.summary, rand.levels = levels(as.factor(tempDataSyncS$year)), family = "sigma.b.year", conditional = FALSE, coefs = cov.list$year.ef, name = "coef")
+
+sigma.ar1 <- dplyr::filter(coef.summary, grepl('^sigma.ar1', coef.summary$Parameter))
+
+B.ar1 <- nameCoefs(coef.summary = coef.summary, rand.levels = levels(as.factor(tempDataSyncS$site)), family = 'B.ar1', name = "site")
+
+B.site <- nameCoefs(coef.summary = coef.summary, rand.levels = levels(as.factor(tempDataSyncS$site)), family = "B.site", coefs = cov.list$site.ef, name = "site")
+
+B.huc <- nameCoefs(coef.summary = coef.summary, rand.levels = levels(as.factor(tempDataSyncS$HUC8)), family = "B.huc", coefs = cov.list$site.ef, name = "huc")
+
+B.year <- nameCoefs(coef.summary = coef.summary, rand.levels = levels(as.factor(tempDataSyncS$year)), family = "B.year", coefs = cov.list$year.ef, name = "year")
+
+
+# Make correlation matrix of random huc effects
+cor.huc <- as.data.frame(matrix(NA, length(cov.list$site.ef), length(cov.list$site.ef)))
+names(cor.huc) <- cov.list$site.ef
+row.names(cor.huc) <- cov.list$site.ef
+for(k in 1:length(cov.list$site.ef)){
+  for(k.prime in 1:length(cov.list$site.ef)){
+    cor.huc[k, k.prime] <- coef.summary[which(coef.summary$Parameter == paste('rho.B.huc[',k,',',k.prime,']', sep="")), "mean"]
+  }
+}
+cor.huc <- round(cor.huc, digits=3)
+cor.huc[upper.tri(cor.huc, diag=TRUE)] <- ''
+cor.huc
+
+# Make correlation matrix of random year effects
+cor.year <- as.data.frame(matrix(NA, length(cov.list$year.ef), length(cov.list$year.ef)))
+names(cor.year) <- cov.list$year.ef
+row.names(cor.year) <- cov.list$year.ef
+for(l in 1:length(cov.list$year.ef)){
+  for(l.prime in 1:length(cov.list$year.ef)){
+    cor.year[l, l.prime] <- coef.summary[which(coef.summary$Parameter == paste('rho.B.year[',l,',',l.prime,']', sep="")), "mean"]
+  }
+}
+cor.year <- round(cor.year, digits=3)
+cor.year[upper.tri(cor.year, diag=TRUE)] <- ''
+cor.year
+
+
+fix.ef <- rbind(B.fixed, select(mu.huc, -index), select(mu.year, -index), mu.ar1)
+rand.ef <- rbind(select(sigma.b.site, -index), select(sigma.b.huc, -index), select(sigma.b.year, -index), mutate(sigma.ar1, coef = Parameter))
+
+mod.summary <- rbind(fix.ef, rand.ef)
+
+# table of parameter estimates for MS
+mod.summary <- left_join(mod.summary, rHat[,c('Parameter','Rhat')], by = "Parameter")
+
+
+coef.list <- list(fix.ef = fix.ef 
+                  ,rand.ef = rand.ef
+                  ,B.fixed = B.fixed
+                  , mu.huc = mu.huc
+                  , mu.year = mu.year
+                  , mu.ar1 = mu.ar1
+                  , sigma.site = sigma.b.site
+                  , sigma.huc = sigma.b.huc
+                  , sigma.year = sigma.b.year
+                  , sigma.ar1 = sigma.ar1
+                  , cor.huc = cor.huc
+                  , cor.year = cor.year
+                  , B.site = B.site
+                  , B.huc = B.huc
+                  , B.year = B.year
+                  , B.ar1 = B.ar1
+                  )
+
+save(coef.list, file = paste0(dataLocalDir, "coef.Rdata"))
+write.table(mod.summary, file = paste0(dataLocalDir, "modle_summary.csv"), sep = ",", row.names = F)
+
+```
+
+
+
+
+
+
+```{r figures}
+# Effects of Forest
+# Plot effect of catchment forest on occurrence prob at a typical HUC10 basin # Gelman p. 44
+eff.forest <- data.frame(Forest=seq(0,100,length.out=100))
+eff.forest$forest <- as.numeric(stdCovs(eff.forest, tempDataSync, varNames=c("Forest"))$Forest)
+
+fixEf <- modSummary@fixEf$Mean
+names(fixEf) <- row.names(modSummary@fixEf)
+UCI <- modSummary@fixEf$UCI
+names(UCI) <- row.names(modSummary@fixEf)
+LCI <- modSummary@fixEf$LCI
+names(LCI) <- row.names(modSummary@fixEf)
+
+eff.forest$mean <- fixEf["intercept"] + fixEf["forest"]*eff.forest$forest
+eff.forest$lower <- fixEf["intercept"] + LCI["forest"]*eff.forest$forest
+eff.forest$upper <- fixEf["intercept"] + UCI["forest"]*eff.forest$forest
+
+ggplot(eff.forest, aes(x = Forest, y = mean)) + 
+  geom_ribbon(data=eff.forest, aes(ymin = lower, ymax = upper), fill="grey") +
+  geom_line(colour = "black", size = 1) +
+  xlab("Percent forest cover upstream") +
+  ylab("Stream temperature (C)") +
+  theme_bw() + 
+  ylim(15, 25) +
+  theme(axis.text.y = element_text(size=15),
+        axis.text.x = element_text(size=15),
+        axis.title.x = element_text(size=17, face="bold"),
+        axis.title.y = element_text(size=17, angle=90, face="bold"),
+        plot.title = element_text(size=20))
+
+```
+
+Problem with above is that confidence intervals don't really represent CI for predicted temperature. Could bootstrap with the summary stats I have but that loses some of the value of MCMC iterations.
+
+Try to organize so that predictions can be done for each iteration. This could get big because it would be a prediction for each forest cover value for each iteration (~100 x ~1000-10000 depending how many iterations are saved). This would be done for each variable we want to show the effects of and each scenario we want to do predictions for.
+
+```{r}
+mat.ar1 <- unlist(as.matrix(M.ar1))
+
+# how to replace or keep track of the coefficient names (e.g. "B.0[1]", "B.Site[1,1]")
+n.iter <- dim(mat.ar1)[1]
+fix.eff <- data.frame(matrix(NA, n.iter, K.0 + K + L))
+names(fix.eff) <- c(names(data.fixed), names(data.random.sites), names(data.random.years))
+  for(k in 1:K.0){
+    fix.eff[ , k] <- mat.ar1[ , paste0('B.0[',k,']')]
+  }
+  for(k in 1:K){
+    fix.eff[ , k+K.0] <- mat.ar1[ , paste0('mu.huc[',k,']')]
+  }
+  for(l in 1:L){
+    fix.eff[ , l+K.0+K] <- mat.ar1[ , paste0('mu.year[',l,']')]
+  }
+str(fix.eff)
+head(fix.eff)
+
+```
+
+## the below works so now turn into a function
+
+```{r figures}
+# Effects of Forest
+# Plot effect of catchment forest on occurrence prob at an average site for a typical HUC8 basin # Gelman p. 44
+eff.forest <- data.frame(Forest=seq(0,100,length.out=100))
+eff.forest$forest <- as.numeric(stdCovs(eff.forest, tempDataSync, varNames=c("Forest"))$Forest)
+
+temp.forest <- matrix(NA, n.iter, dim(eff.forest)[1])
+for(i in 1:n.iter) {
+  temp.forest[i, ] <- fix.eff$intercept[i] + fix.eff$forest[i]*eff.forest$forest
+  }
+eff.forest$mean <- apply(temp.forest, MARGIN = 2, mean)
+eff.forest$lower <- apply(temp.forest, MARGIN = 2, quantile, probs = 0.025)
+eff.forest$upper <- apply(temp.forest, MARGIN = 2, quantile, probs = 0.975)
+
+ggplot(eff.forest, aes(x = Forest, y = mean)) + 
+  geom_ribbon(data=eff.forest, aes(ymin = lower, ymax = upper), fill="grey") +
+  geom_line(colour = "black", size = 1) +
+  xlab("Percent forest cover upstream") +
+  ylab("Stream temperature (C)") +
+  theme_bw() + 
+  ylim(15, 25) +
+  theme(axis.text.y = element_text(size=15),
+        axis.text.x = element_text(size=15),
+        axis.title.x = element_text(size=17, face="bold"),
+        axis.title.y = element_text(size=17, angle=90, face="bold"),
+        plot.title = element_text(size=20))
+
+```
+
+```{r figures}
+load("dataOut/tempDataSync-northeast.Rdata")
+load("dataOut/coef-northeast.Rdata")
+# Effects of Impoundments
+# Plot effect of catchment forest on occurrence prob at an average site for a typical HUC8 basin # Gelman p. 44
+eff.impound <- data.frame(ImpoundmentsAllSqKM = seq(min(tempDataSync$ImpoundmentsAllSqKM), 200, length.out=100))
+eff.impound$ImpoundmentsAllSqKM.s <- as.numeric(stdCovs(eff.impound, tempDataSync, var.names=c("ImpoundmentsAllSqKM"))$ImpoundmentsAllSqKM)
+
+stdCovs <- function(x, y, var.names){
+  for(i in 1:length(var.names)){
+    x[ , var.names[i]] <- (x[ , var.names[i]] - mean(y[[var.names[i]]], na.rm = T)) / sd(y[[var.names[i]]], na.rm = T)
+  }
+  return(x)
+}
+
+eff.impound$mean <- NA
+eff.impound$lower <- NA
+eff.impound$upper <- NA
+for(i in 1:length(eff.impound$ImpoundmentsAllSqKM)){
+eff.impound$mean[i] <- as.numeric(fix.ef[which(fix.ef$coef == "intercept"), "mean"] + fix.ef[which(fix.ef$coef == "ImpoundmentsAllSqKM"), "mean"] * eff.impound$ImpoundmentsAllSqKM.s[i])
+eff.impound$lower[i]  <- as.numeric(fix.ef[which(fix.ef$coef == "intercept"), "mean"] + fix.ef[which(fix.ef$coef == "ImpoundmentsAllSqKM"), "qLo"] * eff.impound$ImpoundmentsAllSqKM.s[i])
+eff.impound$upper[i]  <- as.numeric(fix.ef[which(fix.ef$coef == "intercept"), "mean"] + fix.ef[which(fix.ef$coef == "ImpoundmentsAllSqKM"), "qHi"] * eff.impound$ImpoundmentsAllSqKM.s[i])
+}
+
+ggplot(eff.impound, aes(x = ImpoundmentsAllSqKM, y = mean)) + 
+  geom_ribbon(data=eff.impound, aes(ymin = lower, ymax = upper), fill="grey") +
+  geom_line(colour = "black", size = 1) +
+  xlab("Upstream Impounded Area (sq km)") +
+  ylab("Stream temperature (C)") +
+  theme_bw() + 
+  ylim(15, 25) +
+  theme(axis.text.y = element_text(size=15),
+        axis.text.x = element_text(size=15),
+        axis.title.x = element_text(size=17, face="bold"),
+        axis.title.y = element_text(size=17, angle=90, face="bold"),
+        plot.title = element_text(size=20))
+
+
+
+```
+
+```{r figures}
+# Effects of Forest
+# Plot effect of catchment forest on occurrence prob at an average site for a typical HUC8 basin # Gelman p. 44
+eff.forest <- data.frame(airTemp=seq(-5, 30, length.out=100))
+eff.forest$airTempS <- as.numeric(stdCovs(eff.forest, tempDataSync, varNames=c("airTemp"))$airTemp)
+
+temp.forest <- matrix(NA, n.iter, dim(eff.forest)[1])
+for(i in 1:n.iter) {
+  temp.forest[i, ] <- fix.eff$intercept[i] + fix.eff$airTemp[i]*eff.forest$airTempS
+  }
+eff.forest$mean <- apply(temp.forest, MARGIN = 2, mean)
+eff.forest$lower <- apply(temp.forest, MARGIN = 2, quantile, probs = 0.025)
+eff.forest$upper <- apply(temp.forest, MARGIN = 2, quantile, probs = 0.975)
+
+ggplot(eff.forest, aes(x = airTemp, y = mean)) + 
+  geom_ribbon(data=eff.forest, aes(ymin = lower, ymax = upper), fill="grey") +
+  geom_line(colour = "black", size = 1) +
+  xlab("Percent forest cover upstream") +
+  ylab("Stream temperature (C)") +
+  theme_bw() + 
+  ylim(0, 25) +
+  theme(axis.text.y = element_text(size=15),
+        axis.text.x = element_text(size=15),
+        axis.title.x = element_text(size=17, face="bold"),
+        axis.title.y = element_text(size=17, angle=90, face="bold"),
+        plot.title = element_text(size=20))
+
+```
+
+
+

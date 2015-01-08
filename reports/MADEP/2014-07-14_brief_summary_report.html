@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+
+<title>Massachusetts Daily Stream Temperature Modeling</title>
+
+
+
+
+
+<style type="text/css">
+body, td {
+   font-family: sans-serif;
+   background-color: white;
+   font-size: 13px;
+}
+
+body {
+  max-width: 800px;
+  margin: auto;
+  padding: 1em;
+  line-height: 20px;
+}
+
+tt, code, pre {
+   font-family: 'DejaVu Sans Mono', 'Droid Sans Mono', 'Lucida Console', Consolas, Monaco, monospace;
+}
+
+h1 {
+   font-size:2.2em;
+}
+
+h2 {
+   font-size:1.8em;
+}
+
+h3 {
+   font-size:1.4em;
+}
+
+h4 {
+   font-size:1.0em;
+}
+
+h5 {
+   font-size:0.9em;
+}
+
+h6 {
+   font-size:0.8em;
+}
+
+a:visited {
+   color: rgb(50%, 0%, 50%);
+}
+
+pre, img {
+  max-width: 100%;
+}
+
+pre code {
+   display: block; padding: 0.5em;
+}
+
+code {
+  font-size: 92%;
+  border: 1px solid #ccc;
+}
+
+code[class] {
+  background-color: #F8F8F8;
+}
+
+table, td, th {
+  border: none;
+}
+
+blockquote {
+   color:#666666;
+   margin:0;
+   padding-left: 1em;
+   border-left: 0.5em #EEE solid;
+}
+
+hr {
+   height: 0px;
+   border-bottom: none;
+   border-top-width: thin;
+   border-top-style: dotted;
+   border-top-color: #999999;
+}
+
+@media print {
+   * {
+      background: transparent !important;
+      color: black !important;
+      filter:none !important;
+      -ms-filter: none !important;
+   }
+
+   body {
+      font-size:12pt;
+      max-width:100%;
+   }
+
+   a, a:visited {
+      text-decoration: underline;
+   }
+
+   hr {
+      visibility: hidden;
+      page-break-before: always;
+   }
+
+   pre, blockquote {
+      padding-right: 1em;
+      page-break-inside: avoid;
+   }
+
+   tr, img {
+      page-break-inside: avoid;
+   }
+
+   img {
+      max-width: 100% !important;
+   }
+
+   @page :left {
+      margin: 15mm 20mm 15mm 10mm;
+   }
+
+   @page :right {
+      margin: 15mm 10mm 15mm 20mm;
+   }
+
+   p, h2, h3 {
+      orphans: 3; widows: 3;
+   }
+
+   h2, h3 {
+      page-break-after: avoid;
+   }
+}
+</style>
+
+
+
+</head>
+
+<body>
+<h1>Massachusetts Daily Stream Temperature Modeling</h1>
+
+<p><center><strong>Daniel Hocking, Ben Letcher, Kyle O&#39;Neil</strong></center></p>
+
+<p><center><i>Silvio O. Conte Anadromous Fish Research Center, U.S. Geological Survey</i></center></p>
+
+<h3>Brief Summary Report: 14 July 2014</h3>
+
+<p>Our goal is to model daily stream temperature over large geographic areas as a function of air temperature, precipitation, and landscape characteristics. We used an index of air-water temperature synchrony to determine the part of the year where air temperature was directly affecting water temperature (i.e. minimal effects of ice-cover, phase change, and snow melt). We analyzed the synchronized period of each year at each site with a linear mixed effects model implemented in a Bayesian framework to be flexible and scaleable to large data sets. </p>
+
+<p>The model included air temperature, 1-day lagged air temperature, 2-day lagged air temperature, amount of precipitation that day and in each of the pervious two days (2 lags), drainage area, percent forest cover in the catchment, elevation of the stream reach, surficial coarseness of the catchment (how much sand, gravel, and rocks), percentage of the catchment that is comprised of wetland, area of stream impoundment, snow-water equivalent, latitude, longitude, and a cubic function of day of the year. We used year and each measurement site as random effects to account for correlation not explained by the other predictor variables and to adjust for unequal length time series at different sites and years. We modeled Massachusetts stream temperature data acquired from the MA Department of Environmental Protection, MA Division of Fisheries and Wildlife, and the U.S. Geological Survey.</p>
+
+<p>Our model performed well with a root mean squared error of 0.89 <sup>o</sup>C, suggesting a typical accuracy within 1 <sup>o</sup>C. We found air temperature, forest cover, elevation, impoundments, and day of the year to be the most important predictors of stream temperature. There was also more correlation within sites than within years.</p>
+
+<p>From this model, we will be able to predict daily stream temperature across time and space. This will allow us to calculate additional derived metrics of interest such as the average maximum summer temperature, number of days over a threshold temperature, frequency of thermally impaired days, resiliency to climate warming, etc. We can also compare the predicted stream temperatures for potential management actions (e.g. increased or decreased forest cover). The hierarchical mixed effects approach allows the incorporation of data from short monitoring periods and should provide accurate estimates even for sites that were monitored primarily during relatively extreme events (e.g. a once a decade heat wave). The model accuracy and generality will continue to improve as more data is incorporated. </p>
+
+<p>We are also investigating further enhancements to the model and incorporation of additional predictor variables. These include riparian forest cover, riparian impervious surfaces, distance to the nearest upstream dam, and various interactions among predictor variables.</p>
+
+<h3>Figures</h3>
+
+<p>Examples of observed (blue) and predicted (red) stream temperature compared with air temperature (black).</p>
+
+<h4>Well-predicted</h4>
+
+<p>Our model predicts daily stream temperature extremely well for most sites as seen below:</p>
+
+<p><br>
+<img src="/Users/Dan/Documents/Research/Stream_Climate_Change/temperatureProject/reports/MADEP/figures/MADEP_W0568_T1.png" height="375px" width="600px" /></p>
+
+<h4>Poorly Predicted</h4>
+
+<p>Our model predictions fail on a small number of sites as seen below. These are likely due to releases from impoundments where we do not have sufficient data to model the release timing and effects.</p>
+
+<p><br>
+<img src="/Users/Dan/Documents/Research/Stream_Climate_Change/temperatureProject/reports/MADEP/figures/MADEP_W0454_T1.png" height="375px" width="600px" /></p>
+
+<h3>Summary of Derived Metrics</h3>
+
+<p>From these models we can predict daily stream temperature for any stream reach where there is air temperature, precipitation, and landscape data. We are currently using Daymet <a href="http://daymet.ornl.gov/">http://daymet.ornl.gov/</a> as our source of daily climate data from 1980-2013. Below are examples of predictions (red) for some sites where some stream temperature data was collected (blue).</p>
+
+<p><img src="/Users/Dan/Documents/Research/Stream_Climate_Change/temperatureProject/reports/MADEP/figures/MADEP_W2157_T1.png"/ height="400px", width="600px"></p>
+
+<p><img src="/Users/Dan/Documents/Research/Stream_Climate_Change/temperatureProject/reports/MADEP/figures/MAUSGS_WB_JIMMY.png"/ height="400px", width="600px"></p>
+
+<p>From these predicted values across years, we calculate derived stream metrics including mean maximum stream temperature over years at a given site, max maximum stream temperature over years, mean number of days per year that the temperature is predicted to exceed 18 <sup>o</sup>C, the number of years from 1980 - 2013 that predicted maximum stream temperature exceeded 18 <sup>o</sup>C, the frequency of years that the max temperature exceeds 18 <sup>o</sup>C, and the average resistance to maximum air temperature change (likely indicator of groundwater inputs and resistance to climate change). We also calculate the average root mean squared error for each site and flag those with high values indicating that the predicted values do not match the observed values as well. These can then be checked for the influence of impoundments not accounted for in the model. Below is an example of derived metrics for some sites. A more complete list for currently processed data can be found in the accompanying excel file.</p>
+
+<p><img src="/Users/Dan/Documents/Research/Stream_Climate_Change/temperatureProject/reports/MADEP/figures/Table_Head.png"/></p>
+
+<p>Additionally, below are some figures depicting the derived metric <em>Resistance to Peak Air Temperature</em> (meanResist) for one site. The dark shaded area between the two lines is the representation of the resistance. For streams without significant groundwater inputs, during the hottest time of the year the area should be small (the red stream temperature line will closely follow the black air temperature line). In streams with more groundwater input, there will be a buffering (resistance) to changes in air temperature so this area will be larger. </p>
+
+<p><img src="/Users/Dan/Documents/Research/Stream_Climate_Change/temperatureProject/reports/MADEP/figures/WB_Resistance.png"/ height="400px", width="600px"></p>
+
+<p>Finally, we can calculate the effects of changing parameters in the model on stream temperature and these derived metrics. For example, we can calculate what the stream temperatures would be if forest cover was increased (or decreased) by 20%. We don&#39;t present those results here but they will be easy to add in the future.</p>
+
+</body>
+
+</html>

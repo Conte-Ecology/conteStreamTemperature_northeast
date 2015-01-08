@@ -1,0 +1,287 @@
+#Author:
+#  Kyle O'Neil
+#Created:
+#  6/20/2014
+#Last Updated:
+#  6/25/14
+#Language:
+#	 R
+#Description:
+#  This script pairs stream temperature sites with the covariate values based on NHDPlus catchment
+#  delineation. It also indexes timeseries climate data from Daymet and pairs it with the stream 
+#  temperature record.
+
+#  Currently the Daymet NetCDF files cover the years 1980-2013 and the spatial range of which is 
+#  VT, NH, MA, CT, RI, ME, and parts of NY.
+
+#  The primary input files are:
+#   1) The stream temperature record
+#   2) A catchments shapefile covering the contributing watersheds of this dataset
+#   3) A master list of delineated catchments for the area
+#   4) A master list of the local and upstream covariate values
+#========================================================================================================
+
+
+# Specify libraries and directories and define the projection of the spatial data:
+# ================================================================================
+``` {r Libraries and directories}
+rm(list=ls())
+
+library(sp)
+library(rgdal)
+library(rgeos)
+library(maptools)
+library(chron)
+library(ncdf)
+library(ggplot2)
+library(reshape2)
+library(gridExtra)
+
+# Base directory
+baseDir <- 'C:/KPONEIL/GitHub/projects/'
+
+# Daymet data directory
+daymetDir <- 'F:/KPONEIL/SourceData/climate/DAYMET/unzipped/Daily/'
+
+# Enter the data source agency abbreviation
+dataSource <- 'MEFWS'
+
+# Define the projection of the spatial data
+proj4.NHD  <- "+proj=longlat +ellps=GRS80 +datum=NAD83 +no_defs"
+
+```
+
+# Load the data required for data indexing:
+# =========================================
+```{r Load data}
+
+#Load the data indexing and plotting functions
+source(paste0(baseDir, 'temperatureProject/code/functions/dataIndexingFunctions.R'))
+source(paste0(baseDir, 'temperatureProject/code/functions/plottingFunctions.R'))
+
+# Catchments shapefile
+catchments <- readShapePoly ( "C:/KPONEIL/gis/nhdPlusV2/NENY_NHDCatchment.shp", proj4string=CRS(proj4.NHD))
+
+# Delineated catchments list (variable: NENYDelineatedCatchments)
+load(paste0(baseDir, 'temperatureProject/dataIn/delineatedCatchments/DelineatedCatchments_NHDPlus_NENY.RData'))
+
+# Stream temperature record (variable: masterData)
+load(paste0(baseDir, 'temperatureProject/dataIn/', dataSource, '/streamTempData_', dataSource, '.RData'))
+
+# Master covariate data (variables: LocalStats & UpstreamStats)
+load("C:/KPONEIL/GitHub/projects/temperatureProject/dataIn/NENY_CovariateData_2014-06-12.RData")
+
+```
+
+# Create a shapefile of the site locations:
+#==========================================
+```{r location file}
+
+# Name of the output shapefile
+outputName <- paste0(dataSource, 'sites')
+
+# Run the function that creates the SpatialPointsDataFrame
+sitesShapefile <- createSiteLocationsShapefile(masterData, proj4.NHD)
+
+# Set the output directory
+setwd('C:/KPONEIL/GitHub/projects/temperatureProject/maps/siteLocations')
+
+# Write out the shapefile
+writeOGR(sitesShapefile,  ".", layer = outputName, driver = "ESRI Shapefile")
+```
+
+# Index the covariates for the observed stream temperature sites:
+#================================================================
+# This function indexes values from the master list of covariates for observed stream temperature sites.
+# It takes the following:
+#    1) The stream temperature record (unique site ID, latitude, and longitude columns)
+#    2) A dataframe of the covariates for the catchments (FEATUREIDs source)
+#    3) A master catchments shapefile
+#    4) A CRS string of the spatial data projection
+#    5) A string of variables to pull from the covariates list
+# It returns a dataframe with the site name, lat/lon, FEATUREID, and the select covariate values.
+```{r Covariate data}
+
+# List the covariates to be indexed. (This can be changed to be comprehensive or to be dynamic.)
+fields <- c("FEATUREID", "ReachLengthKM", "Forest", "Herbacious", "Agriculture", "HerbaciousOrAgriculture", "Developed", "DevelopedNotOpen", 
+            "Wetland", "WetlandOrWater", "Water", "UndevelopedForest", "Impervious", "AnnualTmaxC", "AnnualTminC", "WinterPrcpMM", "AnnualPrcpMM", 
+            "AtmDepositionNO3", "AtmDepositionSO4", "BasinSlopeDEG", "DrainageClass", "HydrologicGroupA", "HydrologicGroupAB", "HydrologicGroupCD", 
+            "HydrologicGroupD4", "HydrologicGroupD1", "SurficialCoarseC", "PercentSandy", "TotDASqKM", "ReachElevationM", "BasinElevationM", 
+            "SummerPrcpMM", "ReachSlopePCNT", "BasinSlopePCNT", "JanPrcpMM", "FebPrcpMM", "MarPrcpMM", "AprPrcpMM", "MayPrcpMM", "JunPrcpMM", 
+            "JulPrcpMM", "AugPrcpMM", "SepPrcpMM", "OctPrcpMM", "NovPrcpMM", "DecPrcpMM", "CONUSOpenWater", "CONUSWetland", "TNC_DamCount", 
+            "ImpoundmentsOpenSqKM", "ImpoundmentsAllSqKM", "WetlandsOpenSqKM", "WetlandsAllSqKM", "PercentImpoundedOpen", "PercentImpoundedAll", 
+            "OffChannelOpenSqKM", "OffChannelAllSqKM", "StreamOrder", "HUC4", "HUC8", "HUC12")
+
+covariateData <- indexCovariateData(masterData, UpstreamStats, catchments, proj4.NHD, fields)
+
+```
+
+```{r Save the covariate data}
+save(covariateData, file = paste0('C:/KPONEIL/GitHub/projects/temperatureProject/dataIn/', dataSource, '/covariateData_', dataSource, '.RData'))
+```
+
+#============================================================================================================================
+# At this point the stream temperature sites need to be checked against catchments to make sure they were assigned to the correct one. This is necessary because of innaccuracies in the NHDPlus medium resolution delineation. A visual inspection should be performed comparing the site location (determined by lat/lon coords) to the catchment it was assigned. This can be accomplished by using mapping software (e.g. ArcGIS) to compare the stream name from the temperature metadata to the stream names in the NHDPlus flowline shapefiles. This will require knowledge of how NHDPlus works and is typically done in the followins steps:
+# 1) Visually check where the site falls on both the NHDPlus high resolution and medium resolution flowlines, keeping in mind that delineation is based on the medium res flowlines.
+# 2) If there is a conflict (e.g. the site is on a different reach in the high res than the medium res) then the catchment needs to be checked.
+# 3) If the site would be in a different catchment, based on the high resolution flowlines, then the catchment must be edited.
+# 4) The other case is if the site is on a tributary not on the medium res flowlines. In this case the site should get assigned to "local" catchment values.
+
+# A CSV is created to accompany this process and reassign FEATUREIDs. This spreadsheet exists in the "dataIn" directory of other datasets and is called "siteChanges_(agency)". It has the following format:
+
+##########################################################################################################
+#     streamName  agency      site      currentFeatureID    correctFeatureID   localCatchment     notes
+#    SOUTH RIVER  MADEP   MADEP_W0013         10294990                1              0      
+#    SOUTH RIVER  MADEP   MADEP_W0014         10294990                1              0      
+#   ROGERS BROOK  MADEP   MADEP_W0096          6745034                1              0      
+#      ELM BROOK  MADEP   MADEP_W0099          6747180                1              0      
+# GRAVELLY BROOK  MADEP   MADEP_W0124          5860641                1              0      
+#     FISH BROOK  MADEP   MADEP_W0128          5860427                1              0      
+###########################################################################################################
+
+# Some notes on the CSV file:
+# ---------------------------
+# A 1 = "yes" and a 0 = "no".
+# In the "correctFeatureID" column a 1 indicates to use the same featureID as before while any changes will be indicated by listing the new featureID. 
+# In the "localCatchment" column a 1 indicates to use the local values for the catchment while a 1 indicates to use the upstream values for the catchment.
+# In some cases there is also a column for cases of duplicate locations. 
+# The impoundment related data cannot be indexed for local stats because of how the original data is processed. For now these get NA values. This could potentially be changed to zero values if we assume there are no impoundments in small (single catchment) headwaters.
+#============================================================================================================================
+
+
+
+# Create the "siteChanges" CSV file template for the current agency: 
+# ==================================================================
+# This file will still need the stream name filled in as well as the changes from the visual inspection. Stream name is formatted differently for each dataset, so for now it is left blank in this script.
+
+```{r Create the "siteChanges" CSV}
+# Create the CSV format
+
+if( 'description' %in% names(masterData)){ 
+
+  descriptions <- unique(masterData[,c('site', 'description')])
+
+  setup <- merge(covariateData[,c('site', 'FEATUREID')], descriptions, by = 'site', all.x = T, all.y = F, sort = F)
+} else ( setup <- data.frame(covariateData[,c('site', 'FEATUREID')], description = NA) )
+
+siteChanges <- data.frame(streamName = setup$description, agency = dataSource, site = setup$site, currentFeatureID = setup$FeatureID, correctFEATUREID = NA, localCatchment = NA, notes = NA )
+
+# Define the file name
+siteChangesFile <-  paste0('C:/KPONEIL/GitHub/projects/temperatureProject/dataIn/', dataSource, '/siteChanges_', dataSource, '.csv')
+
+# If the file does not already exist, create it.
+if (!file.exists(siteChangesFile)){
+  write.csv(siteChanges, file = siteChangesFile, row.names = F)
+} else(print("File already exists!"))
+```
+
+# Once the sites have been checked against NHDPlus catchments, run the code that corrects the covariates:
+# =======================================================================================================
+# This function corrects the covariate data file after the site locations have been manually checked.
+# It takes the following:
+#    1) The original covariate data file
+#    2) The "siteChanges" CSV file
+#    3) The master dataframes of both local and upstream covariate statistics
+#    4) A list of layers that get NAs assigned for local catchment values. (This will hopefully change with an updated layer)
+# It returns the same covariate dataframe with corrected values and a column indicating whether or not values
+#   for that site changed.
+```{r edit covariateData}
+# Save a back-up the file. (This can be deleted later)
+save(covariateData, file = paste0('C:/KPONEIL/GitHub/projects/temperatureProject/dataIn/', dataSource,'/covariateData_', dataSource, '_ORIGINAL.RData'))
+  
+siteChanges <- read.csv(paste0('C:/KPONEIL/GitHub/projects/temperatureProject/dataIn/', dataSource, '/siteChanges_', dataSource, '.csv'))
+
+# List the impoundments layers. Right now, the catchments that get assigned local values get NAs for these layers (because of how they are calculated in GIS they are only applicable to upstream statistics).
+impoundmentLayers <- c('ImpoundmentsOpenSqKM', 'OffChannelOpenSqKM', 'WetlandsOpenSqKM', 'ImpoundmentsAllSqKM', 'OffChannelAllSqKM', 'WetlandsAllSqKM', 'PercentImpoundedOpen', 'PercentImpoundedAll')
+
+covariateData <- correctCovariateData(covariateData, siteChanges, LocalStats, UpstreamStats, impoundmentLayers)
+
+```
+
+# Over-write the existing existing covariate data and delete the backup if you're confident in the new values:
+# ============================================================================================================
+```{r Save the covariate data}
+save(covariateData, file = paste0('C:/KPONEIL/GitHub/projects/temperatureProject/dataIn/', dataSource, '/covariateData_', dataSource, '.RData'))
+```
+
+# Index the local Daymet variables for the observed stream temperature sites:
+# ===========================================================================
+# This function pulls the Daymet variables for a time series at one location nearest to the site location.
+# It takes the stream temperature record and the string of variables to pull from Daymet.
+#     At minimum, the record needs a "site", "Latitude", "Longitude", "year", and "dOY" columns.
+# It returns the original dataframe with new columns for the Daymet variables.
+```{r Local Daymet}
+
+# List the Daymet variables to index
+localVariables <- c("dayl", "srad", "swe", "tmax", "tmin", "vp")
+
+# Run the function that indexes the Daymet data
+newLocal <- indexLocalDaymetVariablesForObservedSites(masterData, localVariables, daymetDir)
+
+# Rename 'tmin' and 'tmax' to avoid confusion
+names(newLocal)[names(newLocal) == 'tmax'] <- 'maxAirTemp'
+names(newLocal)[names(newLocal) == 'tmin'] <- 'minAirTemp'
+
+# Check the amount of NAs
+length(which(is.na(newLocal)))/length(which(!is.na(newLocal)))*100
+```
+
+```{r Save the Local Daymet}
+masterData <- newLocal[order(newLocal$site,newLocal$year,newLocal$dOY),]
+save(masterData, file = paste0('C:/KPONEIL/GitHub/projects/temperatureProject/dataIn/', dataSource, '/observedStreamTempAndClimateData_', dataSource, '_NeedPrcp.RData'))
+```
+
+
+# Plot the raw stream temperature data with air temperature:
+# ==========================================================
+# This section creates plots of raw stream temperature data.
+# It takes the following:
+#    1) The stream temperature record (unique site ID, date, stream temperature, and air temperature columns)
+#    2) The directory to save the plots to (graphsDir)
+# It returns a PNG file with plots of air and water plotted against each other and over time.
+```{r Plot raw data}
+
+# Define the raw data plot folder
+rawPlotsDir <- paste0(baseDir, 'temperatureProject/graphs/rawData/', dataSource, '/')
+
+# If the folder does not exist, then create it
+if (!file.exists(rawPlotsDir)){
+  dir.create(file.path(paste0(rawPlotsDir)))
+}
+  
+# Run the function that loops through all of the sites creating plots for each
+plotRawTemperatureData(masterData, rawPlotsDir)
+```
+
+
+# Index the upstream Daymet variables for the observed stream temperature sites:
+# ===========================================================================
+# This function calculates the spatial average of the Daymet variables within a watershed.
+# It takes the following:
+#    1) The stream temperature record (Site names, latitude, longitude, year, and dOY columns)
+#    2) A string of variables to pull from Daymet
+#    3) A list of daymet tiles covered by the watersheds
+#    4) A master catchments shapefile
+#    5) A dataframe of the covariates for the catchments (FEATUREIDs source)
+#    6) A list of catchment delineations for the region
+# It returns the original dataframe with new columns for the Daymet variables.
+```{r Index the upstream Daymet variables for the observed sites}
+
+# Load the covariate data for the featureIDs
+load(paste0(baseDir, 'temperatureProject/dataIn/', dataSource, '/covariateData_', dataSource, '.RData'))
+
+# Daymet variables you want
+upstreamVariables <- c('prcp')
+
+# List the Daymet tiles that the watersheds may fall in
+daymetTiles <- c(11754, 11755, 11756, 11934, 11935, 11936, 12114, 12115, 12116, 12117, 12295, 12296, 12297)
+
+# Run the function that indexes the Daymet data and returns a spatial average
+newUpstream <- indexUpstreamDaymetVariablesForObservedSites(masterData, upstreamVariables, daymetTiles, catchments, covariateData, NENYDelineatedCatchments, daymetDir)
+```
+
+
+```{r Save the dataframe}
+masterData <- newUpstream
+save(masterData, file = paste0('C:/KPONEIL/GitHub/projects/temperatureProject/dataIn/', dataSource, '/observedStreamTempAndClimateData_', dataSource, '.RData'))
+```

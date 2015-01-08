@@ -1,0 +1,99 @@
+---
+title: "6-model-validation"
+author: "Daniel Hocking"
+date: "August 28, 2014"
+output: html_document
+---
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(reshape2)
+library(devtools)
+install_github("Conte-Ecology/conteStreamTemperature")
+library(conteStreamTemperature)
+library(rjags)
+# need to load data.fixed, data.random.sites, data.random.years
+
+baseDir <- getwd() # works as long as you have the project loaded in RStudio - does not work for kniting
+
+dataInDir <- paste0(baseDir, '/dataIn/')
+dataOutDir <- paste0(baseDir, '/dataOut/')
+dataLocalDir <- paste0(baseDir, '/localData/')
+graphsDir <- paste0(baseDir, '/graphs/')
+
+load(paste0(dataLocalDir, 'tempDataSync.RData'))
+load(file = paste0(dataLocalDir, "covariate_list.RData"))
+load(file = paste0(dataLocalDir, "coef.Rdata"))
+
+```
+
+
+```{r predict}
+tempDataSyncS <- predictTemp(data = tempDataSyncS, coef.list = coef.list, cov.list = cov.list)
+
+tempDataSyncValidS <- predictTemp(data = tempDataSyncValidS, coef.list = coef.list, cov.list = cov.list)
+
+
+library(ggplot2)
+ggplot(tempDataSyncValidS, aes(temp, tempPredicted)) + geom_point() + geom_abline(aes(1,1), colour = 'blue')
+tempDataSyncValidS$resid.r <- tempDataSyncValidS$temp - tempDataSyncValidS$tempPredicted
+rmse(tempDataSyncValidS$resid.r)
+
+
+library(ggplot2)
+ggplot(tempDataSyncS, aes(temp, tempPredicted)) + geom_point() + geom_abline(aes(1,1), colour = 'blue')
+
+tempDataSyncS$resid.r <- tempDataSyncS$temp - tempDataSyncS$tempPredicted
+tempDataSyncValidS$resid.r <- tempDataSyncValidS$temp - tempDataSyncValidS$tempPredicted
+
+rmse.fit <- rmse(tempDataSyncS$resid.r)
+rmse.valid <- rmse(tempDataSyncValidS$resid.r)
+
+rmse.table <- data.frame(rbind(rmse.fit, rmse.valid))
+colnames(rmse.table) <- "rmse"
+
+save(rmse.table, paste0(dataLocalDir, "rmse_table.RData"))
+
+```
+
+```{r residuals}
+
+# Observed vs Residuals
+g <- ggplot(data.frame(tempDataSyncS), aes(temp, resid.r)) 
+#g + geom_point(alpha = 0.3) + geom_smooth() + theme_bw()
+
+library(hexbin)
+g + stat_binhex(bins = 100) + geom_smooth() + theme_bw()
+
+g + geom_point() + geom_density2d() + geom_smooth() + theme_bw()
+
+# Residuals by random HUC8
+b <- ggplot(tempDataSyncS, aes(x = HUC8, y = resid.r))
+b + geom_boxplot() + coord_flip()
+
+# Residuals by random site within HUC8
+b <- ggplot(tempDataSyncS, aes(x = site, y = resid.r))
+b + geom_boxplot() + coord_flip()
+
+# Residuals by random year
+ggplot(tempDataSyncS, aes(x = as.factor(year), y = resid.r)) + geom_boxplot() + coord_flip()
+
+# Residuals by covariates
+ggplot(tempDataSyncS, aes(Forest, resid.r)) + geom_point(alpha = 0.5) + geom_smooth() + theme_bw()
+
+ggplot(tempDataSyncS, aes(airTemp, resid.r)) + geom_point(alpha = 0.5) + geom_smooth() + theme_bw()
+
+ggplot(tempDataSyncS, aes(dOY, resid.r)) + geom_point(alpha = 0.5) + geom_smooth() + theme_bw()
+
+ggplot(tempDataSyncS, aes(dOY^2, resid.r)) + geom_point(alpha = 0.5) + geom_smooth() + theme_bw()
+
+# Check Autocorrelation of residuals
+# correlation in MCMC
+acf(ar1.mat[ , "residuals[1]"], lag.max = 40, xlab = "Lag", ylab = "Correlation", main = "")
+acf(ar1.mat[ , "residuals[2]"], lag.max = 40, xlab = "Lag", ylab = "Correlation", main = "")
+
+# correlation in residuals over time 
+acf(tempDataSyncS$resid.r, lag.max = 100, xlab = "Lag", ylab = "Correlation", main = "", na.action = na.omit) # not perfect but better than for non-AR model
+
+```

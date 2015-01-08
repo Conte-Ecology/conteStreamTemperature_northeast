@@ -1,0 +1,164 @@
+
+
+Note: run 2-calcSpringFallBP before running this script
+
+```{r load libs}
+rm(list=ls())
+gc()
+
+library(ggplot2)
+library(ggmcmc) # load before dplyr so later plyr doesn't override dplyr
+library(dplyr)
+library(DataCombine) # for the slide function
+#library(nlme)
+library(devtools)
+install_github("Conte-Ecology/conteStreamTemperature")
+library(conteStreamTemperature)
+
+
+baseDir <- getwd()
+
+dataInDir <- paste0(baseDir, '/dataIn/')
+dataOutDir <- paste0(baseDir, '/dataOut/')
+dataLocalDir <- paste0(baseDir, '/localData/')
+graphsDir <- paste0(baseDir, '/graphs/')
+
+load(paste0(dataLocalDir, 'springFallBreakpoints.RData'))
+
+# r Choose data source
+
+#Northeast
+CTDEP  <- F
+MAFW   <- T
+MAUSGS <- T
+MADEP  <- T 
+NHFG   <- F
+NHDES  <- F
+USFS   <- F
+VTFWS  <- F
+MEDMR  <- F
+
+#Montana
+MTUSGSYellowstone <- F
+MTUSGSGlacier <- F
+
+sourceChoice <- list( CTDEP,   MAFW,   MAUSGS, MADEP,   NHFG,   NHDES,   MEDMR,   USFS,   VTFWS,    MTUSGSYellowstone,   MTUSGSGlacier)
+sourceNames  <- c   ('CTDEP', 'MAFW', 'MAUSGS', 'MADEP', 'NHFG', 'NHDES', 'MEDMR', 'USFS', 'VTFWS',  'MTUSGSYellowstone', 'MTUSGSGlacier')
+
+dataSource <- sourceNames[sourceChoice == T]
+
+fields <- c("agency", "date", "AgencyID", "year", "site", "date", "dOY", "temp", "airTemp", "prcp", "srad", "dayl", "swe")
+
+
+var.names <- c("Latitude", "Longitude", "airTemp", "airTempLagged1", "airTempLagged2", "prcp", "prcpLagged1", "prcpLagged2", "prcpLagged3", "dOY", "Forest", "Herbacious", "Agriculture", "Developed", "TotDASqKM", "ReachElevationM", "ImpoundmentsAllSqKM", "HydrologicGroupAB", "SurficialCoarseC", "CONUSWetland", "ReachSlopePCNT", "srad", "dayl", "swe") # continuous covariates to be standardized
+
+validate <- TRUE
+validateFrac <- 0.2
+filter.area <- NULL
+
+covariateData <- readStreamTempData(timeSeries=TRUE, covariates=TRUE, dataSourceList=dataSource, fieldListTS=fields, fieldListCD='ALL', directory=dataInDir)
+
+springFallBPs$site <- as.character(springFallBPs$site)
+
+# Join with break points
+tempDataBP <- left_join(covariateData, springFallBPs, by=c('site', 'year'))
+
+# Clip to syncronized season
+tempDataSync <- dplyr::filter(tempDataBP, dOY >= finalSpringBP & dOY <= finalFallBP)
+
+rm(covariateData) # save some memory
+
+# Order by group and date
+tempDataSync <- tempDataSync[order(tempDataSync$site,tempDataSync$year,tempDataSync$dOY),]
+
+# For checking the order of tempDataSync
+tempDataSync$count <- 1:length(tempDataSync$year)
+
+tempDataSync <- tempDataSync[order(tempDataSync$count),] # just to make sure tempDataSync is ordered for the slide function
+
+# airTemp
+tempDataSync <- slide(tempDataSync, Var = "airTemp", GroupVar = "site", slideBy = -1, NewVar='airTempLagged1')
+tempDataSync <- slide(tempDataSync, Var = "airTemp", GroupVar = "site", slideBy = -2, NewVar='airTempLagged2')
+
+# prcp
+tempDataSync <- slide(tempDataSync, Var = "prcp", GroupVar = "site", slideBy = -1, NewVar='prcpLagged1')
+tempDataSync <- slide(tempDataSync, Var = "prcp", GroupVar = "site", slideBy = -2, NewVar='prcpLagged2')
+tempDataSync <- slide(tempDataSync, Var = "prcp", GroupVar = "site", slideBy = -3, NewVar='prcpLagged3')
+
+
+tempDataSync <- tempDataSync[ , c("agency", "date", "AgencyID", "year", "site", "date", "finalSpringBP", "finalFallBP", "FEATUREID", "HUC4", "HUC8", "HUC12", "temp", "Latitude", "Longitude", "airTemp", "airTempLagged1", "airTempLagged2", "prcp", "prcpLagged1", "prcpLagged2", "prcpLagged3", "dOY", "Forest", "Herbacious", "Agriculture", "Developed", "TotDASqKM", "ReachElevationM", "ImpoundmentsAllSqKM", "HydrologicGroupAB", "SurficialCoarseC", "CONUSWetland", "ReachSlopePCNT", "srad", "dayl", "swe")] #  
+
+if(class(filter.area) == "numeric") tempDataSync <- filter(tempDataSync, filter = TotDASqKM <= filter.area)
+
+tempDataSync <- na.omit(tempDataSync) ####### Needed to take out first few days that get NA in the lagged terms. Change this so don't take out NA in stream temperature?
+
+tempDataSync <- mutate(tempDataSync, huc = HUC8)
+
+### Separate data for fitting (training) and validation
+
+#If validating:
+if(validate) {
+  n.fit <- floor(length(unique(tempDataSync$site)) * (1 - validateFrac))
+  
+  set.seed(2346)
+  site.fit <- sample(unique(tempDataSync$site), n.fit, replace = FALSE) # select sites to hold back for testing 
+  tempDataSyncValid <- subset(tempDataSync, !site %in% site.fit) # data for validation
+  tempDataSync <- subset(tempDataSync, site %in% site.fit)    # data for model fitting (calibration)
+  
+  tempDataSyncValidS <- stdCovs(x = tempDataSyncValid, y = tempDataSync, var.names = var.names)
+  
+  tempDataSyncValidS <- indexDeployments(tempDataSyncValidS, regional = TRUE)
+  firstObsRowsValid <- createFirstRows(tempDataSyncValidS)
+  evalRowsValid <-createEvalRows(tempDataSyncValidS)
+  
+  } else {
+    tempDataSyncValid <- NULL
+    }
+
+# Standardize for Analysis
+
+tempDataSyncS <- stdFitCovs(x = tempDataSync, var.names = var.names)
+
+tempDataSyncS <- addInteractions(tempDataSyncS)
+
+tempDataSyncS <- indexDeployments(tempDataSyncS, regional = TRUE)
+firstObsRows <- createFirstRows(tempDataSyncS)
+evalRows <- createEvalRows(tempDataSyncS)
+
+if(validate) {
+  
+  tempDataSyncValidS <- addInteractions(tempDataSyncValidS)
+  firstObsRowsValid <- createFirstRows(tempDataSyncValidS)
+  evalRowsValid <- createEvalRows(tempDataSyncValidS)
+  
+  save(tempDataSync, tempDataSyncS, tempDataSyncValid, tempDataSyncValidS, firstObsRows, evalRows, firstObsRowsValid, evalRowsValid, file = paste0(dataLocalDir, "tempDataSync.RData"))
+  } else {
+    save(tempDataSync, tempDataSyncS, firstObsRows, evalRows, file = paste0(dataLocalDir, "tempDataSync.RData"))
+    }
+
+```
+
+
+Left out to save time:
+# problem is what to do with the first 5 days of each deployment so we don't lose that data. Could do this for all the weather data then merge into the analysis data
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+# 5-day mean of prcp 
+siteYearCombos <- unique(tempDataSync[,c('site','year')])
+
+tempDataSync$prcp5Day <- NA
+
+window <- 5
+for (i in 1:nrow(siteYearCombos)){
+
+  print(c(i,as.character(siteYearCombos$site[i]),siteYearCombos$year[i],i/nrow(siteYearCombos)))
+  
+  currSite <- which(tempDataSync$site == as.character(siteYearCombos$site[i]) & tempDataSync$year == siteYearCombos$year[i] )
+
+  #Need this so sites with very short records don't crash the loop.
+  if(length(currSite) >= window){currMean <-  zoo::rollapply(tempDataSync$prcp[currSite], width=window, fill=NA, mean, align = 'left')} else(currMean <- NA)
+  
+  tempDataSync$prcp5Day[currSite] <- currMean
+}
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+
