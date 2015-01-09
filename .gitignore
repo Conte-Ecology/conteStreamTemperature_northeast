@@ -8,7 +8,6 @@ modelPredictionTimeseries/
 .RData
 *.jpg
 *.jpeg
-*.pdf
 *.tiff
 *.tif
 *.eps
