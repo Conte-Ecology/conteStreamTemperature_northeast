@@ -20,7 +20,7 @@ if (file.exists(output_file1)) {
 }
 
 output_file2 <- args[2]
-if (file.exists(output_file1)) {
+if (file.exists(output_file2)) {
   warning(paste0('Output file already exists, overwriting: ', output_file2))
 }
 

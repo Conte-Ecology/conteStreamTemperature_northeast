@@ -17,7 +17,7 @@ library(conteStreamTemperature)
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
 temperatureData_file <- args[1]
-if (!file.exists(masterData_file)) {
+if (!file.exists(temperatureData_file)) {
   stop(paste0('Could not find temperatureData binary file: ', temperatureData_file))
 }
 temperatureData <- readRDS(temperatureData_file)
