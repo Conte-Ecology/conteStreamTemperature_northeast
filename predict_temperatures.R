@@ -8,6 +8,7 @@ library(jsonlite)
 library(ggplot2)
 library(reshape2)
 library(dplyr)
+library(tidyr)
 library(DataCombine) # for the slide function
 library(RPostgreSQL)
 library(devtools)
@@ -37,7 +38,6 @@ graphsDir <- paste0(baseDir, '/graphs/')
 
 #load((paste0(dataOutDir, 'modSummary.RData')))
 load(paste0(dataLocalDir, 'coef.RData'))
-load(paste0(dataLocalDir, 'daymetFullRecordObservedMASites.RData'))
 load(paste0(dataLocalDir, 'tempDataSync.RData'))
 load(paste0(dataLocalDir, 'covariate_list.RData'))
 load(paste0(dataLocalDir, 'springFallBreakpoints.RData'))
@@ -83,25 +83,46 @@ catchments <- as.character(catchments$featureid)
 
 # get daymet data for a subset of catchments
 
-retreiveDaymet <- function(catchmentid) {
-  # connect to database source
-  db <- src_postgres(dbname='conte_dev', host='127.0.0.1', port='5432', user='conte', password='conte')
-
-  # db <- src_postgres(dbname='conte_dev', host='felek.cns.umass.edu', port='5432', user='conte', password='conte')
-
+#retreiveDaymet <- function(catchmentid) { # make into a function
   n.catches <- length(catchmentid)
-  if(n.catches == 1) {
-    tbl_daymet <- tbl(db, 'daymet') %>%
-      dplyr::filter(featureid == catchmentid) %>%
-      dplyr::mutate(airTemp = (tmax + tmin)/2) %>%
-      dplyr::rename(site = featureid)
-  } else {
-    tbl_daymet <- tbl(db, 'daymet') %>%
-      dplyr::filter(featureid %in% catchmentid) %>%
-      dplyr::mutate(airTemp = (tmax + tmin)/2) %>%
-      dplyr::rename(site = featureid)
-  }
+  #if(n.catches == 1) {
+  #  tbl_daymet <- tbl(db, 'daymet') %>%
+  #    dplyr::filter(featureid == catchmentid) %>%
+  #    dplyr::mutate(airTemp = (tmax + tmin)/2) %>%
+  #} else {
+  #  tbl_daymet <- tbl(db, 'daymet') %>%
+  #    dplyr::filter(featureid %in% catchmentid) %>%
+  #    dplyr::mutate(airTemp = (tmax + tmin)/2) %>%
+  #}
+
+# Get HUC8
+# pass the db$con from dplyr as the connection to RPostgreSQL::dbSendQuery
+rs <- dbSendQuery(db$con, "SELECT c.featureid as featureid, w.huc8 as huc8
+FROM catchments c
+JOIN wbdhu8 w
+ON ST_Contains(w.geom, ST_Centroid(c.geom));")
+
+# fetch results
+featureid_huc8 <- fetch(rs, n=-1)
+
+
+  # size of chunks
+  chunk.size <- 10
+  n.loops <- ceiling(n.catches / chunk.size)
+  j = 0
+  for(i in 1:n.loops) {
+    j <- j + 1
+    k <- j*chunk.size
+    if(k <= n.catches) {
+      catches <- catchmentid[(1+(j-1)*chunk.size):k]
+    } else {
+      catches <- catchmentid[(1+(j-1)*chunk.size):n.catches]
+    }
+  # connect to database source
+  #db <- src_postgres(dbname='conte_dev', host='127.0.0.1', port='5432', user='conte', password='conte')
+   db <- src_postgres(dbname='conte_dev', host='felek.cns.umass.edu', port='5432', user='conte', password='conte')
   
+  ######### Temporary to use with old model runs ################
   # create a query that lists all locations and creates 'site' column
   qry_locations <- tbl(db, 'locations') %>%
     rename(location_id=id, location_name=name, featureid=catchment_id) %>%
@@ -115,16 +136,33 @@ retreiveDaymet <- function(catchmentid) {
   # check that all sites are unique
   stopifnot(sum(duplicated(collect(qry_locations)$site))==0)
   
-  # number of duplicated featureids > 0 (this is ok)
-  sum(duplicated(collect(qry_locations)$featureid))
   
   # left join qry_locations to daymet to get daymet timeseries for each unique site
   qry_daymet <- tbl(db, 'daymet') %>%
     left_join(select(qry_locations, site, featureid), by='featureid') %>%
-    filter(featureid %in% catchmentid) %>%
-    mutate(airTemp = (tmax + tmin)/2)
+    filter(featureid %in% catches) %>%
+    mutate(airTemp = (tmax + tmin)/2) %>%
+    left_join(climateData, select(covariateData, -Latitude, -Longitude), by=c('site'))
   
-df_daymet <- collect(qry_daymet)
+climateData <- collect(qry_daymet)
+
+# covariates
+#catches <- catchmentid[sample(1:length(catchmentid), 10000)]
+qry_covariates <- tbl(db, 'covariates') %>%
+  filter(featureid %in% catches)
+
+df_covariates_long <- collect(qry_covariates)
+
+df_covariates_wide <- tidyr::spread(df_covariates_long, variable, value)
+
+# which zone? upstream or downstream?
+df_covariates_upstream <- filter(df_covariates_wide, zone=="upstream")
+
+# check for NA
+summary(df_covariates_upstream)
+
+
+#masterdata <- left_join(tbl_daymet, df_covariates_upstream, by=c('featureid', 'site'))
   
 springFallBPs$site <- as.character(springFallBPs$site)
 
@@ -132,25 +170,28 @@ springFallBPs$site <- as.character(springFallBPs$site)
 # Join with break points
 # covariateDataBP <- left_join(covariateData, springFallBPs, by=c('site', 'year'))
 # rm(covariateData)
+mean.spring.bp <- mean(springFallBPs$finalSpringBP, na.rm = T)
+mean.fall.bp <- mean(springFallBPs$finalFallBP, na.rm = T)
 
-# temp hack
-observedData$site <- as.character(observedData$site)
-tempData <- left_join(climateData, select(covariateData, -Latitude, -Longitude), by=c('site'))
-tempData <- left_join(tempData, dplyr::select(.data = observedData, agency, date, AgencyID, site, temp), by = c("site", "date"))
-tempDataBP <- left_join(tempData, springFallBPs, by=c('site', 'year'))
 
-# Clip to syncronized season
-# tempFullSync <- filter(tempDataBP, dOY >= finalSpringBP & dOY <= finalFallBP)
-
-# temp hack - eventually need to adjust Kyle's code to substitute huc or other mean breakpoint in when NA
-fullDataSync <- tempDataBP %>%
+fullDataSync <- climateData %>%
+  left_join(df_covariates_upstream, by=c('featureid')) %>%
+  left_join(select(tempDataSync, date, site, temp), by = c('date', 'site')) %>%
+  left_join(featureid_huc8, by = c('featureid')) %>%
+  mutate(year = as.POSIXlt(date)$year) %>%
+  left_join(springFallBPs, by = c('site', 'year')) %>%
+  mutate(dOY = strptime(date, "%Y-%m-%d")$yday+1) %>%
+  rename(huc = huc8) %>%
   filter(dOY >= finalSpringBP & dOY <= finalFallBP | is.na(finalSpringBP) | is.na(finalFallBP)) %>%
-  filter(dOY >= mean(finalSpringBP, na.rm = T) & dOY <= mean(finalFallBP, na.rm = T))
+  filter(dOY >= mean.spring.bp & dOY <= mean.fall.bp)
 
-rm(climateData) # save some memory
-##################
-
-rm(covariateData) # save some memory
+# make match the old variable names
+fullDataSync <- fullDataSync %>%
+  rename(Forest = forest,
+         ReachElevationM = elev_nalcc,
+         SuficialCoarseC = surfcoarse,
+         TotDASqKM = AreaSqKM) %>%
+  mutate(ImpoundmentsAllSqKM = allonnet*TotDASqKM)
 
 # Order by group and date
 fullDataSync <- fullDataSync[order(fullDataSync$site,fullDataSync$year,fullDataSync$dOY),]
@@ -169,7 +210,7 @@ fullDataSync <- slide(fullDataSync, Var = "prcp", GroupVar = "site", slideBy = -
 fullDataSync <- slide(fullDataSync, Var = "prcp", GroupVar = "site", slideBy = -2, NewVar='prcpLagged2')
 fullDataSync <- slide(fullDataSync, Var = "prcp", GroupVar = "site", slideBy = -3, NewVar='prcpLagged3')
 
-fullDataSync <- fullDataSync[ , c("agency", "date", "AgencyID", "year", "site", "date", "finalSpringBP", "finalFallBP", "FEATUREID", "HUC4", "HUC8", "HUC12", "temp", "Latitude", "Longitude", "airTemp", "airTempLagged1", "airTempLagged2", "prcp", "prcpLagged1", "prcpLagged2", "prcpLagged3", "dOY", "Forest", "Herbacious", "Agriculture", "Developed", "TotDASqKM", "ReachElevationM", "ImpoundmentsAllSqKM", "HydrologicGroupAB", "SurficialCoarseC", "CONUSWetland", "ReachSlopePCNT", "srad", "dayl", "swe")] #  
+#fullDataSync <- fullDataSync[ , c("agency", "date", "AgencyID", "year", "site", "date", "finalSpringBP", "finalFallBP", "FEATUREID", "HUC4", "HUC8", "HUC12", "temp", "Latitude", "Longitude", "airTemp", "airTempLagged1", "airTempLagged2", "prcp", "prcpLagged1", "prcpLagged2", "prcpLagged3", "dOY", "Forest", "Herbacious", "Agriculture", "Developed", "TotDASqKM", "ReachElevationM", "ImpoundmentsAllSqKM", "HydrologicGroupAB", "SurficialCoarseC", "CONUSWetland", "ReachSlopePCNT", "srad", "dayl", "swe")] #  
 
 
 #if(class(filter.area) == "numeric") fullDataSync <- filter(fullDataSync, filter = TotDASqKM <= filter.area)
@@ -178,7 +219,8 @@ fullDataSync <- fullDataSync[ , c("agency", "date", "AgencyID", "year", "site", 
 
 
 # Standardize for Analysis
-
+var.names <- var.names[var.names %!in% c("Developed", "Herbacious", "Agriculture", "HydrologicGroupAB", "CONUSWetland", "ReachSlopePCNT")]
+  
 fullDataSyncS <- stdCovs(x = fullDataSync, y = tempDataSync, var.names = var.names)
 
 fullDataSyncS <- addInteractions(fullDataSyncS)
@@ -188,12 +230,12 @@ fullDataSyncS <- indexDeployments(fullDataSyncS, regional = TRUE)
 #evalRowsFull <- createEvalRows(fullDataSyncS)
 
 
-save(fullDataSync, fullDataSyncS, file = paste0(dataLocalDir, "fullDataSync.RData"))
+#save(fullDataSync, fullDataSyncS, file = paste0(dataLocalDir, "fullDataSync.RData"))
 
 
 #load(paste0(dataOutDir, "tempDataSync-daymet.Rdata"))
 
-fullDataSyncS <- mutate(fullDataSyncS, huc = HUC8)
+#fullDataSyncS <- mutate(fullDataSyncS, huc = HUC8)
 fullDataSyncS <- predictTemp(data = fullDataSyncS, coef.list = coef.list, cov.list = cov.list)
 
 fullDataSync <- left_join(fullDataSync, select(fullDataSyncS, site, date, tempPredicted), by = c("site", "date"))
