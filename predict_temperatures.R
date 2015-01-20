@@ -119,9 +119,9 @@ save.image("~/conteStreamTemperature_northeast_old/localData/db_pull_for_predict
 
 
   # size of chunks
-  chunk.size <- 1000
+  chunk.size <- 10
   n.loops <- ceiling(n.catches / chunk.size)
-  j = 20
+  j = 0
   for(i in 1:n.loops) {
     j <- j + 1
     k <- j*chunk.size
@@ -279,10 +279,10 @@ fullDataSync <- left_join(fullDataSync, select(fullDataSyncS, featureid, date, t
         # , swe
         # , airTemp)
 
-fullDataSync <- fullDataSync %>%
-  filter(!is.na(tempPredicted)) %>%
-  filter(!is.na(dOY)) %>%
-  filter(!is.na(airTemp))
+#fullDataSync <- fullDataSync %>%
+ # filter(!is.na(tempPredicted)) %>%
+#  filter(!is.na(dOY)) %>%
+#  filter(!is.na(airTemp))
 # add state and anything else needed for metrics in the future
 
 #test.pred <- filter(fullDataSyncS, !is.na(temp))
@@ -303,6 +303,11 @@ fullDataSync <- fullDataSync %>%
 #ggplot(filter(fullDataSyncS, featureid == catches[1]), aes(dOY, tempPredicted)) + geom_point() + facet_wrap(~year)
 
 ###Derived metrics
+dim(fullDataSync)
+summary(fullDataSync)
+unique(fullDataSync$huc)
+length(unique(fullDataSync$featureid))
+
 derived.site.metrics <- deriveMetrics(fullDataSync)
 
 #metrics <- data.frame(matrix(NA, 1, dim(derived)))
@@ -319,31 +324,15 @@ gc()
 
 }
 #derived.site.metrics.clean <- na.omit(derived.site.metrics)
-write.table(metrics, file = 'derived_site_metrics.csv', sep = ',', row.names = F)
 
-}
+# add flags once have all catchment RMSE
+# Flag based on RMSE > 95%
+# add an ifelse for whether data is present or not #######################
+#derivedfeatureidMetrics <- mutate(derivedfeatureidMetrics, flag = ifelse(meanRMSE > quantile(derivedfeatureidMetrics$meanRMSE, probs = c(0.95), na.rm=TRUE), "Flag", ""))
 
-# example of resistance
-fullDataSync <- mutate(fullDataSync, year = as.numeric(year))
-WB.2011.summer <- fullDataSync[which(fullDataSync$site == "MAUSGS_WEST_BROOK" & as.numeric(fullDataSync$year) == 2011 & fullDataSync$dOY >=145 & fullDataSync$dOY <= 275), ]
-sum(WB.2011.summer$airTemp - WB.2011.summer$tempPredicted)
 
-ggplot(fullDataSync[which(fullDataSync$site == "MAUSGS_WEST_BROOK" & fullDataSync$year == 2011), ], aes(dOY, tempPredicted)) + 
-  geom_point(size=2, colour = "red") + geom_line(colour = 'red') +
-  geom_point(data=fullDataSync[which(fullDataSync$site == "MAUSGS_WEST_BROOK" & fullDataSync$year == 2011), ], aes(dOY, airTemp), colour = "black", size=2) + 
-  geom_line(data=fullDataSync[which(fullDataSync$site == "MAUSGS_WEST_BROOK" & fullDataSync$year == 2011), ], aes(dOY, airTemp), colour = "black") + 
-  geom_ribbon(data = fullDataSync[which(fullDataSync$site == "MAUSGS_WEST_BROOK" & fullDataSync$year == 2011 & fullDataSync$dOY >=145 & fullDataSync$dOY <= 275), ], aes(x=dOY, ymin=tempPredicted, ymax=airTemp), fill="dark grey", alpha=.5) +
-  xlab("Day of the year") +
-  ylab("Temperature (C)") #+ theme_classic()
+#write.table(metrics, file = 'derived_site_metrics.csv', sep = ',', row.names = F)
 
-ggplot(fullDataSync[which(fullDataSync$site == "WB OBEAR" & fullDataSync$year == 2010), ], aes(dOY.real, tempPredicted)) + 
-  geom_point(size=2, colour = "black") + geom_line(colour = 'black') +
-  geom_abline(intercept = 18, slope=0, colour='red') +
-  geom_point(data = fullDataSync[which(fullDataSync$site == "WB OBEAR" & fullDataSync$year == 2010 & fullDataSync$tempPredicted >= 18), ], aes(dOY.real, tempPredicted), colour='red') +
-  xlab("Day of the year") +
-  ylab("Stream temperature (C)") #+ theme_classic()
-
-# Reset ggplot2 theme default to gray
-theme_set(theme_gray())
+#}
 
 
