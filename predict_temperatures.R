@@ -74,14 +74,16 @@ var.names <- c("Latitude", "Longitude", "airTemp", "airTempLagged1", "airTempLag
 
 # Get list of unique catchments with daymet data in our database
 drv <- dbDriver("PostgreSQL")
-con <- dbConnect(drv, dbname="conte_dev", host="127.0.0.1", user="conte", password="conte")
-# con <- dbConnect(drv, dbname="conte_dev", host="felek.cns.umass.edu", user="conte", password="conte")
+# con <- dbConnect(drv, dbname="conte_dev", host="127.0.0.1", user="conte", password="conte")
+con <- dbConnect(drv, dbname="conte_dev", host="felek.cns.umass.edu", user="conte", password="conte")
 qry <- "SELECT DISTINCT featureid FROM daymet;"
 result <- dbSendQuery(con, qry)
 catchments <- fetch(result, n=-1)
 catchments <- as.character(catchments$featureid)
 
 # get daymet data for a subset of catchments
+
+catchmentid = catchments # until make into a function
 
 #retreiveDaymet <- function(catchmentid) { # make into a function
   n.catches <- length(catchmentid)
@@ -97,7 +99,7 @@ catchments <- as.character(catchments$featureid)
 
 # Get HUC8
 # pass the db$con from dplyr as the connection to RPostgreSQL::dbSendQuery
-rs <- dbSendQuery(db$con, "SELECT c.featureid as featureid, w.huc8 as huc8
+rs <- dbSendQuery(con, "SELECT c.featureid as featureid, w.huc8 as huc8
 FROM catchments c
 JOIN wbdhu8 w
 ON ST_Contains(w.geom, ST_Centroid(c.geom));")
@@ -105,11 +107,21 @@ ON ST_Contains(w.geom, ST_Centroid(c.geom));")
 # fetch results
 featureid_huc8 <- fetch(rs, n=-1)
 
+# Get lat and lon
+rs <- dbSendQuery(con, "SELECT featureid, 
+                  ST_Y(ST_Centroid(geom)) as latitude, 
+                  ST_X(ST_Centroid(geom)) as longitude 
+                  FROM catchments;")
+featureid_lat_lon <- fetch(rs, n=-1) 
+
+# temporary save entire environment so don't have to pull from dataframe for testing
+save.image("~/conteStreamTemperature_northeast_old/localData/db_pull_for_predictions.RData")
+
 
   # size of chunks
-  chunk.size <- 10
+  chunk.size <- 1000
   n.loops <- ceiling(n.catches / chunk.size)
-  j = 0
+  j = 20
   for(i in 1:n.loops) {
     j <- j + 1
     k <- j*chunk.size
@@ -141,8 +153,8 @@ featureid_huc8 <- fetch(rs, n=-1)
   qry_daymet <- tbl(db, 'daymet') %>%
     left_join(select(qry_locations, site, featureid), by='featureid') %>%
     filter(featureid %in% catches) %>%
-    mutate(airTemp = (tmax + tmin)/2) %>%
-    left_join(climateData, select(covariateData, -Latitude, -Longitude), by=c('site'))
+    mutate(airTemp = (tmax + tmin)/2) #%>%
+    #left_join(select(covariateData, -Latitude, -Longitude), by=c('site'))
   
 climateData <- collect(qry_daymet)
 
@@ -155,11 +167,11 @@ df_covariates_long <- collect(qry_covariates)
 
 df_covariates_wide <- tidyr::spread(df_covariates_long, variable, value)
 
-# which zone? upstream or downstream?
+# which zone? upstream or downstream? - maybe elevation should be downstream all others upstream
 df_covariates_upstream <- filter(df_covariates_wide, zone=="upstream")
 
 # check for NA
-summary(df_covariates_upstream)
+# summary(df_covariates_upstream)
 
 
 #masterdata <- left_join(tbl_daymet, df_covariates_upstream, by=c('featureid', 'site'))
@@ -178,7 +190,8 @@ fullDataSync <- climateData %>%
   left_join(df_covariates_upstream, by=c('featureid')) %>%
   left_join(select(tempDataSync, date, site, temp), by = c('date', 'site')) %>%
   left_join(featureid_huc8, by = c('featureid')) %>%
-  mutate(year = as.POSIXlt(date)$year) %>%
+  left_join(featureid_lat_lon, by = c('featureid')) %>%
+  mutate(year = as.numeric(format(date, "%Y"))) %>%
   left_join(springFallBPs, by = c('site', 'year')) %>%
   mutate(dOY = strptime(date, "%Y-%m-%d")$yday+1) %>%
   rename(huc = huc8) %>%
@@ -189,8 +202,11 @@ fullDataSync <- climateData %>%
 fullDataSync <- fullDataSync %>%
   rename(Forest = forest,
          ReachElevationM = elev_nalcc,
-         SuficialCoarseC = surfcoarse,
-         TotDASqKM = AreaSqKM) %>%
+         SurficialCoarseC = surfcoarse,
+         TotDASqKM = AreaSqKM,
+         Latitude = latitude,
+         Longitude = longitude,
+         CONUSWetland = fwswetlands) %>%
   mutate(ImpoundmentsAllSqKM = allonnet*TotDASqKM)
 
 # Order by group and date
@@ -219,7 +235,12 @@ fullDataSync <- slide(fullDataSync, Var = "prcp", GroupVar = "site", slideBy = -
 
 
 # Standardize for Analysis
-var.names <- var.names[var.names %!in% c("Developed", "Herbacious", "Agriculture", "HydrologicGroupAB", "CONUSWetland", "ReachSlopePCNT")]
+#var.names <- var.names[var.names %!in% c("Developed", "Herbacious", "Agriculture", "HydrologicGroupAB", "CONUSWetland", "ReachSlopePCNT")]
+
+var.names <- c("Latitude", "Longitude", "airTemp", "airTempLagged1", "airTempLagged2", "prcp", "prcpLagged1", "prcpLagged2", "prcpLagged3", "dOY", "Forest", "Herbacious", "Agriculture", "Developed", "TotDASqKM", "ReachElevationM", "ImpoundmentsAllSqKM", "HydrologicGroupAB", "SurficialCoarseC", "CONUSWetland", "ReachSlopePCNT", "srad", "dayl", "swe")
+
+fullDataSync <- fullDataSync %>%
+  mutate(Developed = NA, Herbacious = NA, Agriculture = NA, HydrologicGroupAB=NA, ReachSlopePCNT=NA, HUC8=huc)
   
 fullDataSyncS <- stdCovs(x = fullDataSync, y = tempDataSync, var.names = var.names)
 
@@ -238,33 +259,67 @@ fullDataSyncS <- indexDeployments(fullDataSyncS, regional = TRUE)
 #fullDataSyncS <- mutate(fullDataSyncS, huc = HUC8)
 fullDataSyncS <- predictTemp(data = fullDataSyncS, coef.list = coef.list, cov.list = cov.list)
 
-fullDataSync <- left_join(fullDataSync, select(fullDataSyncS, site, date, tempPredicted), by = c("site", "date"))
+fullDataSync <- left_join(fullDataSync, select(fullDataSyncS, featureid, date, tempPredicted), by = c("featureid", "date"))
 
-test.pred <- filter(fullDataSyncS, !is.na(temp))
 
-rmse(na.omit(test.pred$temp - test.pred$tempPredicted))
-ggplot(test.pred, aes(temp, tempPredicted)) + geom_point() + geom_abline(aes(1, 1), colour = "blue")
+# Remove any unnecesary columns so can then remove any rows with NA
+# This list should be made in the analysis script, saved and loaded here
+# maybe not necessary if all the derived metrics are based on predicted temperature and airTemp
+#fullDataSync <- fullDataSync %>%
+ # select(featureid
+  #       , site
+   #      , date
+    #     , year
+     #    , tmax
+      #   , tmin
+       #  , prcp
+      #   , dayl
+       #  , vp
+        # , srad
+        # , swe
+        # , airTemp)
+
+fullDataSync <- fullDataSync %>%
+  filter(!is.na(tempPredicted)) %>%
+  filter(!is.na(dOY)) %>%
+  filter(!is.na(airTemp))
+# add state and anything else needed for metrics in the future
+
+#test.pred <- filter(fullDataSyncS, !is.na(temp))
+
+#rmse(na.omit(test.pred$temp - test.pred$tempPredicted))
+#ggplot(test.pred, aes(temp, tempPredicted)) + geom_point() + geom_abline(aes(1, 1), colour = "blue")
 
 
 # plot observed and predicted vs day of the year for all sites in all years
 
-plotPredict(tempDataSync, fullDataSync, siteList = c("MADEP_W0989_T1", "MAUSGS_WEST_BROOK"), year = "ALL", display = T)
+#plotPredict(tempDataSync, fullDataSync, siteList = c("MADEP_W0989_T1", "MAUSGS_WEST_BROOK"), year = "ALL", display = T)
 
-plotPredict(tempDataSync, fullDataSync, siteList = c("MAUSGS_WEST_BROOK"), year = c(1995, 2009:2010), display = T)
+#plotPredict(tempDataSync, fullDataSync, siteList = c("MAUSGS_WEST_BROOK"), year = c(1995, 2009:2010), display = T)
 
 # use plotPredict function
-plotPredict(observed = tempDataSync, predicted = fullDataSync, siteList = "ALL", yearList = "ALL", dir = paste0(dataLocalDir,'/', 'plots/fullRecord/'))
+#plotPredict(observed = tempDataSync, predicted = fullDataSync, siteList = "ALL", yearList = "ALL", dir = paste0(dataLocalDir,'/', 'plots/fullRecord/'))
 
-
+#ggplot(filter(fullDataSyncS, featureid == catches[1]), aes(dOY, tempPredicted)) + geom_point() + facet_wrap(~year)
 
 ###Derived metrics
-
 derived.site.metrics <- deriveMetrics(fullDataSync)
 
-summary(derived.site.metrics)
+#metrics <- data.frame(matrix(NA, 1, dim(derived)))
+if(i == 1) {
+  metrics <- derived.site.metrics
+} else {
+metrics <- rbind(metrics, derived.site.metrics)
+}
 
+#summary(metrics)
+
+print(paste0(i, " of ", n.loops, " loops"))
+gc()
+
+}
 #derived.site.metrics.clean <- na.omit(derived.site.metrics)
-write.table(derived.site.metrics, file = 'reports/MADEP/derived_site_metrics.csv', sep = ',', row.names = F)
+write.table(metrics, file = 'derived_site_metrics.csv', sep = ',', row.names = F)
 
 }
 
