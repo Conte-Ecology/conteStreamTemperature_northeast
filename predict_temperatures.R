@@ -122,7 +122,7 @@ save.image("~/conteStreamTemperature_northeast_old/localData/db_pull_for_predict
 chunk.size <- 100
 n.loops <- ceiling(n.catches / chunk.size)
 j = 0
-for(i in 1:n.loops) {
+for(i in 1600:n.loops) {
   j <- j + 1
   k <- j*chunk.size
   if(k <= n.catches) {
@@ -305,11 +305,11 @@ for(i in 1:n.loops) {
   #ggplot(filter(fullDataSyncS, featureid == catches[1]), aes(dOY, tempPredicted)) + geom_point() + facet_wrap(~year)
   
   ###Derived metrics
-  dim(fullDataSync)
-  summary(fullDataSync)
-  unique(fullDataSync$huc)
-  length(unique(fullDataSync$featureid))
-  str(fullDataSyncS$tempPredicted)
+  #dim(fullDataSync)
+  #summary(fullDataSync)
+  #unique(fullDataSync$huc)
+  #length(unique(fullDataSync$featureid))
+  #str(fullDataSyncS$tempPredicted)
   
   mean.pred <- mean(fullDataSync$tempPredicted, na.rm = T)
   
@@ -333,7 +333,8 @@ for(i in 1:n.loops) {
     #summary(metrics)
     
     print(paste0(i, " of ", n.loops, " loops"))
-    # saveRDS(metics, file = "metrics_loop.RData")
+    write.table(metrics, file = 'derived_site_metrics_loop.csv', sep = ',', row.names = F)
+
     gc()
   }
   
@@ -345,7 +346,7 @@ for(i in 1:n.loops) {
 # add an ifelse for whether data is present or not #######################
 #derivedfeatureidMetrics <- mutate(derivedfeatureidMetrics, flag = ifelse(meanRMSE > quantile(derivedfeatureidMetrics$meanRMSE, probs = c(0.95), na.rm=TRUE), "Flag", ""))
 
-metrics.lat.lon <- left_join(featureid_lat_lon, derived.site.metrics, by = c('featureid')) # reverse this join or full join so get NA for all missing catchments
+metrics.lat.lon <- left_join(featureid_lat_lon, derived.site.metrics, by = c('featureid')) # reverse this join or full join so get NA for all missing catchments? - doesn't seem to be working correctly yet - check again
 
 saveRDS(metrics.lat.lon, file = 'derived_site_metrics.RData')
 write.table(metrics, file = 'derived_site_metrics.csv', sep = ',', row.names = F)
