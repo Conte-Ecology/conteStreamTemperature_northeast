@@ -1,0 +1,94 @@
+---
+title: "Derived Metrics Summary"
+author: "Daniel Hocking"
+date: "January 27, 2015"
+output: html_document
+---
+
+### Summary
+
+This document is intended to give a summary of the derived metrics for all catchments in the northeast. The main goal is to identify problems with the derived metrics and catchments with missing, incomplete, or incorrect data.
+
+First load `dplyr` and read in the `derived_site_metrics.RData` data produced by `predict_temperatures.R` within the `conteStreamTemperature_northeast` repo. The script took about 50 hours to run on Felek. In total ~1.8 billion records were pulled from the database and predictions made for each then summarized (in chucks of 100 catchments at a time).
+
+```{r load libraries and data, warning=FALSE, results='hide'}
+library(dplyr)
+metrics <- readRDS("localData/derived_site_metrics.RData")
+```
+
+Summarize the dataframe:
+
+```{r summary}
+dim(metrics)
+str(metrics)
+summary(metrics)
+```
+
+### Missing and Problematic Data
+
+The number of catchments with missing data such that no predictions could be made or with strange (outrageous) predictions.
+
+```{r, echo=FALSE}
+missing <- filter(metrics, is.na(meanMaxTemp))
+strange <- filter(metrics, meanMaxTemp >= 40)
+
+print(paste0("Number of catchments with missing predictions: ", dim(missing)[1], " of ", dim(metrics)[1], " catchments (", signif(100*(dim(missing)[1])/(dim(metrics)[1]), dig=2), "%)"))
+
+print(paste0("Number of catchments with predicted mean summer max over 40 C: ", dim(strange)[1], " of ", dim(metrics)[1], " catchments (", signif(100*(dim(strange)[1])/(dim(metrics)[1]), dig=2), "%)"))
+```
+
+Save the list of missing and strange prediction catchments (by featureid)
+
+```{r save strange and missing}
+saveRDS(missing$featureid, "Missing_Prediction_Featureid.RData")
+saveRDS(strange$featureid, "High_Prediction_Featureid.RData")
+```
+
+### Catchments with Data
+
+```{r data catchments, echo=FALSE}
+catch.data <- filter(metrics, totalObs > 0 & !is.na(totalObs))
+print(paste0("Number of catchments with observed stream temperature data: ", dim(catch.data)[1], " of ", dim(metrics)[1], " catchments (", signif(100*(dim(catch.data)[1])/(dim(metrics)[1]), dig=2), "%)"))
+```
+
+This didn't work correctly. Something is wrong with the totalObs function.
+
+```{r RMSE}
+rmse.df <- filter(metrics, !is.na(meanRMSE))
+print(paste0("Number of catchments with observed stream temperature data: ", dim(rmse.df)[1], " of ", dim(metrics)[1], " catchments (", signif(100*(dim(rmse.df)[1])/(dim(metrics)[1]), dig=2), "%)"))
+```
+
+RMSE was calculated for 373 catchments but ~1000-1500 catchments should have observed data and therefore the ability to calculate a RMSE.
+
+Identify the catchments with RMSE above the 90% quantile or above 3C.
+
+```{r RMSE Flags}
+rmse.hi <- filter(rmse.df, meanRMSE > quantile(meanRMSE, probs = c(0.90), na.rm = T) | meanRMSE > 3)
+saveRDS(rmse.hi, "Excessive_RMSE_Featureid.RData")
+```
+
+### Problems with Derived Metrics Code
+
+1. `totalObs` is being calculated as 0 or 1 and mostly 1
+2. There are some catchments with excessively high predictions
+3. There are some catchments with no predictions
+4. `meanDays.xx` should have `NA` in place of `0` when `meanMaxTemp` is `NA`
+5. CT specific metrics are not yet calculated for the loop
+6. RMSE flags should be added after the loop
+7. `meanResist` should have `NA` when `meanMaxTemp` is `NA`
+8. Custom thresholds can't be added easily with json input using the `dplyr` code because of trouble renaming variables in the `dplyr` chain. It worked previously but then started failing. I'm not sure if it's a change to `dplyr` or something to do with the loop or something else altogether. It might be irrelevant because of how long these take to run. The thresholds could all be hard coded and the json input could just select which ones to run and return.
+
+### Metrics to Add
+
+1. CT metrics of cold, cool, and warm designations
+2. Cold, cool, and warm assignments for other states/agencies/stakeholders
+3. Metrics related with within year variability
+4. Metrics related to among year variability
+
+Other ideas?
+
+Check list of summary metrics from NorEast and StreamStats to see if anything useful.
+
+
+
+
