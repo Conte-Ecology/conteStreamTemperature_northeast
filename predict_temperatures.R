@@ -62,7 +62,7 @@ if (!file.exists(input_file)) {
 }
 cov.list <- readRDS(input_file)
 
-input_file <- args[2]
+input_file <- args[5]
 if (!file.exists(input_file)) {
   stop(paste0('Could not find springFallBreakpoints binary file: ', input_file))
 }

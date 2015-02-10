@@ -48,36 +48,11 @@ masterData <- mutate(masterData,
                      dOY=yday(date),
                      year=year(date))
 
-# # Select "T" or "F" for using agency data
-# sources <- list (
-#   # Northeast
-#   CTDEP  = CTDEP  <- T,
-#   MADEP  = MADEP  <- T,
-#   MAFW   = MAFW   <- T,
-#   MAUSGS = MAUSGS <- T,
-#   MEDMR  = MEDMR  <- T,
-#   MEFWS  = MEFWS  <- T,
-#   NHDES  = NHDES  <- T,
-#   NHFG   = NHFG   <- T,
-#   USFS   = USFS   <- T,
-#   VTFWS  = VTFWS  <- T,
-#   
-#   # Montana
-#   MTUSGSYellowstone = MTUSGSYellowstone <- F,
-#   MTUSGSGlacier     = MTUSGSGlacier     <- F
-# )
-# 
-# dataSources <- names(sources[(sources == T)])
-# 
 # Enter the common fields from the temperature ("site" must be one).
 tempFields <- c('site', 'year', 'dOY', 'date', 'agency', 'temp', 'airTemp')
 
 # Enter the specific covariate fields you want to pull ("site" must be one) or for the entire file, enter "ALL"
 covFields <- c('site', 'HUC4', 'HUC8', 'HUC12')
-
-# Read in data records and join into one dataframe
-# ------------------------------------------------
-# e <- readStreamTempData(timeSeries = T, covariates = T, dataSourceList = dataSources, fieldListTS = tempFields, fieldListCD = covFields, directory = dataInDir )
 
 # select temperature data columns
 masterData <- masterData[, tempFields]
