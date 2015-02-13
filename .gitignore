@@ -27,6 +27,7 @@ dataOut/
 outP.RData
 codaList-M3.RData
 example_models/
+Test/
 
 # Kyle.ignore
 maps/
