@@ -12,10 +12,16 @@ library(plyr)
 library(dplyr)
 library(lubridate)
 library(zoo)
+library(RPostgreSQL)
+library(stringr)
 library(conteStreamTemperature)
 
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
+
+# temporary for testing
+args <- c("temperatureData.RData", "climateData.RData", "covariateData.RData")
+  
 temperatureData_file <- args[1]
 if (!file.exists(temperatureData_file)) {
   stop(paste0('Could not find temperatureData binary file: ', temperatureData_file))
@@ -39,54 +45,63 @@ if (file.exists(output_file)) {
   warning(paste0('Output file already exists, overwriting: ', output_file))
 }
 
-# combine into masterData file
-masterData <- climateData %>%
-  left_join(temperatureData, by = c())
+# combine into masterData file - this will be a problem if more than 1 logger within a featureid on the same date - all join (outer join?) instead of left_join?
+masterData <- temperatureData %>%
+  left_join(climateData, by = c("featureid", "date"))
 
 # add dOY and year columns
 masterData <- mutate(masterData,
                      dOY=yday(date),
                      year=year(date))
 
-# # Select "T" or "F" for using agency data
-# sources <- list (
-#   # Northeast
-#   CTDEP  = CTDEP  <- T,
-#   MADEP  = MADEP  <- T,
-#   MAFW   = MAFW   <- T,
-#   MAUSGS = MAUSGS <- T,
-#   MEDMR  = MEDMR  <- T,
-#   MEFWS  = MEFWS  <- T,
-#   NHDES  = NHDES  <- T,
-#   NHFG   = NHFG   <- T,
-#   USFS   = USFS   <- T,
-#   VTFWS  = VTFWS  <- T,
-#   
-#   # Montana
-#   MTUSGSYellowstone = MTUSGSYellowstone <- F,
-#   MTUSGSGlacier     = MTUSGSGlacier     <- F
-# )
-# 
-# dataSources <- names(sources[(sources == T)])
-# 
 # Enter the common fields from the temperature ("site" must be one).
-tempFields <- c('site', 'year', 'dOY', 'date', 'agency', 'temp', 'airTemp')
+# tempFields <- c('site', 'year', 'dOY', 'date', 'agency', 'temp', 'airTemp')
 
 # Enter the specific covariate fields you want to pull ("site" must be one) or for the entire file, enter "ALL"
-covFields <- c('site', 'HUC4', 'HUC8', 'HUC12')
-
-# Read in data records and join into one dataframe
-# ------------------------------------------------
-# e <- readStreamTempData(timeSeries = T, covariates = T, dataSourceList = dataSources, fieldListTS = tempFields, fieldListCD = covFields, directory = dataInDir )
+# covFields <- c('site', 'HUC4', 'HUC8', 'HUC12')
 
 # select temperature data columns
-masterData <- masterData[, tempFields]
+# masterData <- masterData[, tempFields]
+
+# Add HUC info - why not just include as columns in covariate data?
+drv <- dbDriver("PostgreSQL")
+con <- dbConnect(drv, dbname="conte_dev", host='127.0.0.1', port='5432', user='conte', password='conte')
+
+rs <- dbSendQuery(con, "SELECT l.n_locations, c.featureid as featureid,
+       w.huc12 as huc12
+FROM (
+  SELECT count(l.*) as n_locations, c.featureid as featureid
+  FROM locations l
+  LEFT JOIN catchments c
+  ON l.catchment_id=c.featureid
+  GROUP BY c.featureid) l
+LEFT JOIN catchments c
+ON l.featureid=c.featureid
+LEFT JOIN wbdhu12 w
+ON ST_Contains(w.geom, ST_Centroid(c.geom));")
+
+df_huc <- fetch(rs, n=-1) %>%
+  dplyr::mutate(HUC4=str_sub(huc12, 1, 4),
+         HUC8=str_sub(huc12, 1, 8),
+         HUC10=str_sub(huc12, 1, 10))
+
+df_huc <- dplyr::rename(df_huc, HUC12 = huc12)
 
 # select covariate data columns
-covariateData <- covariateData[, covFields]
+# covariateData <- covariateData[, covFields]
 
 # merge masterData and covariateData
 e <- left_join(masterData, covariateData)
+e <- left_join(e, df_huc)
+
+# add site for consistency with old code names
+e$site <- e$location_id # could use dplyr rename for efficiency
+
+e <- as.data.frame(unclass(e))
+siteYearCombos <- as.data.frame(unclass(siteYearCombos))
+
+# add airTemp
+e$airTemp <- (e$tmax + e$tmin)/2
 
 ## Calculate the temperature index which is the key metric for estimating the synchrony between air and water temperature.
 
@@ -97,7 +112,7 @@ e$tempIndex <- (e$temp-e$airTemp)/(e$temp + 0.00000001)
 siteList <- unique(e$site)
 
 # Order by group and date
-e <- e[order(e$site,e$year,e$dOY),]
+e <- e[order(e$site,e$year,e$dOY), ]
 
 # For checking the order of e
 e$count <- 1:length(e$year)
@@ -117,7 +132,10 @@ window <- 10
 nSites <- length(siteList)
 
 # Unique site and year combos 
-siteYearCombos <- unique(e[,c('site','year')])
+siteYearCombos <- e %>%
+  ungroup() %>%
+  select(site, year) %>%
+  distinct()
 
 # Add columns for moving mean and sd
 e$movingMean <- NA
@@ -152,7 +170,7 @@ hiCI <- 0.999
 for ( i in 1:nrow(siteYearCombos)){
   
   # Print status
-  print(i)
+  # print(i)
   
   # Index sites, years, and HUCs
   tempBreaks <- data.frame( year  = as.numeric  (siteYearCombos$year[i]),

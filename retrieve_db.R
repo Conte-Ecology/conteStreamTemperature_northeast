@@ -1,38 +1,41 @@
-# Creates masterData, covariateData input binary files
+# Retrieve data from postgres database
 #
-# usage: $ Rscript retrieve_db.R <output temperatureData rdata> <output covariateData rdata> <output xlimateData rdata>
-# example: $ Rscript retreive_db.R ./temperatureData.RData ./covariateData.RData ./climateData.RData
+# requires working directory
+#
+# returns three RData files: observed temperature time series, landscape/landuse, and climate data from daymet
+#
+# usage: $ Rscript derive_metrics.R <input ??? json> <output temperatureData rdata> <output covariateData rdata> <output climateData rdata>
+# example: $ Rscript retrieve_db.R ./wd??? ./temperatureData.RData ./covariateData.RData ./climateData.RData
 
+library(jsonlite)
 library(dplyr)
 library(tidyr)
 library(lubridate)
 library(RPostgreSQL)
 library(ggplot2)
-library(jsonlite)
 
-# replace keep_agencies below with something imported via json
-# keep_agencies <- fromJSON('model_config.json') # make config file for list of agencies to include in analysis (or states, etc.)
-
-# parse command line arguments
-output_file1 <- args[1]
+args <- commandArgs(trailingOnly = TRUE)
+wd <- args[1]
+#if (!file.exists(csv_file)) {
+#  stop(paste0('Could not find temperatureData csv file: ', csv_file))
+#}
+output_file1 <- args[2]
 if (file.exists(output_file1)) {
-  warning(paste0('Output file already exists, overwriting: ', output_file1))
+  warning(paste0('Output file 1 already exists, overwriting: ', output_file1))
 }
-
-output_file2 <- args[2]
+output_file2 <- args[3]
 if (file.exists(output_file2)) {
-  warning(paste0('Output file already exists, overwriting: ', output_file2))
+  warning(paste0('Output file 2 already exists, overwriting: ', output_file2))
+}
+output_file3 <- args[4]
+if (file.exists(output_file3)) {
+  warning(paste0('Output file 3 already exists, overwriting: ', output_file3))
 }
 
-output_file3 <- args[3]
-if (file.exists(output_file3)) {
-  warning(paste0('Output file already exists, overwriting: ', output_file3))
-}
+setwd(wd)
 
 # connect to database source
 db <- src_postgres(dbname='conte_dev', host='127.0.0.1', port='5432', user='conte', password='conte')
-
-# db <- src_postgres(dbname='conte_dev', host='felek.cns.umass.edu', port='5432', user='conte', password='conte')
 
 # table references
 tbl_locations <- tbl(db, 'locations') %>%
@@ -53,50 +56,102 @@ tbl_daymet <- tbl(db, 'daymet')
 tbl_covariates <- tbl(db, 'covariates')
 
 # list of agencies to keep
-df_agencies <- collect(tbl_agencies)
-#keep_agencies <- c('MADEP', 'MAUSGS', 'MEDMR')
-keep_agencies <- as.character(filter(df_agencies, agency_name != "TEST")$agency_name)
+# keep_agencies <- c('MADEP', 'MAUSGS')
+
+##### Need way to filter data that has a "yes" QAQC flag
 
 # fetch locations
 df_locations <- left_join(tbl_locations, tbl_agencies, by=c('agency_id'='agency_id')) %>%
-  filter(agency_name %in% keep_agencies) %>%
+  # filter(agency_name %in% keep_agencies) %>%
+  filter(agency_name != "TEST") %>%
   rename(featureid=catchment_id) %>%
   collect
 summary(df_locations)
 unique(df_locations$agency_name)
+
+# fetch temperature data
+df_values <- left_join(tbl_series,
+                       dplyr::select(tbl_variables, variable_id, variable_name),
+                       by=c('variable_id'='variable_id')) %>%
+  dplyr::select(-file_id) %>%
+  filter(location_id %in% df_locations$location_id,
+         variable_name=="TEMP") %>%
+  left_join(tbl_values,
+            by=c('series_id'='series_id')) %>%
+  collect %>%
+  mutate(datetime=with_tz(datetime, tzone='EST'),
+         date = as.Date(datetime),
+         series_id = as.character(series_id))
+summary(df_values)
+
+#### Need to add filters for QAQC to df_values before doing joins and summaries
+
+samples_series_day <- df_values %>%
+  dplyr::group_by(series_id, date) %>%
+  dplyr::summarise(n_series_day = n())
+summary(samples_series_day)
+
+median_samples <- samples_series_day %>%
+  dplyr::group_by(series_id) %>%
+  dplyr::summarise(median_freq = median(n_series_day), min_n90 = median_freq*0.9)
+summary(median_samples)
+
+series_90 <- samples_series_day %>%
+  dplyr::left_join(median_samples, by = c("series_id")) %>%
+  dplyr::filter(n_series_day > min_n90)
+summary(series_90)
+
+foo <- filter(df_values, filter = series_id == 900)
+ggplot(foo, aes(datetime, value)) + geom_point()
+
+df_values <- df_values %>%
+  left_join(series_90, by = c("series_id", "date")) %>%
+  filter(n_series_day > min_n90) 
+
+df_values <- df_values %>%
+  group_by(series_id, date, location_id, agency_id) %>%
+  filter(flagged == "FALSE") %>%
+  filter(variable_name == "TEMP") %>%
+  summarise(temp = mean(value), maxTemp = max(value), minTemp = min(value), n_obs = mean(n_series_day))
+summary(df_values)
+
+df_locations <- collect(select(tbl_locations, location_id, location_name, latitude, longitude, featureid=catchment_id))
+
+df_agencies <- collect(tbl_agencies)
+
+temperatureData <- df_values %>%
+  left_join(df_locations, by = 'location_id') %>%
+  left_join(df_agencies, by = 'agency_id') %>%
+  select(location_id, agency_name, location_name, latitude, longitude, featureid, date, temp, maxTemp, minTemp, n_obs) %>%
+  mutate(agency_name=factor(agency_name),
+         location_name=factor(location_name))
+
+# If n_obs = 1, we assume that this is a mean temperature. Therefore the min and max for those days should be NA
+# Can't do ifelse with an NA replace in dplyr because it changes the data types
+temperatureData <- temperatureData %>%
+  mutate(maxTemp = ifelse(minTemp == maxTemp, -9999, maxTemp)) %>%
+  mutate(minTemp = ifelse(maxTemp == -9999, -9999, minTemp))
+
+# solution from Hadley - use NA_real_
+temperatureData <- temperatureData %>%
+  mutate(maxTemp = ifelse(maxTemp > -10 | is.na(maxTemp), maxTemp, NA_real_), 
+         minTemp = ifelse(minTemp > -10, minTemp, NA_real_),
+         temp = ifelse(temp > -10, temp, NA_real_)
+  )
+
+# Need to deal with water temperature between -10 - 0 to decide out of water = NA vs. imperfect or in ice and should = 0
+
+# create temperatureData input dataset
+summary(temperatureData)
+
+
+######## check upstream vs local covariates
 
 # fetch covariates
 df_covariates <- filter(tbl_covariates, featureid %in% df_locations$featureid) %>%
   collect %>%
   spread(variable, value) # convert from long to wide by variable
 summary(df_covariates)
-
-# fetch temperature data
-tbl_values <- left_join(tbl_series,
-                        select(tbl_variables, variable_id, variable_name),
-                        by=c('variable_id'='variable_id')) %>%
-  select(-file_id) %>%
-  filter(location_id %in% df_locations$location_id,
-         variable_name=="TEMP") %>%
-  left_join(tbl_values,
-            by=c('series_id'='series_id')) %>%
-  left_join(select(tbl_locations, location_id, location_name, latitude, longitude, featureid=catchment_id),
-            by=c('location_id'='location_id')) %>%
-  left_join(tbl_agencies,
-            by=c('agency_id'='agency_id')) %>%
-  mutate(year = date_part('year', datetime))
-
-df_values <- collect(tbl_values) 
-df_values <- df_values %>%
-  mutate(datetime=with_tz(datetime, tzone='EST'))
-summary(df_values)
-
-# create temperatureData input dataset
-temperatureData <- select(df_values, location_id, agency_name, location_name, latitude, longitude, featureid, variable_name, datetime, value, flagged) %>%
-  mutate(agency_name=factor(agency_name),
-         location_name=factor(location_name),
-         variable_name=factor(variable_name))
-summary(temperatureData)
 
 # create covariateData input dataset
 covariateData <- left_join(select(df_locations, location_id, location_name, latitude, longitude, featureid),
@@ -105,52 +160,16 @@ covariateData <- left_join(select(df_locations, location_id, location_name, lati
   mutate(location_name=factor(location_name))
 summary(covariateData)
 
-# create climateData input dataset (too big without prefilter or smaller join)
+# create climateData input dataset
+dates <- unique(temperatureData$date)
 
-# SQL Solution
-drv <- dbDriver("PostgreSQL")
+climate <- tbl_daymet %>%
+  filter(featureid %in% df_locations$featureid & date %in% dates)
 
-# create connection
-con <- dbConnect(drv, dbname="conte_dev", host="127.0.0.1", user="conte", password="conte")
+climateData <- collect(climate)
 
-# con <- dbConnect(drv, dbname="conte_dev", host="felek.cns.umass.edu", user="conte", password="conte")
+####### Do we want to put these in a subfolder?
 
-# create sql query string
-qry <- "WITH values_year AS (
-  SELECT date_part('year', datetime) as year,
-         count(value) as n, series_id
-  FROM values
-  GROUP BY series_id, year
-), loc_year AS (
-  SELECT l.catchment_id AS featureid, var.name as variable, 
-         vy.year as year, SUM(vy.n) as n_values, COUNT(l.*) as n_locations
-  FROM series s
-  LEFT JOIN values_year vy ON s.id=vy.series_id
-  LEFT JOIN locations l ON s.location_id=l.id
-  LEFT JOIN variables var ON s.variable_id=var.id
-  WHERE var.name='TEMP'
-  GROUP BY l.catchment_id, var.name, vy.year
-)
-
-SELECT ly.year, ly.n_values, ly.n_locations, 
-       ly.featureid, d.featureid, d.date, d.tmax, d.tmin, d.prcp, d.dayl, d.srad, d.vp, d.swe
-FROM daymet d
-INNER JOIN loc_year ly
-ON d.featureid=ly.featureid
-  AND date_part('year', d.date)=ly.year
-ORDER BY d.featureid, d.date;"
-
-# submit query
-result <- dbSendQuery(con, qry)
-
-# fetch results (n=-1 means return all rows, use n=5 to return just first 5 rows, for example)
-climateData <- fetch(result, n=-1)
-
-# Save files for use in subsequent scripts
-saveRDS(temperatureData, file='temperatureData.RData')
-saveRDS(covariateData, file='covariateData.RData')
-saveRDS(climateData, file='climateData.RData')
-
-
-
-
+saveRDS(temperatureData, file=output_file1)
+saveRDS(covariateData, file=output_file2)
+saveRDS(climateData, file=output_file3)
