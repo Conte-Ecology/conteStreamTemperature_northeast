@@ -1,0 +1,82 @@
+---
+title: "Temperature Summary Report"
+author: "Daniel J. Hocking"
+date: "2/19/2015"
+output: word_document
+---
+
+```{r load packages, echo = FALSE, results='hide', warning=FALSE}
+library(dplyr)
+library(ggplot2)
+```
+
+```{r load data, echo = FALSE, results='hide'}
+#coefs <- readRDS("/localData/coef.RData")
+
+load("/conte/home/dhocking/conteStreamTemperature_northeast/localData/coef.Rdata")
+fixed.ef <- coef.list$fix.ef %>%
+  dplyr::select(coef, mean, sd, LCI = qLo, UCI = qHi) %>%
+  dplyr::filter(mean != 0) %>%
+  dplyr::arrange(desc(mean)) %>%
+  dplyr::mutate(sig = ifelse(LCI <= 0 & 0 <= UCI, "", "*"))  
+```
+
+We have modeled daily stream temperature as a function of air temperature, precipitation, drainage area, day of the year (DOY), landscape, and land-use characteristics. Temperatures are modeled on the level of stream reach (confluence to confluence) based on NHD high resolution flowlines. We model temperatures in reaches nested within HUC8 sub-watersheds to account for any potential autocorrelation within reaches and among reaches within the same HUC8. We also use a random year effect to account for annual autocorrelation not accounted for by the other covariates.
+
+We have data from 1,400 stream reaches over the past 16 years. We used a random selection of 70% of these reaches for fitting (calibrating or training) the model and the remaining 30% for validating the model.
+
+Our coefficient estimates for the effects of parameters on stream temperature are as follows:
+
+```{r fixed effects, echo = FALSE}
+print(format(fixed.ef, dig = 1))
+```
+
+Air temperature has the greatest effect on headwater stream temperature. This effect is slighly dampened by the size of the stream (e.g. larger drainage areas have more flowing water on average, therefore do not respond as strongly to changes in daily air temperature). Increases in the area of impoundments upstream also results in significant warming, as does the the amount of wetland area in the catchment. There is also a modest affect of lagged air temperature but it is an order of magnitude smaller than the effect of that days temperature. This reveals how quickly small headwater streams respond to changes in air temperature. As expected, the amount of forest cover in the catchment was inversely related to stream temperature and streams were hotter, on average, as they got larger. All coefficient estimates are after accounting for the mean temperature on a given day of the year (intercept + dOY + $dOY^2$ + $dOY^3$). There was also strong daily temporal autocorrelation which we modeled with a first order autoregressive function (mu.ar1).
+
+There was also more random variation among reaches within a HUC8
+
+```{r random site effects, echo = FALSE}
+rand.site <- coef.list$sigma.site %>%
+  dplyr::mutate(var = mean^2) %>%
+  dplyr::select(coef, sd = mean, var)
+  
+format(rand.site, dig = 1)
+```
+
+Than among HUC8 watersheds
+
+```{r random huc effects, echo = FALSE}
+rand.huc <- coef.list$sigma.huc %>%
+  dplyr::mutate(var = mean^2) %>%
+  dplyr::select(coef, sd = mean, var)
+
+format(rand.huc, dig = 2)
+```
+
+Similiarly, there was only a small amount of random variation across years that was not explained by the parameters. However, there was significant variation in the rate of warming and cooling over the course of a year as indicated by the proportionally large variance in the day of the year coefficients among years.
+
+```{r random year effects, echo = FALSE}
+rand.year <- coef.list$sigma.year %>%
+  dplyr::mutate(var = mean^2) %>%
+  dplyr::select(coef, sd = mean, var)
+
+format(rand.year, dig = 2)
+```
+
+We then use the results of this model to predict daily stream temperatures from 1980 - 2013 using air temperature and precipitation from DAYMET. We do these predictions for all stream reaches (1-3 order) in the northeast (currently New England). From these predictions, we calculate derived metrics such as mean summer maximum temperature, number of days per year above critical biotic thresholds (e.g. 18C for brook trout), frquency of years where a stream would be classified as thermally impaired based on state criteria. We also developed a metric of potential ground water influences based on the relative patterns of air and water temperature during the summer (as air temperature continues to rise to a peak in the summer, a leveling off of stream water temperature is a likely indicator of buffering by ground water along with lower variability in fluctuations of daily water temperatures).
+
+We are currently gathering and performing QAQC on temperature data from Virigina to New York for exansion of our model. We are also working with NorEast to import data they gathered, which has already undergone rigorous QAQC, for use in our model. This additional data will allow us to add parameters such as agriculture and development or impervious surfaces. Along with this, we are separating our parameters such as forest cover, agriculture, and development within a buffer area and within the drainage area but outside the buffer area. This will allow us to provide managers with more detailed information reguarding the effects of land-use in different parts of catchments.
+
+
+
+
+
+
+
+
+
+
+
+
+
+

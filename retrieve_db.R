@@ -91,35 +91,35 @@ samples_series_day <- df_values %>%
   dplyr::summarise(n_series_day = n())
 summary(samples_series_day)
 
-median_samples <- samples_series_day %>%
+max_samples <- samples_series_day %>%
   dplyr::group_by(series_id) %>%
-  dplyr::summarise(median_freq = median(n_series_day), min_n90 = median_freq*0.9)
-summary(median_samples)
+  dplyr::summarise(max_freq = max(n_series_day), min_n90 = max_freq*0.9)
+summary(max_samples)
 
 series_90 <- samples_series_day %>%
-  dplyr::left_join(median_samples, by = c("series_id")) %>%
+  dplyr::left_join(max_samples, by = c("series_id")) %>%
   dplyr::filter(n_series_day > min_n90)
 summary(series_90)
 
 foo <- filter(df_values, filter = series_id == 900)
 ggplot(foo, aes(datetime, value)) + geom_point()
 
-df_values <- df_values %>%
+df_values2 <- df_values %>%
   left_join(series_90, by = c("series_id", "date")) %>%
   filter(n_series_day > min_n90) 
 
-df_values <- df_values %>%
+df_values2 <- df_values2 %>%
   group_by(series_id, date, location_id, agency_id) %>%
-  filter(flagged == "FALSE") %>%
+  #filter(flagged == "FALSE") %>%
   filter(variable_name == "TEMP") %>%
   summarise(temp = mean(value), maxTemp = max(value), minTemp = min(value), n_obs = mean(n_series_day))
-summary(df_values)
+summary(df_values2)
 
 df_locations <- collect(select(tbl_locations, location_id, location_name, latitude, longitude, featureid=catchment_id))
 
 df_agencies <- collect(tbl_agencies)
 
-temperatureData <- df_values %>%
+temperatureData <- df_values2 %>%
   left_join(df_locations, by = 'location_id') %>%
   left_join(df_agencies, by = 'agency_id') %>%
   select(location_id, agency_name, location_name, latitude, longitude, featureid, date, temp, maxTemp, minTemp, n_obs) %>%
@@ -161,10 +161,10 @@ covariateData <- left_join(select(df_locations, location_id, location_name, lati
 summary(covariateData)
 
 # create climateData input dataset
-dates <- unique(temperatureData$date)
+years <- unique(temperatureData$year) # need unique featureid-year combos
 
 climate <- tbl_daymet %>%
-  filter(featureid %in% df_locations$featureid & date %in% dates)
+  filter(featureid %in% df_locations$featureid & year %in% years)
 
 climateData <- collect(climate)
 

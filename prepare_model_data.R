@@ -23,6 +23,10 @@ config <- fromJSON('model_config.json')
 
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
+
+
+######### add wd argument
+
 masterData_file <- args[1]
 if (!file.exists(masterData_file)) {
   stop(paste0('Could not find masterData binary file: ', masterData_file))
@@ -107,6 +111,11 @@ if (config[['validate']]) {
   tempDataSync <- subset(tempDataSync, site %in% site.fit)    # data for model fitting (calibration)
   
   tempDataSyncValidS <- stdCovs(x = tempDataSyncValid, y = tempDataSync, var.names = var.names)
+  
+  #####################
+  means <- mean(tempDataSync[, var.names[[1]]], na.rm = T)
+  
+  #############
   
   tempDataSyncValidS <- indexDeployments(tempDataSyncValidS, regional = TRUE)
   firstObsRowsValid <- createFirstRows(tempDataSyncValidS)
