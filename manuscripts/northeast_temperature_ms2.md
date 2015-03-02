@@ -60,59 +60,63 @@ incorporate disjunct time series from sites
 
 We assumed stream temperature measurements were normally distributed following,
 
+$$ t_{s,h,d,y} \sim \mathcal{N}(\mu_{s,h,d,y}, \sigma) $$
+
+where $t_{s,h,d,y}$ is the observed stream water temperature at the site ($s$) within the sub-basin identified by the 8-digit Hydrologic Unit Code (HUC8; $h$) for each day ($d$) in each year ($y$). We describe the normal distribution based on the mean ($mu_s,h,d,y$) and standard deviation ($\sigma$) and assign a vague prior of $\sigma = 100$. The mean temperature is modelled to follow a linear trend
+
+$$ \omega_{s,h,d,y} = X_0 B_0 + X_{s,h} B_{s,h} + X_{h} B_{h} + X_{y} B_{y} $$
 
 but the expected mean temperature ($\mu_{s,h,d,y}$) is also adjusted based on the residual error from the previous day
 
-\\[ \mu_{s,h,d,y} = \left\{
-  \begin{array}{1 1}
+$$ \mu_{s,h,d,y} = \begin{cases}
     \omega_{s,h,d,y} + \delta_{s}(t_{s,h,d-1,y} - \omega_{s,h,d-1,y}) & \quad  \text{for $t_{s,h,d-1,y}$ is real} \\
     \omega_{s,h,d,y} & \quad  \text{for $t_{s,h,d-1,y}$ is not real}
-  \end{array} \right.
- \\]
+  \end{cases}
+ $$
 
 where $\delta_{s}$ is an autoregressive [AR(1)] coefficient that varies randomly by site and $\omega_{s,h,d,y}$ is the expected temperature before accounting for temporal autocorrelation in the error structure.
 
 $X_{0}$ is the $n \times K_0$ matrix of predictor values. $B_0$ is the vector of $K_0$ coefficients, where $K_0$ is the number of fixed effects parameters including the overall intercept. We used 10 fixed effect parameters including the overall intercept. These include latitude, longitude, upstream drainage area, percent forest cover, elevation, surficial coarseness classification, percent wetland area, upstream impounded area, and an interaction of drainage area and air temperature. We assumed the following distributions and vague priors for the fixed effects coefficients
 
-\\[ B_0 \sim \mathcal{N}(0,\sigma_{k_0}), \text{for $k_0 = 1,...,K_0$,} \\]
+$$ B_0 \sim \mathcal{N}(0,\sigma_{k_0}), \text{for $k_0 = 1,...,K_0$,} $$
 
-\\[ B_0 = \beta_{0}^{1},...,\beta_{0}^{K_{0}} \sim \mathcal{N}(0, 100) \\]
+$$ B_0 = \beta_{0}^{1},...,\beta_{0}^{K_{0}} \sim \mathcal{N}(0, 100) $$
 
-\\[ \sigma_{k_0} = 100 \\]
+$$ \sigma_{k_0} = 100 $$
 
 The effects of air temperature on the day of observation ($d$) and mean air temperature over the previous 5 days varied randomly with site nested within HUC8, as did precipitation, the previous 30-day precipitation mean, and the interactions of air temperature and preciptation (all 4 combinations).
 
 $B_{s,h}$ is the $S \times K_{S}$ matrix of regression coefficients where $S$ is the number of unique sites and $K_{S}$ is the number of regression coeffcients that vary randomly by site within HUC8. We assumed prior distributions of
 
-\\[ B_{s,h} \sim \mathcal{N}(0,\sigma_{k_{s}}), \text{for $k_{s} = 1,...,K_{S}$,} \\]
+$$ B_{s,h} \sim \mathcal{N}(0,\sigma_{k_{s}}), \text{for $k_{s} = 1,...,K_{S}$,} $$
 
-\\[ \sigma_{s_0} = 100 \\]
+$$ \sigma_{s_0} = 100 $$
 
 $X_{h}$ is the matrix of parameters that vary by HUC8. We allowed for correlation among the effects of these HUC8 coefficients as described by Gelman and Hill [-@Gelman2007].
 
 $B_{h}$ is the $H \times K_{H}$ matrix of coefficients where $H$ is the number of HUC8 groups and $K_H$ is the number of paramaters that vary by HUC8 including a constant term. In our model, $K_{H} = K_{S}$ and we assumed priors distributions of
 
-\\[ B_{h} \sim \mathcal{N}(M_{h},\Sigma_{B_{h}}), \text{for $h = 1,...,H$} \\]
+$$ B_{h} \sim \mathcal{N}(M_{h},\Sigma_{B_{h}}), \text{for $h = 1,...,H$} $$
 
 where $M_{h}$ is a vector of length $K_{H}$ and $\Sigma_{B_{h}}$ is the $K_{H} \times K_{H}$ covariance matrix.
 
-\\[ M_{h} \sim MVN(\mu_{1:K_h}^h, \sigma_{1:K_h}^h) \\]
+$$ M_{h} \sim MVN(\mu_{1:K_h}^h, \sigma_{1:K_h}^h) $$
 
-\\[ \mu_{1}^h = 0; \mu_{2:K_h}^h \sim \mathcal{N}(0, 100) \\]
+$$ \mu_{1}^h = 0; \mu_{2:K_h}^h \sim \mathcal{N}(0, 100) $$
 
-\\[ \Sigma_{B_{h}} \sim \text{Inv-Wishart}(diag(K_{h}), K_{h}+1) \\]
+$$ \Sigma_{B_{h}} \sim \text{Inv-Wishart}(diag(K_{h}), K_{h}+1) $$
 
 Similarly, we allowed the some effects of some parameters ($X_{y}$) to vary randomly by year with potential correlation among the coefficients. The intercept, day of the year ($day$), $day^2$, and $day^3$ all varied randomly with year so that $K_{y} = 4$. We assumed prior distributions of
 
-\\[ B_{y} \sim \mathcal{N}(M_{y},\Sigma_{B_{y}}), \text{for $y = 1,...,Y$} \\]
+$$ B_{y} \sim \mathcal{N}(M_{y},\Sigma_{B_{y}}), \text{for $y = 1,...,Y$} $$
 
 where $M_{y}$ is a vector of length $K_{Y}$ and $\Sigma_{B_{y}}$ represents the $K_{Y} \times K_{Y}$ covariance matrix.
 
-\\[ M_{y} \sim MVN(\mu_{1:K_y}^y, \sigma_{1:K_y}^y) \\]
+$$ M_{y} \sim MVN(\mu_{1:K_y}^y, \sigma_{1:K_y}^y) $$
 
-\\[ \mu_{1}^y = 0; \mu_{2:K_y}^y \sim \mathcal{N}(0, 100) \\]
+$$ \mu_{1}^y = 0; \mu_{2:K_y}^y \sim \mathcal{N}(0, 100) $$
 
-\\[ \Sigma_{B_{y}} \sim \text{Inv-Wishart}(diag(K_{y}), K_{y}+1) \\]
+$$ \Sigma_{B_{y}} \sim \text{Inv-Wishart}(diag(K_{y}), K_{y}+1) $$
 
 To estimate all the parameters and their uncertainties, we used a Bayesian analysis with a Gibbs sampler implemented in JAGS (ref) through R (ref) using the rjags package (ref). This approach was beneficial for hierarchical model flexibility and tractibility for large datasets. We used vauge priors for all parameters so all inferences would be based almost entirely on the data.
 
