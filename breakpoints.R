@@ -20,7 +20,7 @@ library(conteStreamTemperature)
 args <- commandArgs(trailingOnly = TRUE)
 
 # temporary for testing
-args <- c("temperatureData.RData", "climateData.RData", "covariateData.RData")
+args <- c("Test/temperatureData.RData", "Test/climateData.RData", "Test/covariateData.RData")
   
 temperatureData_file <- args[1]
 if (!file.exists(temperatureData_file)) {

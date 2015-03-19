@@ -35,7 +35,8 @@ if (file.exists(output_file3)) {
 setwd(wd)
 
 # connect to database source
-db <- src_postgres(dbname='conte_dev', host='127.0.0.1', port='5432', user='conte', password='conte')
+# db <- src_postgres(dbname='conte_dev', host='127.0.0.1', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+db <- src_postgres(dbname='conte_dev', host='128.119.112.36', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
 
 # table references
 tbl_locations <- tbl(db, 'locations') %>%
@@ -81,24 +82,44 @@ df_values <- left_join(tbl_series,
   collect %>%
   mutate(datetime=with_tz(datetime, tzone='EST'),
          date = as.Date(datetime),
-         series_id = as.character(series_id))
+         series_id = as.character(series_id)) %>%
+  rename(temp = values)
 summary(df_values)
+
+saveRDS(df_values, file = "df_values.RData")
 
 #### Need to add filters for QAQC to df_values before doing joins and summaries
 
+#df_values <- obs_freq(df_values)
+
+df_values <- df_values %>%
+  obs_freq(.)
+  flag_incomplete(.) %>%
+  flag_hourly_rise(.)
+
+#----------old can cut if rest works---------
 samples_series_day <- df_values %>%
   dplyr::group_by(series_id, date) %>%
-  dplyr::summarise(n_series_day = n())
+  dplyr::summarise(obs_per_day = n())
 summary(samples_series_day)
 
 max_samples <- samples_series_day %>%
   dplyr::group_by(series_id) %>%
+<<<<<<< HEAD
   dplyr::summarise(max_freq = max(n_series_day), min_n90 = max_freq*0.9)
 summary(max_samples)
 
 series_90 <- samples_series_day %>%
   dplyr::left_join(max_samples, by = c("series_id")) %>%
   dplyr::filter(n_series_day > min_n90)
+=======
+  dplyr::summarise(median_freq = median(obs_per_day), min_n90 = median_freq*0.9)
+summary(median_samples)
+
+series_90 <- samples_series_day %>%
+  dplyr::left_join(median_samples, by = c("series_id")) %>%
+  dplyr::filter(obs_per_day > min_n90)
+>>>>>>> 024386578d2c33e6c9b10c413c60f9a090703fa2
 summary(series_90)
 
 foo <- filter(df_values, filter = series_id == 900)
@@ -106,14 +127,20 @@ ggplot(foo, aes(datetime, value)) + geom_point()
 
 df_values2 <- df_values %>%
   left_join(series_90, by = c("series_id", "date")) %>%
-  filter(n_series_day > min_n90) 
+  filter(obs_per_day > min_n90) 
 
 df_values2 <- df_values2 %>%
   group_by(series_id, date, location_id, agency_id) %>%
   #filter(flagged == "FALSE") %>%
   filter(variable_name == "TEMP") %>%
+<<<<<<< HEAD
   summarise(temp = mean(value), maxTemp = max(value), minTemp = min(value), n_obs = mean(n_series_day))
 summary(df_values2)
+=======
+  summarise(temp = mean(value), maxTemp = max(value), minTemp = min(value), obs_per_day = median(obs_per_day))
+summary(df_values)
+#------------end of old cut-----------------
+>>>>>>> 024386578d2c33e6c9b10c413c60f9a090703fa2
 
 df_locations <- collect(select(tbl_locations, location_id, location_name, latitude, longitude, featureid=catchment_id))
 
@@ -122,11 +149,11 @@ df_agencies <- collect(tbl_agencies)
 temperatureData <- df_values2 %>%
   left_join(df_locations, by = 'location_id') %>%
   left_join(df_agencies, by = 'agency_id') %>%
-  select(location_id, agency_name, location_name, latitude, longitude, featureid, date, temp, maxTemp, minTemp, n_obs) %>%
+  select(location_id, agency_name, location_name, latitude, longitude, featureid, date, temp, maxTemp, minTemp, obs_per_day, flagged) %>%
   mutate(agency_name=factor(agency_name),
          location_name=factor(location_name))
 
-# If n_obs = 1, we assume that this is a mean temperature. Therefore the min and max for those days should be NA
+# If obs_per_day = 1, we assume that this is a mean temperature. Therefore the min and max for those days should be NA
 # Can't do ifelse with an NA replace in dplyr because it changes the data types
 temperatureData <- temperatureData %>%
   mutate(maxTemp = ifelse(minTemp == maxTemp, -9999, maxTemp)) %>%

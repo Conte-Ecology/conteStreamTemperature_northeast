@@ -132,8 +132,10 @@ for(i in 1600:n.loops) {
   }
   # connect to database source
   #db <- src_postgres(dbname='conte_dev', host='127.0.0.1', port='5432', user='conte', password='conte')
-  db <- src_postgres(dbname='conte_dev', host='felek.cns.umass.edu', port='5432', user='conte', password='conte')
+  #db <- src_postgres(dbname='conte_dev', host='felek.cns.umass.edu', port='5432', user='conte', password='conte')
+  db <- src_postgres(dbname='conte_dev', host='128.119.112.36', port='5432', user='conte', password='conte')
   
+
   ######### Temporary to use with old model runs ################
   # create a query that lists all locations and creates 'site' column
   qry_locations <- tbl(db, 'locations') %>%
