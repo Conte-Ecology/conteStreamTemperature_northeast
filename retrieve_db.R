@@ -14,6 +14,10 @@ library(lubridate)
 library(RPostgreSQL)
 library(ggplot2)
 
+data_dir <- getOption("SHEDS_DATA")
+
+if(file.exists("/conte")) {
+  
 args <- commandArgs(trailingOnly = TRUE)
 wd <- args[1]
 #if (!file.exists(csv_file)) {
@@ -35,8 +39,11 @@ if (file.exists(output_file3)) {
 setwd(wd)
 
 # connect to database source
-# db <- src_postgres(dbname='conte_dev', host='127.0.0.1', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
-db <- src_postgres(dbname='conte_dev', host='128.119.112.36', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+db <- src_postgres(dbname='conte_dev', host='127.0.0.1', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+} else {
+  
+  db <- src_postgres(dbname='conte_dev', host='128.119.112.36', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+}
 
 # table references
 tbl_locations <- tbl(db, 'locations') %>%
@@ -88,14 +95,36 @@ summary(df_values)
 
 saveRDS(df_values, file = "df_values.RData")
 
-#### Need to add filters for QAQC to df_values before doing joins and summaries
+#------------QAQC---------------------------
 
 #df_values <- obs_freq(df_values)
 
+# Flag data with problems
 df_values <- df_values %>%
   obs_freq(.)
-  flag_incomplete(.) %>%
-  flag_hourly_rise(.)
+flag_incomplete(.) %>%
+  flag_hourly_rise(.) %>%
+  flag_cold_obs(.) %>%
+  flag_hot_obs(.) %>%
+  flag_extreme_obs(.) %>%
+  flag_interval(.) %>%
+  convert_neg(.)
+
+# output flags table----------
+
+# Convert to daily
+
+df_values <- df_values %>%
+  group_by(series_id, date) %>%
+  filter(flagged == "FALSE") %>%
+  summarise(temp = mean(value), maxTemp = max(value), minTemp = min(value), obs_per_day = median(obs_per_day), n_obs = n())
+summary(df_values)
+
+# QAQC on daily 
+
+# output daily flags
+
+
 
 #----------old can cut if rest works---------
 samples_series_day <- df_values %>%
@@ -103,50 +132,36 @@ samples_series_day <- df_values %>%
   dplyr::summarise(obs_per_day = n())
 summary(samples_series_day)
 
-max_samples <- samples_series_day %>%
+median_samples <- samples_series_day %>%
   dplyr::group_by(series_id) %>%
-<<<<<<< HEAD
-  dplyr::summarise(max_freq = max(n_series_day), min_n90 = max_freq*0.9)
-summary(max_samples)
-
-series_90 <- samples_series_day %>%
-  dplyr::left_join(max_samples, by = c("series_id")) %>%
-  dplyr::filter(n_series_day > min_n90)
-=======
   dplyr::summarise(median_freq = median(obs_per_day), min_n90 = median_freq*0.9)
 summary(median_samples)
 
 series_90 <- samples_series_day %>%
   dplyr::left_join(median_samples, by = c("series_id")) %>%
   dplyr::filter(obs_per_day > min_n90)
->>>>>>> 024386578d2c33e6c9b10c413c60f9a090703fa2
 summary(series_90)
 
 foo <- filter(df_values, filter = series_id == 900)
 ggplot(foo, aes(datetime, value)) + geom_point()
 
-df_values2 <- df_values %>%
+df_values <- df_values %>%
   left_join(series_90, by = c("series_id", "date")) %>%
   filter(obs_per_day > min_n90) 
 
-df_values2 <- df_values2 %>%
+df_values <- df_values %>%
   group_by(series_id, date, location_id, agency_id) %>%
-  #filter(flagged == "FALSE") %>%
+  filter(flagged == "FALSE") %>%
   filter(variable_name == "TEMP") %>%
-<<<<<<< HEAD
-  summarise(temp = mean(value), maxTemp = max(value), minTemp = min(value), n_obs = mean(n_series_day))
-summary(df_values2)
-=======
   summarise(temp = mean(value), maxTemp = max(value), minTemp = min(value), obs_per_day = median(obs_per_day))
 summary(df_values)
 #------------end of old cut-----------------
->>>>>>> 024386578d2c33e6c9b10c413c60f9a090703fa2
 
 df_locations <- collect(select(tbl_locations, location_id, location_name, latitude, longitude, featureid=catchment_id))
 
 df_agencies <- collect(tbl_agencies)
 
-temperatureData <- df_values2 %>%
+temperatureData <- df_values %>%
   left_join(df_locations, by = 'location_id') %>%
   left_join(df_agencies, by = 'agency_id') %>%
   select(location_id, agency_name, location_name, latitude, longitude, featureid, date, temp, maxTemp, minTemp, obs_per_day, flagged) %>%
@@ -188,10 +203,10 @@ covariateData <- left_join(select(df_locations, location_id, location_name, lati
 summary(covariateData)
 
 # create climateData input dataset
-years <- unique(temperatureData$year) # need unique featureid-year combos
+dates <- unique(temperatureData$date)
 
 climate <- tbl_daymet %>%
-  filter(featureid %in% df_locations$featureid & year %in% years)
+  filter(featureid %in% df_locations$featureid & date %in% dates)
 
 climateData <- collect(climate)
 
