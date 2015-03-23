@@ -16,9 +16,12 @@ library(ggplot2)
 
 data_dir <- getOption("SHEDS_DATA")
 
+args <- NA_character_
+
 if(file.exists("/conte")) {
   
 args <- commandArgs(trailingOnly = TRUE)
+
 wd <- args[1]
 #if (!file.exists(csv_file)) {
 #  stop(paste0('Could not find temperatureData csv file: ', csv_file))
@@ -43,6 +46,12 @@ db <- src_postgres(dbname='conte_dev', host='127.0.0.1', port='5432', user=optio
 } else {
   
   db <- src_postgres(dbname='conte_dev', host='128.119.112.36', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+}
+
+if(!exists(args)) {
+  output_file1 <- file.path("localData/temperatureData.RData")
+  output_file2 <- file.path("localData/covariateData.RData")
+  output_file3 <- file.path("localData/climateData.RData")
 }
 
 # table references
@@ -89,10 +98,13 @@ df_values <- tbl_values %>%
   mutate(datetime=with_tz(datetime, tzone='EST'),
          date = as.Date(datetime),
          series_id = as.character(series_id)) %>%
-  rename(temp = values)
+  rename(temp = value)
 summary(df_values)
 
-saveRDS(df_values, file = "df_values.RData")
+if(!file.exists(file.path(getwd(), "localData"))) dir.create(file.path(getwd(), "localData"))
+saveRDS(df_values, file = file.path(getwd(), "localData/df_values.RData"))
+
+# df_values <- readRDS(file = file.path(getwd(), "localData/df_values.RData"))
 
 #------------QAQC---------------------------
 
@@ -100,87 +112,65 @@ saveRDS(df_values, file = "df_values.RData")
 
 # Flag data with problems
 df_values <- df_values %>%
-  obs_freq(.)
-flag_incomplete(.) %>%
+  obs_freq(.) %>%
+  flag_incomplete(.) %>%
   flag_hourly_rise(.) %>%
   flag_cold_obs(.) %>%
   flag_hot_obs(.) %>%
   flag_extreme_obs(.) %>%
   flag_interval(.) %>%
-  convert_neg(.)
+  convert_neg(.) %>%
+  dplyr::select(-row, -temp_prev, -series_prev, -series_start)
 
 # output flags table----------
 
-# Convert to daily
-
+# Filter based on subdaily flags
 df_values <- df_values %>%
   group_by(series_id, date) %>%
+  filter(flag_incomplete == "FALSE",
+         flag_cold_obs == "FALSE",
+         flag_hot_obs == "FALSE",
+         flag_interval == "FALSE",
+         abs(d_temp) < 10)
+
+
+# Convert to daily
+
+df_values2 <- df_values %>%
+  group_by(series_id, date, location_id, agency_id) %>%
   filter(flagged == "FALSE") %>%
-  summarise(temp = mean(value), maxTemp = max(value), minTemp = min(value), obs_per_day = median(obs_per_day), n_obs = n())
-summary(df_values)
+  summarise(meanTemp = mean(temp), 
+            maxTemp = max(temp), 
+            minTemp = min(temp), 
+            #obs_per_day = mean(obs_per_day),  # change mean to median when dplyr fixed
+            n_obs = n()) %>%
+  rename(temp = meanTemp)
+summary(df_values2)
 
 # QAQC on daily 
 
+df_values2 <- df_values2 %>%
+  flag_daily_rise(.) %>%
+  flag_cold_days(.) %>%
+  flag_hot_days(.) %>%
+  flag_extreme_days(.)
+
 # output daily flags
 
+# End QAQC
 
-
-#----------old can cut if rest works---------
-samples_series_day <- df_values %>%
-  dplyr::group_by(series_id, date) %>%
-  dplyr::summarise(obs_per_day = n())
-summary(samples_series_day)
-
-median_samples <- samples_series_day %>%
-  dplyr::group_by(series_id) %>%
-  dplyr::summarise(median_freq = median(obs_per_day), min_n90 = median_freq*0.9)
-summary(median_samples)
-
-series_90 <- samples_series_day %>%
-  dplyr::left_join(median_samples, by = c("series_id")) %>%
-  dplyr::filter(obs_per_day > min_n90)
-summary(series_90)
-
-foo <- filter(df_values, filter = series_id == 900)
-ggplot(foo, aes(datetime, value)) + geom_point()
-
-df_values <- df_values %>%
-  left_join(series_90, by = c("series_id", "date")) %>%
-  filter(obs_per_day > min_n90) 
-
-df_values <- df_values %>%
-  group_by(series_id, date, location_id, agency_id) %>%
-  filter(flagged == "FALSE") %>%
-  filter(variable_name == "TEMP") %>%
-  summarise(temp = mean(value), maxTemp = max(value), minTemp = min(value), obs_per_day = median(obs_per_day))
-summary(df_values)
-#------------end of old cut-----------------
-
-df_locations <- collect(select(tbl_locations, location_id, location_name, latitude, longitude, featureid=catchment_id))
+# Get location and agency data and join to temperature data
+# df_locations <- collect(select(tbl_locations, location_id, location_name, latitude, longitude, featureid=catchment_id))
 
 df_agencies <- collect(tbl_agencies)
 
-temperatureData <- df_values %>%
-  left_join(df_locations, by = 'location_id') %>%
-  left_join(df_agencies, by = 'agency_id') %>%
-  select(location_id, agency_name, location_name, latitude, longitude, featureid, date, temp, maxTemp, minTemp, obs_per_day, flagged) %>%
+temperatureData <- df_values2 %>%
+  left_join(df_locations, by = c('location_id', 'agency_id')) %>%
+  #left_join(df_agencies, by = 'agency_id') %>%
+  select(location_id, agency_name, location_name, latitude, longitude, featureid, date, temp, maxTemp, minTemp, n_obs) %>%
   mutate(agency_name=factor(agency_name),
-         location_name=factor(location_name))
-
-# If obs_per_day = 1, we assume that this is a mean temperature. Therefore the min and max for those days should be NA
-# Can't do ifelse with an NA replace in dplyr because it changes the data types
-temperatureData <- temperatureData %>%
-  mutate(maxTemp = ifelse(minTemp == maxTemp, -9999, maxTemp)) %>%
-  mutate(minTemp = ifelse(maxTemp == -9999, -9999, minTemp))
-
-# solution from Hadley - use NA_real_
-temperatureData <- temperatureData %>%
-  mutate(maxTemp = ifelse(maxTemp > -10 | is.na(maxTemp), maxTemp, NA_real_), 
-         minTemp = ifelse(minTemp > -10, minTemp, NA_real_),
-         temp = ifelse(temp > -10, temp, NA_real_)
-  )
-
-# Need to deal with water temperature between -10 - 0 to decide out of water = NA vs. imperfect or in ice and should = 0
+         location_name=factor(location_name),
+         year = year(date))
 
 # create temperatureData input dataset
 summary(temperatureData)
@@ -201,16 +191,63 @@ covariateData <- left_join(select(df_locations, location_id, location_name, lati
   mutate(location_name=factor(location_name))
 summary(covariateData)
 
-# create climateData input dataset
+# create climateData input dataset - need full year
 dates <- unique(temperatureData$date)
+years <- unique(year(temperatureData$date))
 
 climate <- tbl_daymet %>%
-  filter(featureid %in% df_locations$featureid & date %in% dates)
+  #filter(featureid %in% df_locations$featureid & date %in% dates)
+  filter(featureid %in% df_locations$featureid) %>%
+  mutate(year = DATE_PART("year", date)) 
 
-climateData <- collect(climate)
+climate_filter <- climate %>%
+  filter(featureid %in% df_locations$featureid & year %in% years) # can't chain this with above. Should probably just write direct SQL code.
+
+drv <- dbDriver("PostgreSQL")
+# con <- dbConnect(drv, dbname="conte_dev", host="127.0.0.1", user="conte", password="conte")
+con <- dbConnect(drv, dbname="conte_dev", host="felek.cns.umass.edu", user="conte", password="conte")
+qry <- "SELECT DISTINCT featureid FROM daymet;"
+qry <- "
+WITH daymet_year AS (
+  SELECT date_part('year', datetime) as year,
+         count(value) as n, series_id
+  FROM daymet
+  GROUP BY featureid, year
+), loc_year AS (
+  SELECT l.catchment_id AS featureid, var.name as variable, 
+         vy.year as year, SUM(vy.n) as n_values, COUNT(l.*) as n_locations
+  WHERE var.name='TEMP'
+)"
+result <- dbSendQuery(con, qry)
+catchments <- fetch(result, n=-1)
+
+# larger than needed because collectes for all years and featureid not year-featureid combos
+climateData <- collect(climate) %>%
+  filter(featureid %in% df_locations$featureid & year %in% years) # can't chain this with above. Should probably just write direct SQL code.
+
+
+#---------Summarise to featureid------
+# for all current analyses just need mean within reach (featureid)
+
+# does mean make sense because could result in discontinuities in time series within a reach if one logger was in a seep and other not
+
+# Need to filter by agency and such by here because can't do it later if multiple agencies in the same reach (featureid)
+temperatureData2 <- temperatureData %>%
+  dplyr::group_by(featureid, date) %>%
+  dplyr::summarise(temp = mean(temp, na.rm = T), 
+                   maxTemp = mean(maxTemp, na.rm = T),
+                   minTemp = mean(minTemp, na.rm = T),
+                   n_obs = n())
+
 
 ####### Do we want to put these in a subfolder?
 
-saveRDS(temperatureData, file=output_file1)
+saveRDS(temperatureData2, file=output_file1)
 saveRDS(covariateData, file=output_file2)
 saveRDS(climateData, file=output_file3)
+
+
+# remove variables and gc()
+
+
+
