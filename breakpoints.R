@@ -20,7 +20,7 @@ library(conteStreamTemperature)
 args <- commandArgs(trailingOnly = TRUE)
 
 # temporary for testing
-args <- c("Test/temperatureData.RData", "Test/climateData.RData", "Test/covariateData.RData")
+args <- c("localData/temperatureData.RData", "localData/climateData.RData", "localData/covariateData.RData")
   
 temperatureData_file <- args[1]
 if (!file.exists(temperatureData_file)) {
@@ -94,11 +94,12 @@ df_huc <- dplyr::rename(df_huc, HUC12 = huc12)
 e <- left_join(masterData, covariateData)
 e <- left_join(e, df_huc)
 
+#---------site = location_id vs. featureid???-----------
 # add site for consistency with old code names
-e$site <- e$location_id # could use dplyr rename for efficiency
+#e$site <- e$location_id # could use dplyr rename for efficiency
+e$site <- e$featureid
 
 e <- as.data.frame(unclass(e))
-siteYearCombos <- as.data.frame(unclass(siteYearCombos))
 
 # add airTemp
 e$airTemp <- (e$tmax + e$tmin)/2
@@ -136,6 +137,8 @@ siteYearCombos <- e %>%
   ungroup() %>%
   select(site, year) %>%
   distinct()
+
+siteYearCombos <- as.data.frame(unclass(siteYearCombos))
 
 # Add columns for moving mean and sd
 e$movingMean <- NA
