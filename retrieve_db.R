@@ -36,7 +36,7 @@ if (file.exists(output_file3)) {
   warning(paste0('Output file 3 already exists, overwriting: ', output_file3))
 }
 
-setwd(wd)
+if(exists(wd)) setwd(wd)
 
 # connect to database source
 db <- src_postgres(dbname='conte_dev', host='127.0.0.1', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
@@ -78,14 +78,13 @@ summary(df_locations)
 unique(df_locations$agency_name)
 
 # fetch temperature data
-df_values <- left_join(tbl_series,
-                       dplyr::select(tbl_variables, variable_id, variable_name),
-                       by=c('variable_id'='variable_id')) %>%
+df_values <- tbl_values %>%
+  left_join(tbl_series, by = c("series_id")) %>%
+  left_join(dplyr::select(tbl_variables, variable_id, variable_name),
+            by=c('variable_id'='variable_id')) %>%
   dplyr::select(-file_id) %>%
   filter(location_id %in% df_locations$location_id,
          variable_name=="TEMP") %>%
-  left_join(tbl_values,
-            by=c('series_id'='series_id')) %>%
   collect %>%
   mutate(datetime=with_tz(datetime, tzone='EST'),
          date = as.Date(datetime),

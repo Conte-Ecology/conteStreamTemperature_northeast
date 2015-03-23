@@ -10,8 +10,10 @@ obs_freq <- function(data) {
     dplyr::summarise(obs_per_day = n())
   
   median_obs <- obs_per_day %>%
+    #dplyr::mutate(series_id_alt = paste0(series_id, "-", "a")) %>%
     dplyr::group_by(series_id) %>%
-    dplyr::summarise(median_freq = median(obs_per_day, na.rm = T), min_n90 = median_freq*0.9)
+    #dplyr::mutate(obs_per_day = ifelse(is.na(obs_per_day), NA_integer_, obs_per_day)) %>%
+    dplyr::summarise(median_freq = mean(obs_per_day, na.rm = T), min_n90 = median_freq*0.9) # make median when dplyr fixed
   
   data <- data %>%
     left_join(obs_per_day, by = c("series_id", "date")) %>%
@@ -83,7 +85,8 @@ flag_hourly_rise <- function(data, deg = 5) {
     #group_by(series_id) %>%
     mutate(series_start = ifelse(is.na(series_prev), 1, ifelse(series_id == series_prev, NA_real_, 1)),
            temp_prev = ifelse(is.na(series_start), temp_prev, NA_real_),
-           d_temp = ifelse(median_freq == 24, temp - temp_prev, NA_real_),
+          # d_temp = ifelse(median_freq == 24, temp - temp_prev, NA_real_), # restore this line once dplyr median fixed
+          d_temp = ifelse(median_freq > 1, temp - temp_prev, NA_real_),
            flag_hourly_rise = ifelse(abs(d_temp) < deg | is.na(d_temp), FALSE, TRUE))
   
   return(data)
@@ -91,10 +94,7 @@ flag_hourly_rise <- function(data, deg = 5) {
 
 
 # Rate of change in mean temperature per day
-flag_daily_rise <- function(data, deg) {
-  if(!("median_freq" %in% colnames(data))) {
-    data <- obs_freq(data)
-  }
+flag_daily_rise <- function(data, deg = 5) {
   data <- ungroup(data)
   data$row <- 1:nrow(data)
   data$temp_prev <- c(NA_real_, data[2:nrow(data)-1, ]$temp)
@@ -103,7 +103,7 @@ flag_daily_rise <- function(data, deg) {
     #group_by(series_id) %>%
     mutate(series_start = ifelse(is.na(series_prev), 1, ifelse(series_id == series_prev, NA_real_, 1)),
            temp_prev = ifelse(is.na(series_start), temp_prev, NA_real_),
-           d_temp = ifelse(median_freq == 1, temp - temp_prev, NA_real_),
+           d_temp = temp - temp_prev,
            flag_daily_rise = ifelse(abs(d_temp) < deg | is.na(d_temp), FALSE, TRUE))
   
   return(data)
@@ -175,7 +175,7 @@ flag_extreme_obs <- function(data, qlo = 0.001, qhi = 0.999) {
     data <- obs_freq(data)
   }
   data <- data %>%
-    mutate(flag_extremes = ifelse(temp > quantile(temp, c(qhi), na.rm = T) | temp < quantile(temp, c(qlo) & median_freq > 1, na.rm = T), TRUE, FALSE))
+    mutate(flag_extremes = ifelse(temp > quantile(temp, c(qhi), na.rm = T) | temp < quantile(temp, c(qlo) & median_freq > 1, na.rm = T), FALSE, TRUE))
   
   return(data)
 }
@@ -186,7 +186,7 @@ flag_extreme_days <- function(data, qlo = 0.001, qhi = 0.999) {
     data <- obs_freq(data)
   }
   data <- data %>%
-    mutate(flag_extremes = ifelse(temp > quantile(temp, c(qhi), na.rm = T) | temp < quantile(temp, c(qlo) & median_freq == 1, na.rm = T), TRUE, FALSE))
+    mutate(flag_extremes = ifelse(temp > quantile(temp, c(qhi), na.rm = T) | temp < quantile(temp, c(qlo) & median_freq == 1, na.rm = T), FALSE, TRUE))
   
   return(data)
 }
