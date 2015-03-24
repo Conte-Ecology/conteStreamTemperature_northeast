@@ -92,12 +92,14 @@ df_huc <- dplyr::rename(df_huc, HUC12 = huc12)
 
 # merge masterData and covariateData
 e <- left_join(masterData, covariateData)
-e <- left_join(e, df_huc)
+e <- left_join(e, df_huc) %>%
+  dplyr::mutate(site = featureid) %>%
+  dplyr::filter(!is.na(site))
 
 #---------site = location_id vs. featureid???-----------
 # add site for consistency with old code names
 #e$site <- e$location_id # could use dplyr rename for efficiency
-e$site <- e$featureid
+#e$site <- e$featureid
 
 e <- as.data.frame(unclass(e))
 
@@ -136,6 +138,7 @@ nSites <- length(siteList)
 siteYearCombos <- e %>%
   ungroup() %>%
   select(site, year) %>%
+  dplyr::filter(!is.na(site)) %>%
   distinct()
 
 siteYearCombos <- as.data.frame(unclass(siteYearCombos))
@@ -231,6 +234,7 @@ for (j in 1:nSites){
   # ------------------
   e1 <- e[e$site == siteList[j],]
   
+  ggplot(e1, aes(date, temp)) + geom_point() + geom_line()
   # Index spring range
   # ------------------
   e3Spring <- e1[ e1$dOY >= minCompleteDOYBP1 & e1$dOY <= maxCompleteDOYBP1, ]
@@ -314,7 +318,7 @@ for (j in 1:nSites){
       
       # The first day where all of the days ahead of it are in sync (in the numForward range) will be the minimum day with a 1.
       #   This day gets assigned the spring breakpoint
-      breaks$springBP[ breaks$year == year & breaks$site == siteList[j] ] <- min(which(runsSpring[,1] == 1))
+      breaks$springBP[ breaks$year == year & breaks$site == siteList[j] ] <- min(which(runsSpring[,1] == 1), na.rm = T)
       
       # Fill in the complete springBP column
       breaks$springBPComplete[ breaks$year == year & breaks$site == siteList[j] ] <- TRUE
@@ -331,10 +335,10 @@ for (j in 1:nSites){
     if(year %in% completeYearsFall){
       
       # Determine the point to stop to keep from going past lower limit if dOY
-      stopLoop <- max( c( minCompleteDOYBP3,min(eYear$dOY)+numForwardFall + 1 ) )  
+      stopLoop <- max( c( minCompleteDOYBP3,min(eYear$dOY)+numForwardFall + 1 ), na.rm = T)  
       
       # Loop through the approximate time backward until descending water temp
-      for (i in  max(eYear$dOY):stopLoop){
+      for (i in  max(eYear$dOY, na.rm = T):stopLoop){
         
         # From the current day, loop backward through the numForward range to determined which days are in sync
         for (ii in 2:numForwardFall ){
@@ -356,7 +360,7 @@ for (j in 1:nSites){
       
       # The last day where all of the days ahead of it are in sync (in the numForward range) will be the minimum day with a 1.
       #   This day gets assigned the fall breakpoint
-      breaks$fallBP[ breaks$year == year & breaks$site == siteList[j] ] <- max(which(runsFall[,1] == 1))
+      breaks$fallBP[ breaks$year == year & breaks$site == siteList[j] ] <- max(which(runsFall[,1] == 1), na.rm = T)
       
       # Fill in the complete fallBP column
       breaks$fallBPComplete[ breaks$year == year & breaks$site == siteList[j] ] <- TRUE
@@ -461,4 +465,5 @@ str(springFallBPs)
 
 # Save the output
 # save(springFallBPs, file = paste0(dataOutDir, outFile, '.RData'))
+output_file <- "localData/springFallBPs.RData"
 saveRDS(springFallBPs, file=output_file)
