@@ -191,6 +191,14 @@ covariateData <- left_join(select(df_locations, location_id, location_name, lati
   mutate(location_name=factor(location_name))
 summary(covariateData)
 
+# need to organize covariates into upstream or local by featureid
+upstream <- covariateData %>%
+  group_by(featureid) %>%
+  filter(zone == "upstream") %>%
+  select(-zone, -location_id, -location_name) %>%
+  summarise_each(funs(mean))
+
+
 # create climateData input dataset - need full year
 dates <- unique(temperatureData$date)
 years <- unique(year(temperatureData$date))
@@ -243,7 +251,7 @@ temperatureData2 <- temperatureData %>%
 ####### Do we want to put these in a subfolder?
 
 saveRDS(temperatureData2, file=output_file1)
-saveRDS(covariateData, file=output_file2)
+saveRDS(upstream, file=output_file2)
 saveRDS(climateData, file=output_file3)
 
 
