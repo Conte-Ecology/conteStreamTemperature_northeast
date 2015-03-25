@@ -80,11 +80,11 @@ tempDataSync = tempDataSync %>%
   group_by(site, year) %>%
   arrange(site, year, dOY) %>%
   mutate(airTempLagged1 = lag(airTemp, n = 1, fill = NA),
-         airTempLagged2 = lag(airTemp, n = 2, fill = NA),
-         prcpLagged1 = lag(prcp, n = 1, fill = NA),
-         prcpLagged2 = lag(prcp, n = 2, fill = NA),
-         prcpLagged3 = lag(prcp, n = 3, fill = NA),
-         temp5 = rollsum(x = airTemp, 5, align = "right", fill = NA),
+         #airTempLagged2 = lag(airTemp, n = 2, fill = NA),
+         #prcpLagged1 = lag(prcp, n = 1, fill = NA),
+         #prcpLagged2 = lag(prcp, n = 2, fill = NA),
+         #prcpLagged3 = lag(prcp, n = 3, fill = NA),
+         #temp5 = rollsum(x = airTemp, 5, align = "right", fill = NA),
          temp5p = rollapply(data = airTempLagged1, 
                                      width = 5, 
                                      FUN = mean, 
@@ -122,13 +122,17 @@ tempDataBP <- left_join(tempDataBP, springFallBPs, by=c('site', 'year'))
 # Clip to syncronized season
 tempDataSync <- dplyr::filter(tempDataBP, dOY >= finalSpringBP & dOY <= finalFallBP)
 
+# Filter by Drainage area
+tempDataSync <- tempDataSync %>%
+  filter(AreaSqKM  < 400)
+
 rm(masterData) # save some memory
 rm(tempDataBP)
 
 gc()
 
 
-tempDataSync <- left_join(tempDataSync, covariateData)
+#tempDataSync <- left_join(tempDataSync, covariateData)
 
 #tempDataSync <- tempDataSync[ , c("agency", "date", "AgencyID", "year", "site", "date", "finalSpringBP", "finalFallBP", "FEATUREID", "HUC4", "HUC8", "HUC12", "temp", "Latitude", "Longitude", "airTemp", "airTempLagged1", "airTempLagged2", "prcp", "prcpLagged1", "prcpLagged2", "prcpLagged3", "dOY", "Forest", "Herbacious", "Agriculture", "Developed", "TotDASqKM", "ReachElevationM", "ImpoundmentsAllSqKM", "HydrologicGroupAB", "SurficialCoarseC", "CONUSWetland", "ReachSlopePCNT", "srad", "dayl", "swe")]
 
@@ -138,12 +142,16 @@ tempDataSync <- left_join(tempDataSync, covariateData)
 tempDataSync <- na.omit(tempDataSync) ####### Needed to take out first few days that get NA in the lagged terms. Change this so don't take out NA in stream temperature?
 
 var.names <- c("airTemp", 
-               "airTempLagged1", 
-               "airTempLagged2", 
+               #"airTempLagged1", 
+               #"airTempLagged2",
+               "temp7p",
                "prcp", 
-               "prcpLagged1", 
-               "prcpLagged2", 
-               "prcpLagged3", 
+               "prcp2",
+               "prcp7",
+               "prcp30",
+               #"prcpLagged1", 
+               #"prcpLagged2", 
+               #"prcpLagged3", 
                "dOY", 
                "forest", 
                "herbaceous", 
@@ -173,8 +181,9 @@ featureid_huc8 <- fetch(rs, n=-1)
 
 tempDataSync <- tempDataSync %>%
   dplyr::left_join(featureid_huc8, by = "featureid") %>%
-  mutate(huc = huc8,
-         HUC8 = huc)
+  mutate(huc = as.character(huc8),
+         HUC8 = as.character(huc),
+         site = as.numeric(as.factor(featureid)))
 
 tempDataSync <- as.data.frame(unclass(tempDataSync))
 
