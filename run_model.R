@@ -35,23 +35,34 @@ library(devtools)
 library(conteStreamTemperature)
 
 fixed.ef <- c("intercept" 
-              , "Latitude" 
-              , "Longitude" 
-              , "TotDASqKM" 
-              , "Forest" 
-              , "ReachElevationM" 
-              , "SurficialCoarseC" 
-              , "CONUSWetland" 
-              , "ImpoundmentsAllSqKM" 
-              , "airTemp.TotDASqKM"
+              #, "Latitude" 
+              #, "Longitude" 
+              #, "AreaSqKM" 
+              #, "forest" 
+              #, "ReachElevationM" 
+              #, "SurficialCoarseC" 
+              #, "CONUSWetland" 
+              #, "ImpoundmentsAllSqKM" 
+              #, "airTemp.TotDASqKM"
+              , "airTemp.forest"
+              , "airTemp.prcp2.da"
+              #, "airTemp.prcp2.da.forest" # maybe add in when have riparian forest
+              #, "airTemp.prcp30.da" # try later
+              , "temp7p"
+              , "temp7p.prcp7.da"
+              , "temp7p.forest.prcp7.da"
+              , "allonnet"
+              , "airTemp.allonnet"
+              , "alloffnet"
+              , "airTemp.alloffnet"
+              , "devel_hi"
+              , "agriculture"
+              , "devel_hi.prcp2.da"
+              , "agriculture.prcp2.da"
 )
 
 site.ef <- c( "intercept.site" 
-              , "airTemp" 
-              , "airTempLagged2" 
-              , "prcp" 
-              , "prcpLagged1" 
-              , "airTemp.prcp"
+              , "airTemp"
 )
 
 year.ef <- c( "intercept.year"
@@ -59,6 +70,7 @@ year.ef <- c( "intercept.year"
               , "dOY2"
               , "dOY3"
 )
+
 
 cov.list <- list(fixed.ef = fixed.ef, site.ef = site.ef, huc.ef = site.ef, year.ef = year.ef)
 # model matrix not working because creates a design matrix
@@ -93,7 +105,11 @@ if (!file.exists('code')) {
   dir.create('code')
 }
 
-system.time(M.ar1 <- modelRegionalTempAR1(tempDataSyncS, cov.list, firstObsRows = firstObsRows, evalRows = evalRows, n.burn = 1000, n.it = 1000, n.thin = 1, nc = 3, coda = coda.tf, param.list = monitor.params)) # Slow with AR1: ~3-6 min per 100 iterations (13 min per 100 iter for site AR)
+system.time(M.ar1 <- modelRegionalTempAR1(tempDataSyncS, cov.list, firstObsRows = firstObsRows, evalRows = evalRows, n.burn = 100, n.it = 100, n.thin = 1, nc = 3, coda = coda.tf, param.list = monitor.params)) # Slow with AR1: ~3-6 min per 100 iterations (13 min per 100 iter for site AR)
+
+# temp output file
+output_file <- "localData/jags.RData"
+output2_file <- "localData/covariate-list.RData"
 
 # save to rdata
 saveRDS(M.ar1, file = output_file)
