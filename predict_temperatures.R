@@ -12,13 +12,14 @@ library(tidyr)
 library(DataCombine) # for the slide function
 library(RPostgreSQL)
 library(devtools)
-install_github("Conte-Ecology/conteStreamTemperature")
+#install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 
 args <- commandArgs(TRUE)
 # cmdargs <- fromJSON(args[1])
 print(args)
 
+if(file.exists("/conte")) {
 # note: dir is already a function in R, better not to overwrite it, use wd instead
 # also don't need fromJSON since the working directory is just a command line argument
 # dir <- fromJSON(args[1])
@@ -68,14 +69,21 @@ if (!file.exists(input_file)) {
 }
 springFallBPs <- readRDS(input_file)
 
-fields <- c("agency", "date", "AgencyID", "year", "site", "date", "dOY", "temp", "airTemp", "prcp", "srad", "dayl", "swe")
+# connect to database source
+db <- src_postgres(dbname='conte_dev', host='127.0.0.1', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+} else {
+  
+  db <- src_postgres(dbname='conte_dev', host='128.119.112.36', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+}
 
-var.names <- c("Latitude", "Longitude", "airTemp", "airTempLagged1", "airTempLagged2", "prcp", "prcpLagged1", "prcpLagged2", "prcpLagged3", "dOY", "Forest", "Herbacious", "Agriculture", "Developed", "TotDASqKM", "ReachElevationM", "ImpoundmentsAllSqKM", "HydrologicGroupAB", "SurficialCoarseC", "CONUSWetland", "ReachSlopePCNT", "srad", "dayl", "swe")
+#fields <- c("agency", "date", "AgencyID", "year", "site", "date", "dOY", "temp", "airTemp", "prcp", "srad", "dayl", "swe")
+
+#var.names <- c("Latitude", "Longitude", "airTemp", "airTempLagged1", "airTempLagged2", "prcp", "prcpLagged1", "prcpLagged2", "prcpLagged3", "dOY", "Forest", "Herbacious", "Agriculture", "Developed", "TotDASqKM", "ReachElevationM", "ImpoundmentsAllSqKM", "HydrologicGroupAB", "SurficialCoarseC", "CONUSWetland", "ReachSlopePCNT", "srad", "dayl", "swe")
 
 # Get list of unique catchments with daymet data in our database
 drv <- dbDriver("PostgreSQL")
 # con <- dbConnect(drv, dbname="conte_dev", host="127.0.0.1", user="conte", password="conte")
-con <- dbConnect(drv, dbname="conte_dev", host="felek.cns.umass.edu", user="conte", password="conte")
+con <- dbConnect(drv, dbname="conte_dev", host='ecosheds.org', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
 qry <- "SELECT DISTINCT featureid FROM daymet;"
 result <- dbSendQuery(con, qry)
 catchments <- fetch(result, n=-1)
@@ -115,7 +123,7 @@ rs <- dbSendQuery(con, "SELECT featureid,
 featureid_lat_lon <- fetch(rs, n=-1) 
 
 # temporary save entire environment so don't have to pull from dataframe for testing
-save.image("~/conteStreamTemperature_northeast_old/localData/db_pull_for_predictions.RData")
+save.image(file.path(getwd(), "localData/db_pull_for_predictions.RData"))
 
 
 # size of chunks
@@ -133,7 +141,7 @@ for(i in 1600:n.loops) {
   # connect to database source
   #db <- src_postgres(dbname='conte_dev', host='127.0.0.1', port='5432', user='conte', password='conte')
   #db <- src_postgres(dbname='conte_dev', host='felek.cns.umass.edu', port='5432', user='conte', password='conte')
-  db <- src_postgres(dbname='conte_dev', host='128.119.112.36', port='5432', user='conte', password='conte')
+  db <- src_postgres(dbname='conte_dev', host='ecosheds.org', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
   
 
   ######### Temporary to use with old model runs ################
@@ -142,8 +150,8 @@ for(i in 1600:n.loops) {
     rename(location_id=id, location_name=name, featureid=catchment_id) %>%
     select(location_id, location_name, latitude, longitude, featureid, agency_id) %>%
     left_join(tbl(db, 'agencies') %>% rename(agency_name=name, agency_id=id) %>% select(agency_name, agency_id)) %>%
-    select(location_id, location_name, featureid, latitude, longitude, agency_name) %>%
-    mutate(site=concat(agency_name, '_', location_name))
+    select(location_id, location_name, featureid, latitude, longitude, agency_name) #%>%
+    #mutate(site = #concat(agency_name, '_', location_name))
   
   #head(qry_locations)
   

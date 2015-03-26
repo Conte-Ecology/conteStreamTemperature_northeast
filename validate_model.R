@@ -66,6 +66,7 @@ rmse.fit <- rmse(tempDataSyncS$resid.r)
 rmse.table <- data.frame(rbind(rmse.fit, rmse.valid))
 colnames(rmse.table) <- "rmse"
 
+output_file <- "localData/rmse_table.RData"
 saveRDS(rmse.table, file=output_file)
 
 }
