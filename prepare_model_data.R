@@ -203,6 +203,8 @@ if (config[['validate']]) {
   tempDataSyncValidS <- stdCovs(x = tempDataSyncValid, y = tempDataSync, var.names = var.names)
   
   #####################
+  means <- NULL
+  stdevs <- NULL
   for(i in 1:length(var.names)) {
     means[i] <- mean(tempDataSync[, var.names[i]], na.rm = T)
     stdevs[i] <- sd(tempDataSync[, var.names[i]], na.rm = T)
@@ -218,6 +220,15 @@ if (config[['validate']]) {
   
 } else {
   tempDataSyncValid <- NULL
+  
+  means <- NULL
+  stdevs <- NULL
+  for(i in 1:length(var.names)) {
+    means[i] <- mean(tempDataSync[, var.names[i]], na.rm = T)
+    stdevs[i] <- sd(tempDataSync[, var.names[i]], na.rm = T)
+  }
+  
+  df_stds <- data.frame(cbind(var.names, means, stdevs))
 }
 
 # Standardize for Analysis
@@ -234,8 +245,8 @@ if (config[['validate']]) {
   
   tempDataSyncValidS <- addInteractions(tempDataSyncValidS)
   
-  save(tempDataSync, tempDataSyncS, tempDataSyncValid, tempDataSyncValidS, firstObsRows, evalRows, firstObsRowsValid, evalRowsValid, file = output_file)
+  save(tempDataSync, tempDataSyncS, tempDataSyncValid, tempDataSyncValidS, firstObsRows, evalRows, firstObsRowsValid, evalRowsValid, df_stds, file = output_file)
 } else {
-  save(tempDataSync, tempDataSyncS, firstObsRows, evalRows, file = output_file)
+  save(tempDataSync, tempDataSyncS, firstObsRows, evalRows, df_stds, file = output_file)
 }
 
