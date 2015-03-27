@@ -9,6 +9,8 @@ library(ggplot2)
 library(reshape2)
 library(dplyr)
 library(tidyr)
+library(zoo)
+library(lubridate)
 library(DataCombine) # for the slide function
 library(RPostgreSQL)
 library(devtools)
@@ -38,10 +40,13 @@ if(file.exists("/conte")) {
   #source(paste0(baseDir, 'code/functions/dataIndexingFunctions.R'))
   
   #load((paste0(dataOutDir, 'modSummary.RData')))
-  load(paste0(dataLocalDir, 'coef.RData'))
+coef.list <- readRDS(paste0(dataLocalDir, 'coef.RData'))
   load(paste0(dataLocalDir, 'tempDataSync.RData'))
-  load(paste0(dataLocalDir, 'covariate_list.RData'))
-  load(paste0(dataLocalDir, 'springFallBreakpoints.RData'))
+  #load(paste0(dataLocalDir, 'covariate_list.RData'))
+  #load(paste0(dataLocalDir, 'springFallBreakpoints.RData'))
+
+cov.list <- readRDS(paste0(dataLocalDir, 'covariate-list.RData'))
+springFallBPs <- readRDS(paste0(dataLocalDir, 'springFallBPs.RData'))
   
   # example: $ Rscript retreive_db.R ./temperatureData.RData ./covariateData.RData ./climateData.RData
   
@@ -74,6 +79,8 @@ if(file.exists("/conte")) {
 } else {
   
   db <- src_postgres(dbname='conte_dev', host='ecosheds.org', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+  
+  db <- src_postgres(dbname='conte_dev', host='ecosheds.org', port='5432', user="dan", password="snowcloudmountainclimber")
 }
 
 #fields <- c("agency", "date", "AgencyID", "year", "site", "date", "dOY", "temp", "airTemp", "prcp", "srad", "dayl", "swe")
@@ -84,7 +91,8 @@ if(file.exists("/conte")) {
 drv <- dbDriver("PostgreSQL")
 # con <- dbConnect(drv, dbname="conte_dev", host="127.0.0.1", user="conte", password="conte")
 con <- dbConnect(drv, dbname="conte_dev", host='ecosheds.org', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
-qry <- "SELECT DISTINCT featureid FROM daymet;"
+con <- dbConnect(drv, dbname="conte_dev", host='ecosheds.org', user="dan", password="snowcloudmountainclimber")
+qry <- "SELECT DISTINCT featureid FROM daymet;" # add join with drainage area and filter to those < 400
 result <- dbSendQuery(con, qry)
 catchments <- fetch(result, n=-1)
 catchments <- as.character(catchments$featureid)
@@ -122,6 +130,11 @@ rs <- dbSendQuery(con, "SELECT featureid,
                   FROM catchments;")
 featureid_lat_lon <- fetch(rs, n=-1) 
 
+featureid_site <- tempDataSyncS %>%
+  dplyr::select(featureid, site) %>%
+  dplyr::distinct() %>%
+  dplyr::mutate(site = as.character(site))
+
 # temporary save entire environment so don't have to pull from dataframe for testing
 save.image(file.path(getwd(), "localData/db_pull_for_predictions.RData"))
 
@@ -142,6 +155,7 @@ for(i in 1600:n.loops) {
   #db <- src_postgres(dbname='conte_dev', host='127.0.0.1', port='5432', user='conte', password='conte')
   #db <- src_postgres(dbname='conte_dev', host='felek.cns.umass.edu', port='5432', user='conte', password='conte')
   db <- src_postgres(dbname='conte_dev', host='ecosheds.org', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+  db <- src_postgres(dbname='conte_dev', host='ecosheds.org', user="dan", password="snowcloudmountainclimber")
   
   
   ######### Temporary to use with old model runs ################
@@ -192,9 +206,9 @@ for(i in 1600:n.loops) {
   mean.spring.bp <- mean(dplyr::filter(springFallBPs, finalSpringBP != "Inf")$finalSpringBP, na.rm = T)
   mean.fall.bp <- mean(dplyr::filter(springFallBPs, finalFallBP != "Inf")$finalFallBP, na.rm = T)
   
-  springFallBPS <- springFallBPs %>%
-    dplyr::mutate(site = as.character(springFallBPs$site),
-                  featureid = as.integer(springFallBPs$site),
+  foo <- springFallBPs %>%
+    dplyr::mutate(site = as.character(site),
+                  featureid = as.integer(site),
                   finalSpringBP = ifelse(finalSpringBP == "Inf" | is.na(finalSpringBP), mean.spring.bp, finalSpringBP),
                   finalFallBP = ifelse(finalFallBP == "Inf" | is.na(finalFallBP), mean.fall.bp, finalFallBP))
   
@@ -210,9 +224,9 @@ for(i in 1600:n.loops) {
     left_join(featureid_huc8, by = c('featureid')) %>%
     left_join(featureid_lat_lon, by = c('featureid')) %>%
     dplyr::mutate(year = as.numeric(format(date, "%Y"))) %>%
-    left_join(dplyr::select(springFallBPs, -site), by = c('featureid', 'year')) %>%
+    left_join(dplyr::select(foo, -site), by = c('featureid', 'year')) %>%
     dplyr::mutate(dOY = yday(date)) %>%
-    dplyr::rename(huc = huc8) %>%
+    dplyr::mutate(huc = huc8) %>%
     dplyr::filter(dOY >= finalSpringBP & dOY <= finalFallBP | is.na(finalSpringBP) | is.na(finalFallBP & finalSpringBP != "Inf" & finalFallBP != "Inf")) %>%
     dplyr::filter(dOY >= mean.spring.bp & dOY <= mean.fall.bp) %>%
     dplyr::filter(AreaSqKM < 400)
@@ -309,8 +323,8 @@ for(i in 1600:n.loops) {
                  "swe")
   
   fullDataSync <- fullDataSync %>%
-    mutate(huc8 = as.character(huc),
-           HUC8 = as.character(huc),
+    mutate(HUC8 = as.character(huc8),
+           huc8 = as.character(huc8),
            site = as.numeric(as.factor(featureid))) #Developed = NA, Herbacious = NA, Agriculture = NA, HydrologicGroupAB=NA, ReachSlopePCNT=NA, 
   
   fullDataSyncS <- stdCovs(x = fullDataSync, y = tempDataSync, var.names = var.names)
@@ -319,8 +333,7 @@ for(i in 1600:n.loops) {
   
   fullDataSyncS <- indexDeployments(fullDataSyncS, regional = TRUE)
   #firstObsRowsFull <- createFirstRows(fullDataSyncS)
-  #evalRowsFull <- createEvalRows(fullDataSyncS)
-  
+  #evalRowsFull <- createEvalRows(fullDataSyncS
   
   #save(fullDataSync, fullDataSyncS, file = paste0(dataLocalDir, "fullDataSync.RData"))
   
