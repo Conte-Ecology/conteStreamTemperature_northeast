@@ -79,8 +79,6 @@ springFallBPs <- readRDS(paste0(dataLocalDir, 'springFallBPs.RData'))
 } else {
   
   db <- src_postgres(dbname='conte_dev', host='ecosheds.org', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
-  
-  db <- src_postgres(dbname='conte_dev', host='ecosheds.org', port='5432', user="dan", password="snowcloudmountainclimber")
 }
 
 #fields <- c("agency", "date", "AgencyID", "year", "site", "date", "dOY", "temp", "airTemp", "prcp", "srad", "dayl", "swe")
@@ -91,7 +89,6 @@ springFallBPs <- readRDS(paste0(dataLocalDir, 'springFallBPs.RData'))
 drv <- dbDriver("PostgreSQL")
 # con <- dbConnect(drv, dbname="conte_dev", host="127.0.0.1", user="conte", password="conte")
 con <- dbConnect(drv, dbname="conte_dev", host='ecosheds.org', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
-con <- dbConnect(drv, dbname="conte_dev", host='ecosheds.org', user="dan", password="snowcloudmountainclimber")
 qry <- "SELECT DISTINCT featureid FROM daymet;" # add join with drainage area and filter to those < 400
 result <- dbSendQuery(con, qry)
 catchments <- fetch(result, n=-1)
@@ -155,7 +152,6 @@ for(i in 1600:n.loops) {
   #db <- src_postgres(dbname='conte_dev', host='127.0.0.1', port='5432', user='conte', password='conte')
   #db <- src_postgres(dbname='conte_dev', host='felek.cns.umass.edu', port='5432', user='conte', password='conte')
   db <- src_postgres(dbname='conte_dev', host='ecosheds.org', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
-  db <- src_postgres(dbname='conte_dev', host='ecosheds.org', user="dan", password="snowcloudmountainclimber")
   
   
   ######### Temporary to use with old model runs ################
