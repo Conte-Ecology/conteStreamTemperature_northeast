@@ -25,6 +25,9 @@ if (file.exists(output2_file)) {
   warning(paste0('Output2 file already exists, overwriting: ', output2_file))
 }
 
+# temporary
+load("localData/tempDataSync.RData")
+
 # ----
 ### Run the model in JAGS
 
@@ -48,21 +51,22 @@ fixed.ef <- c("intercept"
               , "airTemp.prcp2.da"
               #, "airTemp.prcp2.da.forest" # maybe add in when have riparian forest
               #, "airTemp.prcp30.da" # try later
-              , "temp7p.prcp7.da"
-              , "temp7p.forest.prcp7.da"
+              #, "temp7p.prcp7.da"
+              #, "temp7p.forest.prcp7.da"
               , "allonnet"
               , "airTemp.allonnet"
-              , "alloffnet"
-              , "airTemp.alloffnet"
+              #, "alloffnet"
+              #, "airTemp.alloffnet"
               , "devel_hi"
               , "agriculture"
-              , "devel_hi.prcp2.da"
-              , "agriculture.prcp2.da"
+              #, "devel_hi.prcp2.da"
+              #, "agriculture.prcp2.da"
 )
 
 site.ef <- c( "intercept.site" 
               , "airTemp"
               , "temp7p"
+              , "airTemp.prcp30.da"
 )
 
 year.ef <- c( "intercept.year"
