@@ -149,7 +149,7 @@ coef.list <- list(fix.ef = fix.ef
 )
 
 # save(modSummary, file=paste0(dataOutDir, 'modSummary.RData'))
-output_file <- "localData/coef.Data"
+output_file <- "localData/coef.RData"
 saveRDS(coef.list, file=output_file)
 
 
