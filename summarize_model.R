@@ -33,6 +33,11 @@ if (file.exists(output_file)) {
   warning(paste0('Output file already exists, overwriting: ', output_file))
 }
 
+# temp load
+load("localData/tempDataSync.RData")
+cov.list <- readRDS("localData/covariate-list.RData")
+coef <- readRDS("localData/coef.RData")
+
 # ----
 library(ggplot2)
 library(ggmcmc)
