@@ -45,6 +45,11 @@ library(devtools)
 library(conteStreamTemperature)
 library(rjags)
 
+# temporary when not running via bash
+coef.list <- readRDS("localData/coef.RData")
+cov.list <- readRDS("localData/covariate-list.RData")
+load("localData/tempDataSync.RData")
+
 tempDataSyncS <- predictTemp(data = tempDataSyncS, coef.list = coef.list, cov.list = cov.list)
 
 tempDataSyncValidS <- predictTemp(data = tempDataSyncValidS, coef.list = coef.list, cov.list = cov.list)
@@ -68,5 +73,18 @@ colnames(rmse.table) <- "rmse"
 
 output_file <- "localData/rmse_table.RData"
 saveRDS(rmse.table, file=output_file)
+
+foo <- tempDataSyncS %>%
+  dplyr::select(featureid, date, trend, tempPredicted, resid.r)%>%
+  dplyr::mutate(featureid = as.factor(featureid))
+
+tempDataSync <- tempDataSync %>%
+  dplyr::mutate(featureid = as.factor(featureid))
+
+tempDataSync <- tempDataSync %>%
+  left_join(foo, by = c("featureid", "date"))
+
+saveRDS(tempDataSync, "localData/obs_predicted.RData")
+saveRDS(tempDataSyncValidS, "localData/valid_results.RData")
 
 }

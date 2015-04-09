@@ -5,7 +5,9 @@ modelPredictionTimeseries/
 .Rproj.user
 .Rhistory
 .Rapp.history
-.RData
+*.RData
+*.csv
+*.txt
 *.jpg
 *.jpeg
 *.tiff
@@ -14,6 +16,9 @@ modelPredictionTimeseries/
 *.png
 *.doc
 *.docx
+*.ppt
+*.pptx
+*.pdf
 nlme.RData
 gamm.RData
 bam.RData
