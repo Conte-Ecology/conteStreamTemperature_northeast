@@ -137,10 +137,10 @@ save.image(file.path(getwd(), "localData/db_pull_for_predictions.RData"))
 
 
 # size of chunks
-chunk.size <- 100
+chunk.size <- 50
 n.loops <- ceiling(n.catches / chunk.size)
 j = 0
-for(i in 1:n.loops) {
+for(i in 2071:n.loops) {
   j <- j + 1
   k <- j*chunk.size
   if(k <= n.catches) {
@@ -149,9 +149,9 @@ for(i in 1:n.loops) {
     catches <- catchmentid[(1+(j-1)*chunk.size):n.catches]
   }
   # connect to database source
-  #db <- src_postgres(dbname='conte_dev', host='127.0.0.1', port='5432', user='conte', password='conte')
-  #db <- src_postgres(dbname='conte_dev', host='felek.cns.umass.edu', port='5432', user='conte', password='conte')
-  db <- src_postgres(dbname='conte_dev', host='ecosheds.org', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+  db <- src_postgres(dbname='conte_dev', host='127.0.0.1', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+  #db <- src_postgres(dbname='conte_dev', host='felek.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password = options('SHEDS_PASSWORD'))
+  #db <- src_postgres(dbname='conte_dev', host='ecosheds.org', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
   
   
   ######### Temporary to use with old model runs ################
@@ -258,7 +258,7 @@ for(i in 1:n.loops) {
   #fullDataSync <- slide(fullDataSync, Var = "prcp", GroupVar = "site", slideBy = -3, NewVar='prcpLagged3')
   
   # moving means instead of lagged terms in the future
-  fullDataSync = fullDataSync %>%
+  fullDataSync <- fullDataSync %>%
     group_by(featureid, year) %>%
     arrange(featureid, year, dOY) %>%
     mutate(airTempLagged1 = lag(airTemp, n = 1, fill = NA),
@@ -391,8 +391,8 @@ for(i in 1:n.loops) {
   
   mean.pred <- mean(fullDataSync$tempPredicted, na.rm = T)
   
-  str(mean.pred)
-  summary(fullDataSync$tempPredicted)
+  #str(mean.pred)
+  #summary(fullDataSync$tempPredicted)
   
   if(mean.pred == "NaN") {
     print(paste0(i, " of ", n.loops, " loops has no predicted temperatures"))
@@ -424,10 +424,10 @@ for(i in 1:n.loops) {
 # add an ifelse for whether data is present or not #######################
 #derivedfeatureidMetrics <- mutate(derivedfeatureidMetrics, flag = ifelse(meanRMSE > quantile(derivedfeatureidMetrics$meanRMSE, probs = c(0.95), na.rm=TRUE), "Flag", ""))
 
-metrics.lat.lon <- left_join(featureid_lat_lon, derived.site.metrics, by = c('featureid')) # reverse this join or full join so get NA for all missing catchments? - doesn't seem to be working correctly yet - check again
+metrics.lat.lon <- left_join(featureid_lat_lon, metrics, by = c('featureid')) # reverse this join or full join so get NA for all missing catchments? - doesn't seem to be working correctly yet - check again
 
 saveRDS(metrics.lat.lon, file = 'localData/derived_site_metrics.RData')
-write.table(metrics, file = 'localData/derived_site_metrics.csv', sep = ',', row.names = F)
+write.table(metrics.lat.lon, file = 'localData/derived_site_metrics.csv', sep = ',', row.names = F)
 
 #}
 
