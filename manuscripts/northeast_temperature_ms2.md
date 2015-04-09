@@ -62,7 +62,7 @@ We assumed stream temperature measurements were normally distributed following,
 
 $$ t_{s,h,d,y} \sim \mathcal{N}(\mu_{s,h,d,y}, \sigma) $$
 
-where $t_{s,h,d,y}$ is the observed stream water temperature at the site ($s$) within the sub-basin identified by the 8-digit Hydrologic Unit Code (HUC8; $h$) for each day ($d$) in each year ($y$). We describe the normal distribution based on the mean ($mu_s,h,d,y$) and standard deviation ($\sigma$) and assign a vague prior of $\sigma = 100$. The mean temperature is modelled to follow a linear trend
+where $t_{s,h,d,y}$ is the observed stream water temperature at the site ($s$) within the sub-basin identified by the 8-digit Hydrologic Unit Code (HUC8; $h$) for each day ($d$) in each year ($y$). We describe the normal distribution based on the mean ($mu_{s,h,d,y}$) and standard deviation ($\sigma$) and assign a vague prior of $\sigma = 100$. The mean temperature is modelled to follow a linear trend
 
 $$ \omega_{s,h,d,y} = X_0 B_0 + X_{s,h} B_{s,h} + X_{h} B_{h} + X_{y} B_{y} $$
 

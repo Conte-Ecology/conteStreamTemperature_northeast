@@ -127,11 +127,11 @@ df_values <- df_values %>%
 # Filter based on subdaily flags
 df_values <- df_values %>%
   group_by(series_id, date) %>%
-  filter(flag_incomplete == "FALSE",
+  filter(flag_incomplete == "FALSE", # make all != TRUE to include NA?
          flag_cold_obs == "FALSE",
          flag_hot_obs == "FALSE",
-         flag_interval == "FALSE",
-         abs(d_temp) < 10)
+         flag_interval == "FALSE" | is.na(flag_interval),
+         abs(d_temp) < 10 | is.na(d_temp))
 
 
 # Convert to daily
@@ -210,6 +210,9 @@ climate <- tbl_daymet %>%
 
 climate_filter <- climate %>%
   filter(featureid %in% df_locations$featureid & year %in% years) # can't chain this with above. Should probably just write direct SQL code.
+
+df_climate <- collect(climate) %>%
+  filter(year %in% years)
 
 drv <- dbDriver("PostgreSQL")
 # con <- dbConnect(drv, dbname="conte_dev", host="127.0.0.1", user="conte", password="conte")

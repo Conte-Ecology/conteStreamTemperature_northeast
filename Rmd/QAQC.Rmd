@@ -1,0 +1,249 @@
+---
+title: "QAQC Testing"
+author: "Daniel Hocking"
+date: "March 12, 2015"
+output: html_document
+---
+
+```{r load packages, echo = FALSE, warning=FALSE, results='hide'}
+library(dplyr)
+library(ggplot2)
+#library(conteStreamTemperature)
+```
+
+```{r load data}
+climateData <- readRDS("/Users/Dan/Documents/Research/Stream_Climate_Change/conteStreamTemperature_northeast/Test/climateData.RData")
+covariateData <- readRDS("/Users/Dan/Documents/Research/Stream_Climate_Change/conteStreamTemperature_northeast/Test/covariateData.RData")
+temperatureData <- readRDS("/Users/Dan/Documents/Research/Stream_Climate_Change/conteStreamTemperature_northeast/Test/temperatureData.RData")
+```
+
+```{r join data}
+df <- temperatureData %>%
+  left_join(climateData, by = c("featureid", "date")) %>%
+  mutate(airTemp = (tmax + tmin) / 2)
+```
+
+# Filter observations (or time series) that have not been approved (unflagged) by the user
+
+```{r user filter}
+df <- df %>%
+  filter(flagged == "FALSE")
+```
+
+# Rate of Data collection
+
+Add a column of rate of data collection (15 min, 30 min, hourly, daily, etc.). That way can run the functions appropriate for just the appropriate resolution data.
+
+```{r rate column}
+df <- obs_freq(data = df)
+```
+
+## Flag days within a series (deployment) with inconsistent time intervals between observations
+
+The function checks if the min and max time between observations within a day for a time series are equal. Problem arises if the 12-hr and 24-hr formats are entered incorrectly.
+
+```{r inconsistent interval}
+df <- flag_interval(df)
+```
+
+## Flag incomplete days
+
+**Flag days without at least 90% of the data (mostly first and last day but also days with malfunctions)**
+
+```{r flag temperature data with partial days approved by user}
+df <- flag_incomplete(df)
+```
+
+
+# Check for out of water (out of water vs. dry stream?)
+
+Is there a difference in signal between out of water when significant water flow and out of water due to dry stream?
+
+Use the function `flag_hourly_rise(data, deg)` to flag any hourly observations.
+
+### Does change in temperature exceed 3C in an hour?
+
+```{r exceed 3C rise per hour}
+df <- flag_hourly_rise(df, deg = 3)
+```
+
+Check if $3^oC$ is appropriate to detect out of water events:
+
+```{r}
+# summary(data)
+problem_obs <- dim(filter(df, flag_hourly_rise == 1))[1]
+n_obs <- dim(df)[1]
+problem_obs/n_obs
+problem_series <- unique(filter(df, flag_hourly_rise == 1)$series_id)
+n_prob_series <- length(problem_series)
+n_series <- length(unique(df$series_id))
+prop_prob_series <- n_prob_series / n_series
+```
+
+Of `r n_obs` total observations, `r problem_obs`
+
+Print a few examples of time series of temperatures with flags and air temperatures to see if out of water events are being identified (and false positives and false negatives)
+
+```{r}
+for(i in 1:4) {
+print(ggplot(filter(df, series_id == problem_series[i]), aes(date, temp)) + geom_point(aes(colour = flag_hourly_rise)) + geom_line(aes(date, airTemp), colour = "gray") + theme_bw())
+}
+```
+
+**A 3 C change in air temperature in an hour seems to pick up far too many real, not out-of-water, observations**.
+
+### Does change in temperature exceed 5C in an hour?
+```{r exceed 5C rise per hour}
+df <- flag_hourly_rise(df, deg = 5)
+```
+
+Check if $5^oC$ is appropriate to detect out of water events:
+
+```{r}
+# summary(data)
+problem_obs <- dim(filter(df, flag_hourly_rise == 1))[1]
+n_obs <- dim(df)[1]
+problem_obs/n_obs
+problem_series <- unique(filter(df, flag_hourly_rise == 1)$series_id)
+n_prob_series <- length(problem_series)
+n_series <- length(unique(df$series_id))
+prop_prob_series <- n_prob_series / n_series
+```
+
+Of `r n_obs` total observations, `r problem_obs`
+
+Print a few examples of time series of temperatures with flags and air temperatures to see if out of water events are being identified (and false positives and false negatives)
+
+```{r}
+for(i in 1:4) {
+print(ggplot(filter(df, series_id == problem_series[i]), aes(date, temp)) + geom_point(aes(colour = flag_hourly_rise)) + geom_line(aes(date, airTemp), colour = "gray") + theme_bw())
+}
+```
+
+
+## Something about the ratio of or difference between $\delta T_{water}$ to $\delta T_{air}$
+
+## Convert Negative values
+
+Convert values between -1 and 0 to 0, assuming this is imprecision and not out of water events.
+
+```{r convert -1 to 0}
+df <- convert_neg(df)
+```
+
+## Flag extreme cold (user-defined threshold) observations
+
+Flag temperatures below -1 C, assuming that these are out of water (including in-ice) events. It's likely that the water temperature is 0 C in these cases but it cannot be assured. 
+
+```{r flag extreme cold obs}
+df <- flag_cold_obs(df)
+```
+
+## Flag extreme warm observations (user-defined threshold)
+
+Flag observations with temperatures over a threshold. Start with 35 C as the threshold. This isn't looking to limit the data, it's only looking for actual errors in the data.
+
+```{r flag extreme hot obs}
+df <- flag_hot_obs(df, threshold = 35)
+```
+
+## Flag extreme observations (statistically)
+
+Flag temperatures outside the 0.1% quantiles. This is currently done for all data lumped together. It could be done by series_id (deployment) or location, but it would create a lot of flags because so many series are short and quantiles work on the data so the lowest and highest points would always be flagged.
+
+It would be possible to do some bootstrapping to get confidence intervals at the series level, but there would be assumptions about the distribution and/or independence of points that would be difficult to make in an automated way when a single series could be any length and from any time of the year.
+
+In reality the low is problematic (and uncessary) if all the data are used and if anything below zero are going to be flagged or converted to 0.
+
+```{r flag extremes}
+flag_extreme_obs(df, qlo = 0.001, qhi = 0.999)
+```
+
+# Export flagged observations
+
+This isn't yet implemented
+
+
+# Apply Filters
+
+Some of the filters have to many false positives for be excluded automatically. I won't filter them out for analysis but they can be used for the original user (data collector/uploader) to identify and correct/flag problem observations.
+
+```{r filter data to exclude from the model calibration and validation}
+df <- df %>%
+  group_by(series_id, date, location_id, agency_id) %>%
+  filter(flag_incomplete == "FALSE",
+         flag_cold_obs == "FALSE",
+         flag_hot_obs == "FALSE",
+         flag_interval == "FALSE")
+summary(df)
+```
+
+## Rerun partial day flag to pick up any created by filtering
+
+```{r rerun incomplete day flag and filter}
+df <- flag_incomplete(df)
+df <- dplyr::filter(df, flag_incomplete == "FALSE")
+```
+
+
+# Collapse to Daily Data
+
+```{r daily data}
+# Collapse to daily data
+df_temp <- df %>%
+  group_by(series_id, date, location_id, agency_id) %>%
+  dplyr::summarise(temp = mean(value), maxTemp = max(value), minTemp = min(value), n_obs = n())
+summary(df_temp)
+```
+
+# Daily Flags
+
+### Flag hot days
+
+Flag if mean daily temperature is above 35 C
+
+```{r flag daily hot}
+df_temp <- flag_hot_days(df_temp)
+```
+
+
+### Does change in mean temperature exceed 5C in a day?
+```{r exceed 5C rise per day}
+df <- flag_daily_rise(df, deg = 5)
+```
+
+Check if $5^oC$ is appropriate to detect out of water events:
+
+```{r}
+# summary(data)
+problem_obs <- dim(filter(df, flag_daily_rise == 1))[1]
+n_obs <- dim(df)[1]
+problem_obs/n_obs
+problem_series <- unique(filter(df, flag_daily_rise == 1)$series_id)
+n_prob_series <- length(problem_series)
+n_series <- length(unique(df$series_id))
+prop_prob_series <- n_prob_series / n_series
+```
+
+Of `r n_obs` total observations, `r problem_obs`
+
+Print a few examples of time series of temperatures with flags and air temperatures to see if out of water events are being identified (and false positives and false negatives)
+
+```{r}
+for(i in 1:4) {
+print(ggplot(filter(df, series_id == problem_series[i]), aes(date, temp)) + geom_point(aes(colour = flag_daily_rise)) + geom_line(aes(date, airTemp), colour = "gray") + theme_bw())
+}
+```
+
+
+# Apply daily filters
+
+```{r daily filters}
+df_temp <- df_temp %>%
+  group_by(series_id, date, location_id, agency_id) %>%
+  filter(flag_hot_days == "FALSE")
+summary(df_temp)
+```
+
+
+
