@@ -14,7 +14,7 @@ library(lubridate)
 library(DataCombine) # for the slide function
 library(RPostgreSQL)
 library(devtools)
-#install_github("Conte-Ecology/conteStreamTemperature")
+install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 
 args <- commandArgs(TRUE)
@@ -140,7 +140,7 @@ save.image(file.path(getwd(), "localData/db_pull_for_predictions.RData"))
 chunk.size <- 100
 n.loops <- ceiling(n.catches / chunk.size)
 j = 0
-for(i in 1600:n.loops) {
+for(i in 1:n.loops) {
   j <- j + 1
   k <- j*chunk.size
   if(k <= n.catches) {
@@ -426,8 +426,8 @@ for(i in 1600:n.loops) {
 
 metrics.lat.lon <- left_join(featureid_lat_lon, derived.site.metrics, by = c('featureid')) # reverse this join or full join so get NA for all missing catchments? - doesn't seem to be working correctly yet - check again
 
-saveRDS(metrics.lat.lon, file = 'derived_site_metrics.RData')
-write.table(metrics, file = 'derived_site_metrics.csv', sep = ',', row.names = F)
+saveRDS(metrics.lat.lon, file = 'localData/derived_site_metrics.RData')
+write.table(metrics, file = 'localData/derived_site_metrics.csv', sep = ',', row.names = F)
 
 #}
 
