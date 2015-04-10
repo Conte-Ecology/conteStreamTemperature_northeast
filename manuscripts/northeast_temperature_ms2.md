@@ -120,13 +120,15 @@ $$ \Sigma_{B_{y}} \sim \text{Inv-Wishart}(diag(K_{y}), K_{y}+1) $$
 
 To estimate all the parameters and their uncertainties, we used a Bayesian analysis with a Gibbs sampler implemented in JAGS (ref) through R (ref) using the rjags package (ref). This approach was beneficial for hierarchical model flexibility and tractibility for large datasets. We used vague priors for all parameters so all inferences would be based on the data.
 
+**info on length of burn-in and sampling iterations and thinning**
+
 ### Model validation
 
 To validate our model, we held out 10% of subbasins (HUC8s) at random. We also held out 10% of remaining stream reaches with observed temperature data at random. Additionally, we excluded all 2010 data because it was an especially warm summer across the northeastern U.S. Therefore, we will be able to evaluate how well our model predicts across space and time. This included reaches with no data located within subbasins with and without data and how well the model predicts in warm years without data, which will be important if using this model with future climate predictions. The most challenging validation scenario was at reaches within HUC8s without any data in a year without any data. In total, **XX%** of observations and **XX%** of reaches were held out for validation.
 
 ### Derived metrics
 
-
+We use the meteorological data from daymet to predict daily temperatures for all stream reaches (<400 km$^2$) in the region for the synchronized period of the year from 1980-2013. The predictions are conditional on the specific random effects where available and receive the mean effect for reaches, HUC8s, and years when no data was collected. From these daily predictions, we derive a variety of metrics to characterize the stream thermal regime. These include mean (over the 34 years) July temperature, mean summer temperature, mean number of days per year above a thermal threshold (18, 20, 22 C used by default),frequency of years that the mean daily temperature exceeds each of these thresholds, and the maximum 7-day and 30-day moving means for each year and across all years. We also provide predictions of cold, cool, and warm waters specific to states with regulations related to these classifications.
 
 ### Climate change projections (future paper?)
 
@@ -134,8 +136,17 @@ To validate our model, we held out 10% of subbasins (HUC8s) at random. We also h
 Results
 -------
 
-Explain what you found. Avoid blind *P-values* (or avoid *P-values* altogether)
+We used **XX** observations from **XX** stream reaches within **XX** HUC8 subbasins between **1991-2013**, excluding 2010. 
 
+Evaluation of MCMC convergence (visual and R-hat)
+
+Evaluation of model fit
+
+Coefficient estimates from the model
+
+Variability at the reach and huc scales
+
+To evaluate the spatial and temporal predictive power of our model, we used independent validation data consisting of **XX** observations from **XX** stream reaches within **XX** HUC8 subbasins between **YYYY-YYYY**.
 
 Discussion
 ----------
@@ -151,7 +162,11 @@ Disagreement (conflicting evidence? confused terminology) regarding the drivers 
 
 Acknowledgements
 ----------------
-Thanks to Ethan White, Karthik Ram, Carl Boettiger, Ben Morris, and [Software Carpentry](http://software-carpentry.org/) for getting me started with the skills needed to [ditch MS Word](http://inundata.org/2012/12/04/how-to-ditch-word/) and produce more reproducible research.
+Thanks to A. Rosner for thoughtful discussions related to the analysis and inference.
+
+Groups who provided data
+
+
 
 
 Tables
@@ -213,8 +228,6 @@ AirT x prcp30 x DA -0.0020 0.1666
 
 **example created with stargazer**
 
-% Table created by stargazer v.5.1 by Marek Hlavac, Harvard University. E-mail: hlavac at fas.harvard.edu
-% Date and time: Fri, Apr 10, 2015 - 2:29:23 PM
 \begin{table}[!htbp] \centering 
   \caption{} 
   \label{} 
@@ -235,7 +248,7 @@ AirT x Prcp2 x DA & -0.0036 & 0.0016 & \textasteriskcentered  \\
 AirT x prcp30 x DA & -0.0020 & 0.1666 &  \\ 
 Day &  0.0506 & 0.1070 &  \\ 
 Day$\hat{\mkern6mu}$2 & -0.5141 & 0.0887 & \textasteriskcentered  \\ 
-Day$\hat{\mkern6mu}$3 & -0.0834 & 0.0778 &  \\ 
+Day$^3$ & -0.0834 & 0.0778 &  \\ 
 AR1 &  0.7696 & 0.0073 & \textasteriskcentered  \\ 
 \hline \\[-1.8ex] 
 \end{tabular} 
@@ -246,9 +259,9 @@ Figures
 
 Figure 1. Example of adding a figure.
 
-![Figure1](Figures/MADEP_W2033_T1.png)
+![](Figures/MADEP_W2033_T1.png)
 
-![Figure2](Figures/MeanJulyTemp_NENY.png)
+![Predicted mean July stream temperatures from the period 1980-2013.](Figures/MeanJulyTemp_NENY.png)
 
 
 
