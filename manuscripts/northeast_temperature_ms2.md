@@ -21,24 +21,30 @@ Temperature is a critical factor in regulating the physical, chemical, and biolo
 
 Stream temperature models can be used for explanatory purposes (understanding factors and mechanisms affecting temperature) and for prediction. Predictions can be spatial and temporal including forecasting and hindcasting. Predictions across space are especially valuable because there is often a need for information at locations with little or no observed temperature data. For example, many states have regulations related to the management of streams classified as cold, cool, and warm waters (refs), but because of the tremendous number of headwater streams it is impossible classify most streams based on observed data. Therefore, modeled stream temperature is needed to classify most streams for regulatory purposes. Forecasting can provide immediate information such as the expected temperature the next hour, day, or week as well as long-term information about expected temperatures months, years, and decades in the future. Hindcasting can be used to examine temperature variability and trends over time and for model validation. Both forecasting and hindcasting are useful for understanding climate change effects on stream temperature regimes.
 
-Stream temperature models are generally divided into three categories: deterministic (also called process-based or mechanistic), stochastic, and statistical [@Chang2013; @Caissie2006; @Benyahya2007]. Deterministic models are based on heat transfer and are often modeled using energy budgets [@Benyahya2007; @Caissie2006]. The models require large amounts of detailed information on the physical properties of the stream and adjacent landscape as well as hydrology and meteorology. These models are useful for detailed site assessments and scenario testing. However, the data requirements prevent the models from being applied over large spatial extents.
+Given the importance of temperature in aquatic systems, it is not surprising that there are a variety of models and approaches to understanding and predicting stream temperature. Stream temperature models are generally divided into three categories: deterministic (also called process-based or mechanistic), stochastic, and statistical [@Chang2013; @Caissie2006; @Benyahya2007]. Deterministic models are based on heat transfer and are often modeled using energy budgets [@Benyahya2007; @Caissie2006]. The models require large amounts of detailed information on the physical properties of the stream and adjacent landscape as well as hydrology and meteorology. These models are useful for detailed site assessments and scenario testing. However, the data requirements preclude the models from being applied over large spatial extents.
 
-Stochastic models attempt to combine pattern (seasonal and spatial trends) with the random deviations to describe and predict environmental data [@Chang2013; @Sura2006; @Kiraly2002]. Stochastic models of stream temperature generally rely on relationships between air and water temperature then with random noise and an autoregressive correlation, often decomposed by seasonal and annual components. These models are mostly commonly used to model daily temperature fluctuations because of their ability to address autocorrelation and approximate the near-random variability in environmental data [@Kiraly2002; @Caissie2001; @Ahmadi-Nedushan2007]. A limitation is that the physical processes driving temperature fluctuations are not elucidated with these models, they are used to describe features and patterns in a system and can therefore predict these patterns [@Kiraly2002]. Additionally, stochastic models rely on continuous, often long, time series from a single or a few locations. Inference cannot be made to other locations without assuming that the patterns and random deviations are similar at those locations.
+Stochastic models attempt to combine pattern (seasonal and spatial trends) with the random deviations to describe and predict environmental data [@Chang2013; @Sura2006; @Kiraly2002]. Stochastic models of stream temperature generally rely on relationships between air and water temperature then with random noise and an autoregressive correlation, often decomposed by seasonal and annual components. These models are mostly commonly used to model daily temperature fluctuations because of their ability to address autocorrelation and approximate the near-random variability in environmental data [@Kiraly2002; @Caissie2001; @Ahmadi-Nedushan2007]. A limitation is that the physical processes driving temperature fluctuations are not elucidated with these models. They are generally used to describe characteristics and patterns in a system and to forecast these patterns in the future [@Kiraly2002]. Additionally, stochastic models rely on continuous, often long, time series from a single or a few locations. Inference cannot be made to other locations without assuming that the patterns and random deviations are similar at those locations.
 
-As with stochastic models, statistical models generally rely on correlative relationships between air and water temperatures, but also typically include a variety of other predictor variables such as basin, landscape, and land-use characteristics. Statistical models are often linear with normally distributed error and therefore used at weekly or monthly time steps to avoid problems with temporal autocorrelation at shorter time steps (e.g. daily, hourly, sub-hourly). Parametric, nonlinear regression models have been developed to provide more information on mechanisms than traditional statistical models [@Mohseni1998]. Researchers have also developed geospatial regression models that account for spatial autocorrelation within dendritic stream networks [@Isaak2010b; @Peterson2010; @Peterson2013]. However, due to the complexity of the covariance structure of network geostatistical models, they are best used for modeling single temperature values across space (e.g. summer maximum, July mean, etc.) rather than daily temperatures [@Peterson2010; @Peterson2007; @VerHoef2010]. Additionally, statistical machine learning techniques such as artificial neural networks have been used to model stream temperatures when unclear interactions, nonlinearities, and spatial relationships are of concern [@Sivri2009; @Sivri2007; @DeWeber2014].
+As with stochastic models, statistical models generally rely on correlative relationships between air and water temperatures, but also typically include a variety of other predictor variables such as basin, landscape, and land-use characteristics. Statistical models are often linear with normally distributed error and therefore used at weekly or monthly time steps to avoid problems with temporal autocorrelation at shorter time steps (e.g. daily, hourly, sub-hourly). Parametric, nonlinear regression models have been developed to provide more information regarding mechanisms than traditional statistical models without the detail of physical deterministic models [@Mohseni1998]. Researchers have also developed geospatial regression models that account for spatial autocorrelation within dendritic stream networks [@Isaak2010b; @Peterson2010; @Peterson2013]. However, due to the complexity of the covariance structure of network geostatistical models, they are best used for modeling single temperature values across space (e.g. summer maximum, July mean, etc.) rather than daily temperatures [@Peterson2010; @Peterson2007; @VerHoef2010]. Additionally, statistical machine learning techniques such as artificial neural networks have been used to model stream temperatures when unclear interactions, nonlinearities, and spatial relationships are of particular concern [@Sivri2009; @Sivri2007; @DeWeber2014].
 
-In contrast with deterministic approaches, statistical models require less detailed site-level data and therefore can be applied over greater spatial extents than process-based models. They also can describe the relationships between additional covariates and stream temperature, which is a limitation of stochastic models. These relationships can be used to understand and predict anthropogenic effects on stream temperature such as timber harvest, impervious development, and water control and release [@Webb2008]. Quantifying the relationship between anthropogenic effects, landscape characteristics, meteorological variables, and stream temperature allows for prediction to new sites and times using statistical models. This is advantageous for forecasting and hindcasting to predict and understand climate change effects on stream temperatures. This is critical because not all streams respond identically to air temperature changes and the idiosyncratic responses may be predicted based interactions of known factors such as flow, precipitation, forest cover, basin topology, impervious surfaces, soil characteristics, geology, and impoundments [@Webb2008].
+In contrast with deterministic approaches, statistical models require less detailed site-level data and therefore can be applied over greater spatial extents than process-based models. They also can describe the relationships between additional covariates and stream temperature, which is a limitation of stochastic models. These relationships can be used to understand and predict anthropogenic effects on stream temperature such as timber harvest, impervious development, and water control and release [@Webb2008]. Quantifying the relationship between anthropogenic effects, landscape characteristics, meteorological patterns, and stream temperature allows for prediction to new sites and times using statistical models. This is advantageous for forecasting and hindcasting to predict and understand climate change effects on stream temperatures. This is critical because not all streams respond identically to air temperature changes and the idiosyncratic responses may be predicted based interactions of known factors such as flow, precipitation, forest cover, basin topology, impervious surfaces, soil characteristics, geology, and impoundments [@Webb2008].
 
-We describe a novel statistical model of daily stream temperature that incorporates features of stochastic models and apply it to a large geographic area. This model handles time series data of widely varying duration from many sites using a mixed model approach to account for autocorrelation at specific locations within watersheds. It incorporates basin, landscape, land-use, and meteorological covariates for explanatory and predictive purposes. It includes an autoregressive function to account for temporal autocorrelation in the time series, a challenge with other statistical models at fine temporal resolution. Additionally, our hierarchical Bayesian approach readily allows for complete accounting of uncertainty. We use the model to predict daily stream temperature across the northeastern United States over a 34-year time record.
+We describe a novel statistical model of daily stream temperature that incorporates features of stochastic models and apply it to a large geographic area. This model handles time series data of widely varying duration from many sites using a hierarchical mixed model approach to account for autocorrelation at specific locations within watersheds. It incorporates catchment, landscape, land-use, and meteorological covariates for explanatory and predictive purposes. It includes an autoregressive function to account for temporal autocorrelation in the time series, a challenge with other statistical models at fine temporal resolution. Additionally, our hierarchical Bayesian approach readily allows for complete accounting of uncertainty. We use the model to predict daily stream temperature across the northeastern United States over a 34-year time record.
 
 
 Methods
 -------
 ### Study area
 
+**Map of data locations: size = amount of data, color/shape = training-validation - Kyle, Ana, or Matt make? See deWeber 2014 for example**
+
 ### Water temperature data
 
-**Map of data locations: size = amount of data, color/shape = training-validation - Kyle, Ana, or Matt make? See deWeber 2014 for example**
+We gathered stream temperature data from state and federal agencies, individual academic researchers, and non-governmental organizations (NGOs). The data were collected using automated temperature loggers. The temporal frequency of recording ranged from every 5 minutes to once per hour. This data is consolidated in a PostgreSQL database linked to a web service at [http://www.ecosheds.org](http://www.ecosheds.org). Data collectors can upload data at this website and choose whether to make the data publicly available or not. The raw data is stored in the database and users can flag problem values and time series. For our analysis, we performed some automated and visual QAQC on the sub-daily values, summarized to mean daily temperatures and performed additional QAQC on the daily values. The QAQC was intended to flag and remove values associated with logger malfunctions, out-of-water events (including first and last days when loggers were recording but not yet in streams), and days with incomplete data which would alter the daily mean. We developed an R (ref) package for analyzing stream temperature data from our database, including the QAQC functions which can be found at [https://github.com/Conte-Ecology/conteStreamTemperature](https://github.com/Conte-Ecology/conteStreamTemperature). The R scripts using these functions for our analysis are available at [https://github.com/Conte-Ecology/conteStreamTemperature_northeast](https://github.com/Conte-Ecology/conteStreamTemperature_northeast). 
+
+Stream reach (stream section between any two confluences) was our finest spatial resolution for the analysis. In the rare case where we had multiple logger locations within the same reach recording at the same time, we used the mean value from the loggers for a given day. In the future, with sufficient within reach data, it would be possible to use our modeling framework to also estimate variability within reach.
+
+Stream network delineation
 
 ### Meteorological (, Climatic,) and landscape data - separate landscape if use climate data for future projections
 
@@ -46,37 +52,31 @@ Methods
 
 ### Statistical model
 
-Statistical models of stream temperature often rely on the close relationship between air temperature and water temperature. However, this relationship breaks down during the winter in temperature zones, particularly as streams freeze, thereby changing their thermal and properties. Many researchers and managers are interested in the non-winter effects of temperature. The winter period when phase change and ice cover alter the air-water relationship differs in both time (annually) and space. We developed an index of air-water synchrony so we can model the portion of the year that it not affected by freezing properties. The index is the difference between observed air and water temperatures divided by the water temperature plus 0.001??? to avoid division by zero. 
+Statistical models of stream temperature often rely on the close relationship between air temperature and water temperature. However, this relationship breaks down during the winter in temperature zones, particularly as streams freeze, thereby changing their thermal and properties. Many researchers and managers are interested in the non-winter effects of temperature. The winter period, when phase change and ice cover alter the air-water relationship, differs in both time (annually) and space. We developed an index of air-water synchrony ($Index_{sync}$) so we can model the portion of the year that it not affected by freezing properties. The index is the difference between air and observed water temperatures divided by the water temperature plus 0.000001 to avoid division by zero. 
 
-We then identified spring and autumn breakpoints based on the .... Independent breakpoints were estimated for each site-year combination. For site-years with insufficient data to generate continuous trends and confidence intervals, we used the mean break points across years for that site. If there was not sufficient local site information, we used the mean breakpoints from the smallest hydrologic unit the site is nested in (i.e. check for mean from HUC12, then HUC10, HUC8, etc.). More details regarding the identification of the synchronized period can be found in Letcher et al. (*in review*). 
+We calculate the $Index_{sync}$ for each day of the year at each site for each year with observed data. We then calculate the 99.9% confidence interval of $Index_{sync}$ for days between the 125 and 275 days of the year (05 May and 02 October). Then moving from the middle of the year (day 180) to the beinging of the year, we searched for the first time when 10 consecutive days were not within the 99.9% CI. This was selected as the spring breakpoint. Similarly moving from the middle to the end of the year, the first event with fewer than 16 consecutive days within the 99.9% CI was assigned as the autumn breakpoint. Independent breakpoints were estimated for each site-year combination. For site-years with insufficient data to generate continuous trends and confidence intervals, we used the mean break points across years for that site. If there was not sufficient local site information, we used the mean breakpoints from the smallest hydrologic unit the site is nested in (i.e. check for mean from HUC12, then HUC10, HUC8, etc.). More details regarding the identification of the synchronized period can be found in Letcher et al. (*in review*). The portion of the year between the spring and autumn breakpoints was used for modeling the non-winter, approximately ice-free stream temperatures.
 
-We used a generalized linear mixed model to….
-
-correlation in space
-
-incorporate short time series as well as long time series from different sites
-
-incorporate disjunct time series from sites
+We used a generalized linear mixed model to account for correlation in space (stream reach nested within HUC8). This allowed us to incorporate short time series as well as long time series from different reaches and disjunct time series from the same reaches without risk of pseudoreplication (ref: Hurlbert). By limited stream drainage area to <400 $km^2$ and only modeling the synchronized period of the year, we were able to use a linear model, avoiding the non-linearities that occur at very high temperatures due to evaporative cooling and near 0 C dur to phase change (ref: mohseni). 
 
 We assumed stream temperature measurements were normally distributed following,
 
-$$ t_{s,h,d,y} \sim \mathcal{N}(\mu_{s,h,d,y}, \sigma) $$
+$$ t_{h,r,y,d} \sim \mathcal{N}(\mu_{h,r,y,d}, \sigma) $$
 
-where $t_{s,h,d,y}$ is the observed stream water temperature at the site ($s$) within the sub-basin identified by the 8-digit Hydrologic Unit Code (HUC8; $h$) for each day ($d$) in each year ($y$). We describe the normal distribution based on the mean ($mu_{s,h,d,y}$) and standard deviation ($\sigma$) and assign a vague prior of $\sigma = 100$. The mean temperature is modelled to follow a linear trend
+where $t_{h,r,y,d}$ is the observed stream water temperature at the reach ($r$) within the sub-basin identified by the 8-digit Hydrologic Unit Code (HUC8; $h$) for each day ($d$) in each year ($y$). We describe the normal distribution based on the mean ($mu_{h,r,y,d}$) and standard deviation ($\sigma$) and assign a vague prior of $\sigma = 100$. The mean temperature is modelled to follow a linear trend
 
-$$ \omega_{s,h,d,y} = X_0 B_0 + X_{s,h} B_{s,h} + X_{h} B_{h} + X_{y} B_{y} $$
+$$ \omega_{h,r,y,d} = X_0 B_0 + X_{h,r} B_{h,r} + X_{h} B_{h} + X_{y} B_{y} $$
 
-but the expected mean temperature ($\mu_{s,h,d,y}$) is also adjusted based on the residual error from the previous day
+but the expected mean temperature ($\mu_{h,r,y,d}$) is also adjusted based on the residual error from the previous day
 
-$$ \mu_{s,h,d,y} = \begin{cases}
-    \omega_{s,h,d,y} + \delta_{s}(t_{s,h,d-1,y} - \omega_{s,h,d-1,y}) & \quad  \text{for $t_{s,h,d-1,y}$ is real} \\
-    \omega_{s,h,d,y} & \quad  \text{for $t_{s,h,d-1,y}$ is not real}
+$$ \mu_{h,r,y,d} = \begin{cases}
+    \omega_{h,r,y,d} + \delta_{r}(t_{h,r,y,d-1} - \omega_{h,r,y,d-1}) & \quad  \text{for $t_{h,r,y,d-1}$ is real} \\
+    \omega_{h,r,y,d} & \quad  \text{for $t_{h,r,y,d-1}$ is not real}
   \end{cases}
  $$
 
-where $\delta_{s}$ is an autoregressive [AR(1)] coefficient that varies randomly by site and $\omega_{s,h,d,y}$ is the expected temperature before accounting for temporal autocorrelation in the error structure.
+where $\delta_{r}$ is an autoregressive [AR(1)] coefficient that varies randomly by reach and $\omega_{h,r,y,d}$ is the expected temperature before accounting for temporal autocorrelation in the error structure.
 
-$X_{0}$ is the $n \times K_0$ matrix of predictor values. $B_0$ is the vector of $K_0$ coefficients, where $K_0$ is the number of fixed effects parameters including the overall intercept. We used 10 fixed effect parameters including the overall intercept. These include latitude, longitude, upstream drainage area, percent forest cover, elevation, surficial coarseness classification, percent wetland area, upstream impounded area, and an interaction of drainage area and air temperature. We assumed the following distributions and vague priors for the fixed effects coefficients
+$X_{0}$ is the $n \times K_0$ matrix of predictor values. $B_0$ is the vector of $K_0$ coefficients, where $K_0$ is the number of fixed effects parameters including the overall intercept. We used **???XX???** fixed effect parameters including the overall intercept. These include **??latitude, longitude, upstream drainage area, percent forest cover, elevation, surficial coarseness classification, percent wetland area, upstream impounded area, and an interaction of drainage area and air temperature??**. We assumed the following distributions and vague priors for the fixed effects coefficients
 
 $$ B_0 \sim \mathcal{N}(0,\sigma_{k_0}), \text{for $k_0 = 1,...,K_0$,} $$
 
@@ -84,17 +84,17 @@ $$ B_0 = \beta_{0}^{1},...,\beta_{0}^{K_{0}} \sim \mathcal{N}(0, 100) $$
 
 $$ \sigma_{k_0} = 100 $$
 
-The effects of air temperature on the day of observation ($d$) and mean air temperature over the previous 5 days varied randomly with site nested within HUC8, as did precipitation, the previous 30-day precipitation mean, and the interactions of air temperature and preciptation (all 4 combinations).
+**??The effects of air temperature on the day of observation ($d$) and mean air temperature over the previous 7 days varied randomly with reach nested within HUC8, as did precipitation, the previous 30-day precipitation mean, and the interactions of air temperature and preciptation (all 4 combinations).??**
 
-$B_{s,h}$ is the $S \times K_{S}$ matrix of regression coefficients where $S$ is the number of unique sites and $K_{S}$ is the number of regression coeffcients that vary randomly by site within HUC8. We assumed prior distributions of
+$B_{h,r}$ is the $R \times K_{R}$ matrix of regression coefficients where $R$ is the number of unique reachs and $K_{R}$ is the number of regression coeffcients that vary randomly by reach within HUC8. We assumed prior distributions of
 
-$$ B_{s,h} \sim \mathcal{N}(0,\sigma_{k_{s}}), \text{for $k_{s} = 1,...,K_{S}$,} $$
+$$ B_{h,r} \sim \mathcal{N}(0,\sigma_{k_{r}}), \text{for $k_{r} = 1,...,K_{R}$,} $$
 
-$$ \sigma_{s_0} = 100 $$
+$$ \sigma_{r_0} = 100 $$
 
 $X_{h}$ is the matrix of parameters that vary by HUC8. We allowed for correlation among the effects of these HUC8 coefficients as described by Gelman and Hill [-@Gelman2007].
 
-$B_{h}$ is the $H \times K_{H}$ matrix of coefficients where $H$ is the number of HUC8 groups and $K_H$ is the number of paramaters that vary by HUC8 including a constant term. In our model, $K_{H} = K_{S}$ and we assumed priors distributions of
+$B_{h}$ is the $H \times K_{H}$ matrix of coefficients where $H$ is the number of HUC8 groups and $K_H$ is the number of paramaters that vary by HUC8 including a constant term. In our model, $K_{H} = K_{R}$ and we assumed priors distributions of
 
 $$ B_{h} \sim \mathcal{N}(M_{h},\Sigma_{B_{h}}), \text{for $h = 1,...,H$} $$
 
@@ -106,7 +106,7 @@ $$ \mu_{1}^h = 0; \mu_{2:K_h}^h \sim \mathcal{N}(0, 100) $$
 
 $$ \Sigma_{B_{h}} \sim \text{Inv-Wishart}(diag(K_{h}), K_{h}+1) $$
 
-Similarly, we allowed the some effects of some parameters ($X_{y}$) to vary randomly by year with potential correlation among the coefficients. The intercept, day of the year ($day$), $day^2$, and $day^3$ all varied randomly with year so that $K_{y} = 4$. We assumed prior distributions of
+Similarly, we allowed the some effects of some parameters ($X_{y}$) to vary randomly by year with potential correlation among the coefficients. The intercept, day of the year ($day$), $day^2$, and $day^3$ all varied randomly with year such that $K_{y} = 4$. We assumed prior distributions of
 
 $$ B_{y} \sim \mathcal{N}(M_{y},\Sigma_{B_{y}}), \text{for $y = 1,...,Y$} $$
 
@@ -118,11 +118,15 @@ $$ \mu_{1}^y = 0; \mu_{2:K_y}^y \sim \mathcal{N}(0, 100) $$
 
 $$ \Sigma_{B_{y}} \sim \text{Inv-Wishart}(diag(K_{y}), K_{y}+1) $$
 
-To estimate all the parameters and their uncertainties, we used a Bayesian analysis with a Gibbs sampler implemented in JAGS (ref) through R (ref) using the rjags package (ref). This approach was beneficial for hierarchical model flexibility and tractibility for large datasets. We used vauge priors for all parameters so all inferences would be based almost entirely on the data.
+To estimate all the parameters and their uncertainties, we used a Bayesian analysis with a Gibbs sampler implemented in JAGS (ref) through R (ref) using the rjags package (ref). This approach was beneficial for hierarchical model flexibility and tractibility for large datasets. We used vague priors for all parameters so all inferences would be based on the data.
 
 ### Model validation
 
+To validate our model, we held out 10% of subbasins (HUC8s) at random. We also held out 10% of remaining stream reaches with observed temperature data at random. Additionally, we excluded all 2010 data because it was an especially warm summer across the northeastern U.S. Therefore, we will be able to evaluate how well our model predicts across space and time. This included reaches with no data located within subbasins with and without data and how well the model predicts in warm years without data, which will be important if using this model with future climate predictions. The most challenging validation scenario was at reaches within HUC8s without any data in a year without any data. In total, **XX%** of observations and **XX%** of reaches were held out for validation.
+
 ### Derived metrics
+
+
 
 ### Climate change projections (future paper?)
 
@@ -131,6 +135,32 @@ Results
 -------
 
 Explain what you found. Avoid blind *P-values* (or avoid *P-values* altogether)
+
+\begin{table}[!htbp] \centering 
+  \caption{} 
+  \label{} 
+\begin{tabular}{@{\extracolsep{5pt}} ccccc} 
+\\[-1.8ex]\hline 
+\hline \\[-1.8ex] 
+ & parameter & mean & sd & sig \\ 
+\hline \\[-1.8ex] 
+1 & Intercept & 17.7035 & 0.2486 & \textasteriskcentered  \\ 
+2 & AirT &  2.1721 & 0.1472 & \textasteriskcentered  \\ 
+3 & 7-day AirT &  1.5792 & 0.1362 & \textasteriskcentered  \\ 
+4 & Development &  0.1709 & 0.0559 & \textasteriskcentered  \\ 
+5 & Agriculture & -0.0583 & 0.0665 &  \\ 
+6 & Impoundment Area &  0.3678 & 0.0660 & \textasteriskcentered  \\ 
+7 & AirT x Impoundment & -0.0288 & 0.0229 &  \\ 
+8 & AirT x Forest & -0.0176 & 0.0265 &  \\ 
+9 & AirT x Prcp2 x DA & -0.0036 & 0.0016 & \textasteriskcentered  \\ 
+10 & AirT x prcp30 x DA & -0.0020 & 0.1666 &  \\ 
+11 & Day &  0.0506 & 0.1070 &  \\ 
+12 & Day\$$\hat{\mkern6mu}$2\$ & -0.5141 & 0.0887 & \textasteriskcentered  \\ 
+13 & Day$\hat{\mkern6mu}$3 & -0.0834 & 0.0778 &  \\ 
+14 & AR1 &  0.7696 & 0.0073 & \textasteriskcentered  \\ 
+\hline \\[-1.8ex] 
+\end{tabular} 
+\end{table} 
 
 
 Discussion
@@ -173,12 +203,42 @@ Table 1: Example Markdown table
 | ---- | ----- |
 |      |       |
 
+**example created with stargazer**
+
+\begin{table}[!htbp] \centering 
+  \caption{} 
+  \label{} 
+\begin{tabular}{@{\extracolsep{5pt}} ccccc} 
+\\[-1.8ex]\hline 
+\hline \\[-1.8ex] 
+ & parameter & mean & sd & sig \\ 
+\hline \\[-1.8ex] 
+1 & Intercept & 17.7035 & 0.2486 & \textasteriskcentered  \\ 
+2 & AirT &  2.1721 & 0.1472 & \textasteriskcentered  \\ 
+3 & 7-day AirT &  1.5792 & 0.1362 & \textasteriskcentered  \\ 
+4 & Development &  0.1709 & 0.0559 & \textasteriskcentered  \\ 
+5 & Agriculture & -0.0583 & 0.0665 &  \\ 
+6 & Impoundment Area &  0.3678 & 0.0660 & \textasteriskcentered  \\ 
+7 & AirT x Impoundment & -0.0288 & 0.0229 &  \\ 
+8 & AirT x Forest & -0.0176 & 0.0265 &  \\ 
+9 & AirT x Prcp2 x DA & -0.0036 & 0.0016 & \textasteriskcentered  \\ 
+10 & AirT x prcp30 x DA & -0.0020 & 0.1666 &  \\ 
+11 & Day &  0.0506 & 0.1070 &  \\ 
+12 & Day\$$\hat{\mkern6mu}$2\$ & -0.5141 & 0.0887 & \textasteriskcentered  \\ 
+13 & Day$\hat{\mkern6mu}$3 & -0.0834 & 0.0778 &  \\ 
+14 & AR1 &  0.7696 & 0.0073 & \textasteriskcentered  \\ 
+\hline \\[-1.8ex] 
+\end{tabular} 
+\end{table} 
+
 Figures
 -------
 
 Figure 1. Example of adding a figure.
 
 ![Figure1](Figures/MADEP_W2033_T1.png)
+
+![Figure2](manuscripts/figures/MADEP_W2033_T1.png)
 
 
 

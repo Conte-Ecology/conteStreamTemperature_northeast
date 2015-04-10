@@ -1,0 +1,118 @@
+---
+title: "Manuscript Tables and Figures"
+author: "Daniel Hocking"
+date: "Friday, April 10, 2015"
+output: html_document
+---
+
+```{r setup, echo=FALSE}
+library(pander)
+library(ggplot2)
+library(dplyr)
+library(RPostgreSQL)
+library(lubridate)
+library(conteStreamTemperature)
+library(texreg)
+library(stargazer)
+#library(tables)
+
+local_dir <- "/localData/"
+data_dir <- paste0(getwd(), local_dir)
+
+df <- readRDS(paste0(data_dir, "obs_predicted.RData"))
+coefs <- readRDS(paste0(data_dir, "coef.RData"))
+covs <- readRDS(paste0(data_dir, "covariate-list.RData"))
+df_temp <- readRDS(papaste0(data_dir, "springFallBPs.RData"))
+df_rmse <- readRDS(paste0(data_dir, "rmse_table.RData"))
+df_valid <- readRDS(paste0(data_dir, "valid_results.RData"))
+load(paste0(data_dir, "tempDataSync.RData"))
+
+df_temp <- df_temp %>%
+  dplyr::mutate(featureid = as.character(featureid))
+df_breaks <- df_breaks %>%
+  dplyr::mutate(featureid = as.character(site))
+
+df_temp <- left_join(df_temp, df_breaks, by = c("featureid", "year"))
+
+var.names <- c("airTemp", 
+               #"airTempLagged1", 
+               #"airTempLagged2",
+               "temp7p",
+               "prcp", 
+               "prcp2",
+               "prcp7",
+               "prcp30",
+               #"prcpLagged1", 
+               #"prcpLagged2", 
+               #"prcpLagged3", 
+               "dOY", 
+               "forest", 
+               "herbaceous", 
+               "agriculture", 
+               "devel_hi", 
+               "developed",
+               "AreaSqKM",  
+               "allonnet",
+               "alloffnet",
+               "surfcoarse", 
+               "srad", 
+               "dayl", 
+               "swe")
+
+means <- NULL
+  stdevs <- NULL
+  for(i in 1:length(var.names)) {
+    means[i] <- mean(tempDataSync[, var.names[i]], na.rm = T)
+    stdevs[i] <- sd(tempDataSync[, var.names[i]], na.rm = T)
+  }
+  
+  df_stds <- data.frame(cbind(var.names, means, stdevs))
+```
+
+
+```{r presentation ggplot theme, echo=FALSE}
+theme_bw_journal <- function (base_family = "") {
+    theme_grey(base_family = base_family) %+replace% 
+        theme(axis.text = element_text(size = rel(0.8)), axis.ticks = element_line(colour = "black"), 
+            legend.key = element_rect(colour = "grey80"), panel.background = element_rect(fill = "white", 
+                colour = NA), panel.border = element_rect(fill = NA, 
+                colour = "grey50"), panel.grid.major = element_line(colour = "grey90", 
+                size = 0.2), panel.grid.minor = element_line(colour = "grey98", 
+                size = 0.5), strip.background = element_rect(fill = "grey80", 
+                colour = "grey50", size = 0.2))
+    }
+
+theme_set(theme_bw_journal())
+```
+
+
+```{r coefficient table, echo=FALSE}
+df_foo <- coefs$fix.ef %>%
+  dplyr::mutate(sig = ifelse(qLo < 0 & 0 < qHi, "", "*")) %>%
+  dplyr::filter(coef != "intercept.site", coef != "intercept.year") %>%
+  dplyr::mutate(row = c(1, 8, 9, 6, 7, 4, 5, 2, 3, 10, 11, 12, 13, 14)) %>%
+  dplyr::arrange(row) %>%
+  dplyr::mutate(parameter = c("Intercept",
+                              "AirT",
+                              "7-day AirT",
+                              "Development",
+                              "Agriculture",
+                              "Impoundment Area",
+                              "AirT x Impoundment",
+                              "AirT x Forest",
+                              "AirT x Prcp2 x DA",
+                              "AirT x prcp30 x DA",
+                              "Day",
+                              "Day$^2$",
+                              "Day$^3$",
+                              "AR1")) %>%
+    dplyr::select(parameter, mean, sd, sig)
+out <- format(df_foo, digits = 2)
+
+pander(format(df_foo, digits = 2))
+
+stargazer(out, summary=FALSE, title = "")
+
+
+```
+
