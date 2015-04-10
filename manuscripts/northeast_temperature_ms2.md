@@ -136,32 +136,6 @@ Results
 
 Explain what you found. Avoid blind *P-values* (or avoid *P-values* altogether)
 
-\begin{table}[!htbp] \centering 
-  \caption{} 
-  \label{} 
-\begin{tabular}{@{\extracolsep{5pt}} ccccc} 
-\\[-1.8ex]\hline 
-\hline \\[-1.8ex] 
- & parameter & mean & sd & sig \\ 
-\hline \\[-1.8ex] 
-1 & Intercept & 17.7035 & 0.2486 & \textasteriskcentered  \\ 
-2 & AirT &  2.1721 & 0.1472 & \textasteriskcentered  \\ 
-3 & 7-day AirT &  1.5792 & 0.1362 & \textasteriskcentered  \\ 
-4 & Development &  0.1709 & 0.0559 & \textasteriskcentered  \\ 
-5 & Agriculture & -0.0583 & 0.0665 &  \\ 
-6 & Impoundment Area &  0.3678 & 0.0660 & \textasteriskcentered  \\ 
-7 & AirT x Impoundment & -0.0288 & 0.0229 &  \\ 
-8 & AirT x Forest & -0.0176 & 0.0265 &  \\ 
-9 & AirT x Prcp2 x DA & -0.0036 & 0.0016 & \textasteriskcentered  \\ 
-10 & AirT x prcp30 x DA & -0.0020 & 0.1666 &  \\ 
-11 & Day &  0.0506 & 0.1070 &  \\ 
-12 & Day\$$\hat{\mkern6mu}$2\$ & -0.5141 & 0.0887 & \textasteriskcentered  \\ 
-13 & Day$\hat{\mkern6mu}$3 & -0.0834 & 0.0778 &  \\ 
-14 & AR1 &  0.7696 & 0.0073 & \textasteriskcentered  \\ 
-\hline \\[-1.8ex] 
-\end{tabular} 
-\end{table} 
-
 
 Discussion
 ----------
@@ -203,30 +177,66 @@ Table 1: Example Markdown table
 | ---- | ----- |
 |      |       |
 
+**example created with pander**
+
+---------------------------------------
+    parameter       mean     sd    sig 
+------------------ ------- ------ -----
+    Intercept      17.7035 0.2486   *  
+
+       AirT        2.1721  0.1472   *  
+
+    7-day AirT     1.5792  0.1362   *  
+
+   Development     0.1709  0.0559   *  
+
+   Agriculture     -0.0583 0.0665      
+
+ Impoundment Area  0.3678  0.0660   *  
+
+AirT x Impoundment -0.0288 0.0229      
+
+  AirT x Forest    -0.0176 0.0265      
+
+AirT x Prcp2 x DA  -0.0036 0.0016   *  
+
+AirT x prcp30 x DA -0.0020 0.1666      
+
+       Day         0.0506  0.1070      
+
+     Day$^2$       -0.5141 0.0887   *  
+
+      Day^3        -0.0834 0.0778      
+
+       AR1         0.7696  0.0073   *  
+---------------------------------------
+
 **example created with stargazer**
 
+% Table created by stargazer v.5.1 by Marek Hlavac, Harvard University. E-mail: hlavac at fas.harvard.edu
+% Date and time: Fri, Apr 10, 2015 - 2:29:23 PM
 \begin{table}[!htbp] \centering 
   \caption{} 
   \label{} 
-\begin{tabular}{@{\extracolsep{5pt}} ccccc} 
+\begin{tabular}{@{\extracolsep{5pt}} cccc} 
 \\[-1.8ex]\hline 
 \hline \\[-1.8ex] 
- & parameter & mean & sd & sig \\ 
+parameter & mean & sd & sig \\ 
 \hline \\[-1.8ex] 
-1 & Intercept & 17.7035 & 0.2486 & \textasteriskcentered  \\ 
-2 & AirT &  2.1721 & 0.1472 & \textasteriskcentered  \\ 
-3 & 7-day AirT &  1.5792 & 0.1362 & \textasteriskcentered  \\ 
-4 & Development &  0.1709 & 0.0559 & \textasteriskcentered  \\ 
-5 & Agriculture & -0.0583 & 0.0665 &  \\ 
-6 & Impoundment Area &  0.3678 & 0.0660 & \textasteriskcentered  \\ 
-7 & AirT x Impoundment & -0.0288 & 0.0229 &  \\ 
-8 & AirT x Forest & -0.0176 & 0.0265 &  \\ 
-9 & AirT x Prcp2 x DA & -0.0036 & 0.0016 & \textasteriskcentered  \\ 
-10 & AirT x prcp30 x DA & -0.0020 & 0.1666 &  \\ 
-11 & Day &  0.0506 & 0.1070 &  \\ 
-12 & Day\$$\hat{\mkern6mu}$2\$ & -0.5141 & 0.0887 & \textasteriskcentered  \\ 
-13 & Day$\hat{\mkern6mu}$3 & -0.0834 & 0.0778 &  \\ 
-14 & AR1 &  0.7696 & 0.0073 & \textasteriskcentered  \\ 
+Intercept & 17.7035 & 0.2486 & \textasteriskcentered  \\ 
+AirT &  2.1721 & 0.1472 & \textasteriskcentered  \\ 
+7-day AirT &  1.5792 & 0.1362 & \textasteriskcentered  \\ 
+Development &  0.1709 & 0.0559 & \textasteriskcentered  \\ 
+Agriculture & -0.0583 & 0.0665 &  \\ 
+Impoundment Area &  0.3678 & 0.0660 & \textasteriskcentered  \\ 
+AirT x Impoundment & -0.0288 & 0.0229 &  \\ 
+AirT x Forest & -0.0176 & 0.0265 &  \\ 
+AirT x Prcp2 x DA & -0.0036 & 0.0016 & \textasteriskcentered  \\ 
+AirT x prcp30 x DA & -0.0020 & 0.1666 &  \\ 
+Day &  0.0506 & 0.1070 &  \\ 
+Day$\hat{\mkern6mu}$2 & -0.5141 & 0.0887 & \textasteriskcentered  \\ 
+Day$\hat{\mkern6mu}$3 & -0.0834 & 0.0778 &  \\ 
+AR1 &  0.7696 & 0.0073 & \textasteriskcentered  \\ 
 \hline \\[-1.8ex] 
 \end{tabular} 
 \end{table} 

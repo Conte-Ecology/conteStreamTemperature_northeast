@@ -103,15 +103,15 @@ df_foo <- coefs$fix.ef %>%
                               "AirT x Prcp2 x DA",
                               "AirT x prcp30 x DA",
                               "Day",
-                              "Day$^2$",
-                              "Day$^3$",
+                              "Day^2",
+                              "Day^3",
                               "AR1")) %>%
     dplyr::select(parameter, mean, sd, sig)
 out <- format(df_foo, digits = 2)
 
 pander(format(df_foo, digits = 2))
 
-stargazer(out, summary=FALSE, title = "")
+stargazer(out, summary=FALSE, title = "", rownames = F)
 
 
 ```
