@@ -248,7 +248,7 @@ Figure 1. Example of adding a figure.
 
 ![Figure1](Figures/MADEP_W2033_T1.png)
 
-![Figure2](manuscripts/figures/MADEP_W2033_T1.png)
+![Figure2](Figures/MeanJulyTemp_NENY.png)
 
 
 
