@@ -65,7 +65,7 @@ fixed.ef <- c("intercept"
 
 site.ef <- c( "intercept.site" 
               , "airTemp"
-              , "temp7p"
+              #, "temp7p"
               , "airTemp.prcp30.da"
 )
 
@@ -89,8 +89,8 @@ monitor.params <- c(#"residuals",
   "mu.ar1",
   "sigma.ar1",
   "B.0",
-  "B.site",
-  "rho.B.site",
+  #"B.site",
+  #"rho.B.site",
   "mu.site",
   "sigma.b.site",
   "B.huc",
@@ -109,7 +109,7 @@ if (!file.exists('code')) {
   dir.create('code')
 }
 
-system.time(M.ar1 <- modelRegionalTempAR1(tempDataSyncS, cov.list, firstObsRows = firstObsRows, evalRows = evalRows, n.burn = 1000, n.it = 1000, n.thin = 1, nc = 3, coda = coda.tf, param.list = monitor.params)) # Slow with AR1: ~3-6 min per 100 iterations (13 min per 100 iter for site AR)
+system.time(M.ar1 <- modelRegionalTempAR1(tempDataSyncValidS, cov.list, firstObsRows = firstObsRows, evalRows = evalRows, n.burn = 10, n.it = 100, n.thin = 1, nc = 3, coda = coda.tf, param.list = monitor.params)) # Slow with AR1: ~3-6 min per 100 iterations (13 min per 100 iter for site AR)
 
 # temp output file
 output_file <- "localData/jags.RData"
