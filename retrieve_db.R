@@ -18,7 +18,8 @@ data_dir <- getOption("SHEDS_DATA")
 
 args <- NA_character_
 
-if(file.exists("/conte")) {
+if(file.exists("/conte")) { #this only worked on felek not on osensei but might be unnecessary anyway
+#if(Sys.info()[['sysname']] == "Linux") { # for osensei or felek but won't work if someone runs on other linux machine locally
   
 args <- commandArgs(trailingOnly = TRUE)
 
@@ -42,10 +43,10 @@ if (file.exists(output_file3)) {
 if(exists(wd)) setwd(wd)
 
 # connect to database source
-db <- src_postgres(dbname='conte_dev', host='127.0.0.1', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+db <- src_postgres(dbname='sheds', host='127.0.0.1', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
 } else {
   
-  db <- src_postgres(dbname='conte_dev', host='128.119.112.36', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+  db <- src_postgres(dbname='sheds', host='felek.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
 }
 
 if(!exists(args)) {
@@ -260,5 +261,5 @@ saveRDS(climateData, file=output_file3)
 
 # remove variables and gc()
 
-
+gc()
 

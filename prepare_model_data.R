@@ -25,6 +25,12 @@ config <- fromJSON('model_config.json')
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
 
+###############Temporary################
+# until running as a bash script add the files here
+
+masterData_file <- "localData/"
+########################################
+
 
 ######### add wd argument
 
@@ -170,7 +176,7 @@ var.names <- c("airTemp",
 # pass the db$con from dplyr as the connection to RPostgreSQL::dbSendQuery
 drv <- dbDriver("PostgreSQL")
 # con <- dbConnect(drv, dbname="conte_dev", host="127.0.0.1", user="conte", password="conte")
-con <- dbConnect(drv, dbname='conte_dev', host='127.0.0.1', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+con <- dbConnect(drv, dbname='sheds', host='127.0.0.1', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
 rs <- dbSendQuery(con, "SELECT c.featureid as featureid, w.huc8 as huc8
 FROM catchments c
 JOIN wbdhu8 w

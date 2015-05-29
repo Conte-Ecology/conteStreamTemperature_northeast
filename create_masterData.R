@@ -22,8 +22,8 @@ if (file.exists(masterData_file)) {
 }
 
 # load data frames
-temperatureData <- readRDS('temperatureData.RData')
-climateData <- readRDS('climateData.RData')
+temperatureData <- readRDS('localData/temperatureData.RData')
+climateData <- readRDS('localData/climateData.RData')
 
 # merge
 masterData <- left_join(temperatureData, climateData)
