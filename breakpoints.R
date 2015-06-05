@@ -1,12 +1,15 @@
 # Compute spring/fall breakpoints
-# requires masterData, covariateData input binary files
+# requires temperature and climate input binary files
 # saves output springFallBPs to binary file
 #
-# usage: $ Rscript breakpoints.R <input temperatureData rdata> <input climateData rdata> <input covariateData rdata> <output springFallBPs rdata>
-# example: $ Rscript breakpoints.R ./temperatureData.RData ./climateData.RData ./covariateData.RData ./springFallBPs.RData
+# usage: $ Rscript breakpoints.R <input temperatureData rdata> <input climateData csv> <output springFallBPs rdata>
+# example: $ Rscript breakpoints.R ./temperatureData.RData ./daymet_results.csv ./springFallBPs.RData
 
 # NOTE: this has not actually been run, and is mostly just copy and pasted from the analysis vignette
+gc()
 
+library(data.table)
+library(ggplot2)
 library(devtools)
 library(plyr)
 library(dplyr)
@@ -14,13 +17,17 @@ library(lubridate)
 library(zoo)
 library(RPostgreSQL)
 library(stringr)
+# install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
+
 
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
 
 # temporary for testing
-args <- c("localData/temperatureData.RData", "localData/climateData.RData", "localData/covariateData.RData")
+if(length(args) < 1) {
+  args <- c("localData/temperatureData.RData", "localData/daymet_results.csv", "localData/springFallBPs.RData") # "localData/covariateData.RData",
+}
   
 temperatureData_file <- args[1]
 if (!file.exists(temperatureData_file)) {
@@ -32,27 +39,32 @@ climateData_file <- args[2]
 if (!file.exists(climateData_file)) {
   stop(paste0('Could not find climateData binary file: ', climateData_file))
 }
-climateData <- readRDS(climateData_file)
+#climateData <- readRDS(climateData_file)
+climateData <- fread(climateData_file, header = TRUE, sep = ",")
 
-covariateData_file <- args[3]
-if (!file.exists(covariateData_file)) {
-  stop(paste0('Could not find covariateData binary file: ', covariateData_file))
-}
-covariateData <- readRDS(covariateData_file)
+# covariateData_file <- args[3]
+# if (!file.exists(covariateData_file)) {
+#   stop(paste0('Could not find covariateData binary file: ', covariateData_file))
+# }
+# covariateData <- readRDS(covariateData_file)
 
-output_file <- args[4]
+output_file <- args[3]
 if (file.exists(output_file)) {
   warning(paste0('Output file already exists, overwriting: ', output_file))
 }
 
 # combine into masterData file - this will be a problem if more than 1 logger within a featureid on the same date - all join (outer join?) instead of left_join?
 masterData <- temperatureData %>%
-  left_join(climateData, by = c("featureid", "date"))
+  left_join(mutate(climateData, date = as.Date(date)), by = c("featureid", "date", "year"))
 
 # add dOY and year columns
-masterData <- mutate(masterData,
-                     dOY=yday(date),
-                     year=year(date))
+masterData <- masterData %>%
+  dplyr::mutate(dOY=yday(date)) %>%
+  dplyr::filter(!is.na(featureid))
+
+summary(masterData)
+
+featureids <- unique(masterData$featureid)
 
 # Enter the common fields from the temperature ("site" must be one).
 # tempFields <- c('site', 'year', 'dOY', 'date', 'agency', 'temp', 'airTemp')
@@ -64,37 +76,47 @@ masterData <- mutate(masterData,
 # masterData <- masterData[, tempFields]
 
 # Add HUC info - why not just include as columns in covariate data?
-drv <- dbDriver("PostgreSQL")
-con <- dbConnect(drv, dbname="conte_dev", host='127.0.0.1', port='5432', user='conte', password='conte')
+# drv <- dbDriver("PostgreSQL")
+# con <- dbConnect(drv, dbname="sheds", host='felek.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
 
-rs <- dbSendQuery(con, "SELECT l.n_locations, c.featureid as featureid,
-       w.huc12 as huc12
-FROM (
-  SELECT count(l.*) as n_locations, c.featureid as featureid
-  FROM locations l
-  LEFT JOIN catchments c
-  ON l.catchment_id=c.featureid
-  GROUP BY c.featureid) l
-LEFT JOIN catchments c
-ON l.featureid=c.featureid
-LEFT JOIN wbdhu12 w
-ON ST_Contains(w.geom, ST_Centroid(c.geom));")
+# rs <- dbSendQuery(con, "SELECT l.n_locations, c.featureid as featureid,
+#        w.huc12 as huc12
+# FROM (
+#   SELECT count(l.*) as n_locations, c.featureid as featureid
+#   FROM locations l
+#   LEFT JOIN catchments c
+#   ON l.catchment_id=c.featureid
+#   GROUP BY c.featureid) l
+# LEFT JOIN catchments c
+# ON l.featureid=c.featureid
+# LEFT JOIN wbdhu12 w
+# ON ST_Contains(w.geom, ST_Centroid(c.geom));")
 
-df_huc <- fetch(rs, n=-1) %>%
+# connect to database source
+db <- src_postgres(dbname='sheds', host='felek.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+
+tbl_huc12 <- tbl(db, 'catchment_huc12') %>%
+  dplyr::filter(featureid %in% featureids)
+
+df_huc <- tbl_huc12 %>%
+  dplyr::collect() %>%
   dplyr::mutate(HUC4=str_sub(huc12, 1, 4),
          HUC8=str_sub(huc12, 1, 8),
-         HUC10=str_sub(huc12, 1, 10))
-
-df_huc <- dplyr::rename(df_huc, HUC12 = huc12)
+         HUC10=str_sub(huc12, 1, 10)) %>%
+  dplyr::rename(HUC12 = huc12)
 
 # select covariate data columns
 # covariateData <- covariateData[, covFields]
 
-# merge masterData and covariateData
-e <- left_join(masterData, covariateData)
-e <- left_join(e, df_huc) %>%
+# merge masterData huc info
+e <- left_join(masterData, df_huc) %>%
   dplyr::mutate(site = featureid) %>%
-  dplyr::filter(!is.na(site))
+  dplyr::filter(!is.na(site),
+                !is.na(tmax),
+                !is.na(tmin),
+                !is.na(temp),
+                !is.na(HUC4),
+                !is.na(HUC12)) 
 
 #---------site = location_id vs. featureid???-----------
 # add site for consistency with old code names
@@ -147,6 +169,7 @@ siteYearCombos <- as.data.frame(unclass(siteYearCombos))
 e$movingMean <- NA
 
 # Loop through site/year combinations calculating moving means
+pb <- txtProgressBar(min = 0, max = nrow(siteYearCombos), style = 3)
 for (i in 1:nrow(siteYearCombos)){
   
   #library(zoo)
@@ -162,7 +185,9 @@ for (i in 1:nrow(siteYearCombos)){
   
   # Add to main dataframe
   e$movingMean[currSite] <- currMean
+  setTxtProgressBar(pb, value = i, title = "sloggin through")
 }
+close(pb)
 
 # Maintain order
 e <- e[order(e$count),]
@@ -173,6 +198,7 @@ endingDayForCI <- 275
 loCI <- 0.001
 hiCI <- 0.999
 
+pb <- txtProgressBar(min = 0, max = nrow(siteYearCombos), style = 3)
 for ( i in 1:nrow(siteYearCombos)){
   
   # Print status
@@ -199,8 +225,9 @@ for ( i in 1:nrow(siteYearCombos)){
   
   # Add current site to "breaks"
   if ( i == 1 ) { breaks <- tempBreaks } else( breaks <- rbind(breaks, tempBreaks))
-  
-} 
+  setTxtProgressBar(pb, value = i)
+}
+close(pb)
 
 # Add columns used later
 breaks$springBPComplete <- FALSE
@@ -226,6 +253,7 @@ numForwardSpring <- 10
 numForwardFall   <- 16
 
 # Loop through all sites
+pb <- txtProgressBar(min = 0, max = nSites, style = 3)
 for (j in 1:nSites){
   
   #library(plyr)
@@ -274,7 +302,7 @@ for (j in 1:nSites){
   for (year in completeYearsSpringOrFall){ 
     
     # Print status
-    print(c('BP 1 and 3',j,as.character(siteList[j]),year))
+    #print(c('BP 1 and 3',j,as.character(siteList[j]),year))
     
     # New column for selecting years with at least one complete season
     breaks$springOrFallBPComplete[ breaks$year == year & breaks$site == siteList[j] ] <- TRUE
@@ -368,9 +396,9 @@ for (j in 1:nSites){
     }	#completeYearsFall if statement
     
   } #completeYearsSpringOrFall loop
-  
+  setTxtProgressBar(pb, j)
 } #site loop
-
+close(pb)
 
 ### This section determines the mean breakpoint from the smallest scale where a mean exists and assigns it to sites that did not have enough data to calculate a breakpoint (start with site mean and work up to HUC4 mean).
 
@@ -385,6 +413,9 @@ breaks <- merge( x = breaks, y = meanBPSite , by = 'site' , all.x = T, all.y = F
 breaks <- merge( x = breaks, y = meanBPHUC12, by = 'HUC12', all.x = T, all.y = F, sort = F)
 breaks <- merge( x = breaks, y = meanBPHUC8 , by = 'HUC8' , all.x = T, all.y = F, sort = F)
 breaks <- merge( x = breaks, y = meanBPHUC4 , by = 'HUC4' , all.x = T, all.y = F, sort = F)
+breaks <- breaks %>%
+  dplyr::mutate(meanSpringBP = median(springBP, na.rm = T),
+                meanFallBP = median(fallBP, na.rm = T))
 
 # Add columns for final breakpoints
 breaks$finalSpringBP  <- NA
@@ -453,6 +484,18 @@ huc4BP <- which(is.na(breaks$finalFallBP) & !is.na(breaks$meanFallBPHUC4) )
 breaks$finalFallBP [ huc4BP ] <- breaks$meanFallBPHUC4[ huc4BP ]
 breaks$sourceFallBP[ huc4BP ] <- 'HUC4 mean'
 
+# Overall mean BPs
+# -----------------
+# Spring
+overallBP <- which(is.na(breaks$finalSpringBP))
+breaks$finalSpringBP [ overallBP ] <- breaks$meanSpringBP[ overallBP ]
+breaks$sourceSpringBP[ overallBP ] <- 'overall mean'
+
+# Fall
+overallBP <- which(is.na(breaks$finalFallBP))
+breaks$finalFallBP [ overallBP ] <- breaks$meanFallBP[ overallBP ]
+breaks$sourceFallBP[ overallBP ] <- 'overall mean'
+
 # The above data or kriging or something will have to be used to establish the syncronized portion of the year when doing the predictions to all catchments in all years after the model is run. Originally there was a model for the breakpoints but it used all the same covariates as the model of the temperature data, which seemed potentially problematic.
 
 ### Save the output
@@ -465,5 +508,5 @@ str(springFallBPs)
 
 # Save the output
 # save(springFallBPs, file = paste0(dataOutDir, outFile, '.RData'))
-output_file <- "localData/springFallBPs.RData"
+#output_file <- "localData/springFallBPs.RData"
 saveRDS(springFallBPs, file=output_file)
