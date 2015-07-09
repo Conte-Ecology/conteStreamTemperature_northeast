@@ -7,8 +7,6 @@
 #
 # NOTE: this has not actually been run, and is mostly just copy and pasted from the analysis vignette
 
-gc()
-
 library(data.table)
 library(ggplot2)
 library(ggmcmc) # load before dplyr so later plyr doesn't override dplyr
@@ -24,12 +22,14 @@ config <- fromJSON('model_config.json')
 
 # validate = TRUE # get rid of this once model_config.json is ready
 
+data_dir <- "localData_2015-06-09" 
+
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
 
 # until running as a bash script add the files here
 if(length(args) < 1) {
-  args <- c("localData/temperatureData.RData", "localData/daymet_results.csv", "localData/covariateData.RData", "localData/springFallBPs.RData", "localData/tempDataSync.RData")
+  args <- c(paste0(data_dir, "/temperatureData.RData"), paste0(data_dir, "/daymet_results.csv"), paste0(data_dir, "/covariateData.RData"), paste0(data_dir, "/springFallBPs.RData"), paste0(data_dir, "/tempDataSync.RData"))
 }
 
 
@@ -76,7 +76,7 @@ tempData <- tempData[order(tempData$site,tempData$year,tempData$dOY), ]
 # For checking the order of tempDataSync
 tempData$count <- 1:length(tempData$year)
 
-tempData <- tempData[order(tempDataSync$count),] # just to make sure tempDataSync is ordered for the slide function
+tempData <- tempData[order(tempData$count),] # just to make sure tempDataSync is ordered for the slide function
 
 # airTemp
 #tempDataSync <- slide(tempDataSync, Var = "airTemp", GroupVar = "site", slideBy = -1, NewVar='airTempLagged1')
@@ -98,17 +98,17 @@ tempData <- tempData %>%
          #prcpLagged3 = lag(prcp, n = 3, fill = NA),
          #temp5 = rollsum(x = airTemp, 5, align = "right", fill = NA),
          temp5p = rollapply(data = airTempLagged1, 
-                                     width = 5, 
-                                     FUN = mean, 
-                                     align = "right", 
-                                     fill = NA, 
-                                     na.rm = T),
+                            width = 5, 
+                            FUN = mean, 
+                            align = "right", 
+                            fill = NA, 
+                            na.rm = T),
          temp7p = rollapply(data = airTempLagged1, 
-                                     width = 7, 
-                                     FUN = mean, 
-                                     align = "right", 
-                                     fill = NA, 
-                                     na.rm = T),
+                            width = 7, 
+                            FUN = mean, 
+                            align = "right", 
+                            fill = NA, 
+                            na.rm = T),
          prcp2 = rollsum(x = prcp, 2, align = "right", fill = NA),
          prcp7 = rollsum(x = prcp, 7, align = "right", fill = NA),
          prcp30 = rollsum(x = prcp, 30, align = "right", fill = NA))
@@ -140,10 +140,6 @@ tempDataSync <- dplyr::filter(tempDataBP, dOY >= finalSpringBP & dOY <= finalFal
 # Filter by Drainage area
 tempDataSync <- tempDataSync %>%
   filter(AreaSqKM  < 400)
-
-rm(climateData) # save some memory
-
-gc()
 
 
 #tempDataSync <- left_join(tempDataSync, covariateData)
@@ -192,9 +188,9 @@ tbl_huc12 <- tbl(db, 'catchment_huc12') %>%
 
 df_huc <- tbl_huc12 %>%
   dplyr::collect() %>%
-  dplyr::mutate(HUC4=str_sub(huc12, 1, 4),
-                HUC8=str_sub(huc12, 1, 8),
-                HUC10=str_sub(huc12, 1, 10),
+  dplyr::mutate(HUC4=as.character(str_sub(huc12, 1, 4)),
+                HUC8=as.character(str_sub(huc12, 1, 8)),
+                HUC10=as.character(str_sub(huc12, 1, 10)),
                 huc = as.character(HUC8)) %>%
   dplyr::rename(HUC12 = huc12)
 
@@ -208,9 +204,58 @@ tempDataSync <- tempDataSync %>%
                 !is.na(agriculture),
                 !is.na(alloffnet),
                 !is.na(surfcoarse))
-  #dplyr::select()
+#dplyr::select()
 
-tempDataSync <- as.data.frame(unclass(tempDataSync))
+
+keep_columns <- c("featureid"
+                  , "date"
+                  , "year"
+                  , "airTemp"
+                  , "temp"
+                  , "tempMax"
+                  , "tempMin"
+                  #, "n_obs"
+                  , "tmax"
+                  , "tmin"
+                  , "prcp"
+                  , "dayl"
+                  , "srad"
+                  , "swe"
+                  , "site"
+                  , "dOY"
+                  , "airTemp"
+                  , "temp7p"
+                  #, "count"
+                  , "prcp2"
+                  , "prcp7"
+                  , "prcp30"
+                  , "latitude"
+                  , "longitude"
+                  , "agriculture"
+                  , "herbaceous"
+                  , "allonnet"
+                  , "alloffnet"
+                  , "AreaSqKM"
+                  , "developed"
+                  , "devel_hi"
+                  , "elevation"
+                  , "forest"
+                  , "impervious"
+                  , "openonnet"
+                  , "percent_sandy"
+                  , "surfcoarse"
+                  , "finalSpringBP"
+                  , "finalFallBP"
+                  , "tree_canopy"
+                  , "HUC4"
+                  , "HUC8"
+                  , "HUC10"
+                  , "HUC12"
+                  , "huc")
+
+tempDataSync <- dplyr::select(tempDataSync, one_of(keep_columns))
+
+tempDataSync <- as.data.frame(unclass(tempDataSync), stringsAsFactors = FALSE)
 
 ### Separate data for fitting (training) and validation
 #If validating:
@@ -241,27 +286,38 @@ if (config[['validate']]) {
   
   print(paste0(round(nrow(tempDataSyncValid)/(nrow(tempDataSync) + nrow(tempDataSyncValid))*100, digits = 1), "% of data points held out for validation"))
   
-
-  tempDataSyncValidS <- stdCovs(x = tempDataSyncValid, y = tempDataSync, var.names = var.names)
   
-  #####################
+  #tempDataSyncValidS <- stdCovs(x = tempDataSyncValid, y = tempDataSync, var.names = var.names)
+  
+  ########## Means and SDs for Standardization ###########
   means <- NULL
   stdevs <- NULL
   for(i in 1:length(var.names)) {
     means[i] <- mean(tempDataSync[, var.names[i]], na.rm = T)
     stdevs[i] <- sd(tempDataSync[, var.names[i]], na.rm = T)
   }
+  df_stds <- data.frame(var.names, means, stdevs, stringsAsFactors = FALSE)
   
-  df_stds <- data.frame(cbind(var.names, means, stdevs))
-  
+  tempDataSyncValidS <- stdCovs(x = tempDataSyncValid, y = df_stds, var.names = var.names)
   #############
   
   tempDataSyncValidS <- indexDeployments(tempDataSyncValidS, regional = TRUE)
   firstObsRowsValid <- createFirstRows(tempDataSyncValidS)
   evalRowsValid <-createEvalRows(tempDataSyncValidS)
+  tempDataSyncValidS <- addInteractions(tempDataSyncValidS)
+  
+  tempDataSyncS <- stdCovs(x = tempDataSync, y = df_stds, var.names = var.names)
+  tempDataSyncS <- addInteractions(tempDataSyncS)
+  tempDataSyncS <- indexDeployments(tempDataSyncS, regional = TRUE)
+  firstObsRows <- createFirstRows(tempDataSyncS)
+  evalRows <- createEvalRows(tempDataSyncS)
+  
+  
+  
+  save(tempDataSync, tempDataSyncS, tempDataSyncValid, tempDataSyncValidS, firstObsRows, evalRows, firstObsRowsValid, evalRowsValid, df_stds, file = output_file)
   
 } else {
-  tempDataSyncValid <- NULL
+  #tempDataSyncValid <- NULL
   
   means <- NULL
   stdevs <- NULL
@@ -270,26 +326,16 @@ if (config[['validate']]) {
     stdevs[i] <- sd(tempDataSync[, var.names[i]], na.rm = T)
   }
   
-  df_stds <- data.frame(cbind(var.names, means, stdevs))
-}
-
-# Standardize for Analysis
-
-tempDataSyncS <- stdFitCovs(x = tempDataSync, var.names = var.names)
-
-tempDataSyncS <- addInteractions(tempDataSyncS)
-
-tempDataSyncS <- indexDeployments(tempDataSyncS, regional = TRUE)
-firstObsRows <- createFirstRows(tempDataSyncS)
-evalRows <- createEvalRows(tempDataSyncS)
-
-if (config[['validate']]) {
+  df_stds <- data.frame(var.names, means, stdevs, stringsAsFactors = FALSE)
   
-  tempDataSyncValidS <- addInteractions(tempDataSyncValidS)
+  tempDataSyncS <- stdCovs(x = tempDataSync, y = df_stds, var.names = var.names)
+  tempDataSyncS <- addInteractions(tempDataSyncS)
+  tempDataSyncS <- indexDeployments(tempDataSyncS, regional = TRUE)
+  firstObsRows <- createFirstRows(tempDataSyncS)
+  evalRows <- createEvalRows(tempDataSyncS)
   
-  save(tempDataSync, tempDataSyncS, tempDataSyncValid, tempDataSyncValidS, firstObsRows, evalRows, firstObsRowsValid, evalRowsValid, df_stds, file = output_file)
-} else {
   save(tempDataSync, tempDataSyncS, firstObsRows, evalRows, df_stds, file = output_file)
 }
 
 rm(list = ls())
+gc()
