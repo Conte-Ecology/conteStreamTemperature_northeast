@@ -3,12 +3,24 @@
 # saves output M.huc to binary file
 #
 # usage: $ Rscript run_model.R <input tempDataSync rdata> <output jags rdata> <output covariate list rdata>
-# example: $ Rscript run_model.R ./tempDataSync.RData ./jags.RData ./covariate-list.RData
+# example: $ Rscript run_model.R ./tempDataSync.RData ./jags.RData ./covariate_list.RData
 
 # NOTE: this has not actually been run, and is mostly just copy and pasted from the analysis vignette
 
+gc()
+
+library(dplyr)
+library(devtools)
+# install_github("Conte-Ecology/conteStreamTemperature")
+library(conteStreamTemperature)
+
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
+
+if(length(args) < 1) {
+  args <- c("localData/tempDataSync.RData", "localData/jags.RData", "localData/covariate_list.RData") # "localData/covariateData.RData",
+}
+
 tempDataSync_file <- args[1]
 if (!file.exists(tempDataSync_file)) {
   stop(paste0('Could not find tempDataSync binary file: ', tempDataSync_file))
@@ -25,55 +37,28 @@ if (file.exists(output2_file)) {
   warning(paste0('Output2 file already exists, overwriting: ', output2_file))
 }
 
-# temporary
-load("localData/tempDataSync.RData")
-
-# ----
 ### Run the model in JAGS
 
-library(dplyr)
-#library(nlme)
-library(devtools)
-# install_github("Conte-Ecology/conteStreamTemperature")
-library(conteStreamTemperature)
-
 fixed.ef <- c("intercept" 
-              #, "Latitude" 
-              #, "Longitude" 
-              #, "AreaSqKM" 
-              #, "forest" 
-              #, "ReachElevationM" 
-              #, "SurficialCoarseC" 
-              #, "CONUSWetland" 
-              #, "ImpoundmentsAllSqKM" 
-              #, "airTemp.TotDASqKM"
               , "airTemp.forest"
               , "airTemp.prcp2.da"
               #, "airTemp.prcp2.da.forest" # maybe add in when have riparian forest
               #, "airTemp.prcp30.da" # try later
               #, "temp7p.prcp7.da"
               #, "temp7p.forest.prcp7.da"
-             # , "allonnet"
-              #, "airTemp.allonnet"
-              #, "alloffnet"
-              #, "airTemp.alloffnet"
-              , "devel_hi"
-             # , "agriculture"
-              #, "devel_hi.prcp2.da"
-              #, "agriculture.prcp2.da"
+              , "airTemp.devel_hi"
               , "airTemp.prcp30.da"
+             , "allonnet"
+             , "allonnet2"
+             , "airTemp.allonnet"
+             , "airTemp.allonnet2"
+             #, "agriculture" # consider making random when extend to VA
+             , "airTemp.agriculture" # try making random when extend to VA
 )
 
 site.ef <- c( "intercept.site" 
               , "airTemp"
-              , "allonnet"
-              , "allonnet2"
-              , "airTemp.allonnet"
-              , "airTemp.allonnet2"
-              , "agriculture"
-              , "airTemp.agriculture"
               #, "temp7p"
-
 )
 
 year.ef <- c( "intercept.year"
@@ -116,13 +101,7 @@ if (!file.exists('code')) {
   dir.create('code')
 }
 
-
-system.time(M.ar1 <- modelRegionalTempAR1(tempDataSyncS, cov.list, firstObsRows = firstObsRows, evalRows = evalRows, n.burn = 5000, n.it = 1000, n.thin = 1, nc = 3, coda = coda.tf, param.list = monitor.params)) # Slow with AR1: ~3-6 min per 100 iterations (13 min per 100 iter for site AR)
-
-
-# temp output file
-output_file <- "localData/jags.RData"
-output2_file <- "localData/covariate-list.RData"
+system.time(M.ar1 <- modelRegionalTempAR1(tempDataSyncS, cov.list, firstObsRows = firstObsRows, evalRows = evalRows, n.burn = 3000, n.it = 1000, n.thin = 1, nc = 3, coda = coda.tf, param.list = monitor.params)) # Slow with AR1: ~13 min per 100 iter for site AR = 13 hours for 6000 iterations
 
 # save to rdata
 saveRDS(M.ar1, file = output_file)

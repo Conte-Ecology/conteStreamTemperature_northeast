@@ -149,8 +149,8 @@ for(i in 2071:n.loops) {
     catches <- catchmentid[(1+(j-1)*chunk.size):n.catches]
   }
   # connect to database source
-  #db <- src_postgres(dbname='conte_dev', host='127.0.0.1', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
-  db <- src_postgres(dbname='sheds', host='felek.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password = options('SHEDS_PASSWORD'))
+  db <- src_postgres(dbname='conte_dev', host='127.0.0.1', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+  #db <- src_postgres(dbname='conte_dev', host='felek.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password = options('SHEDS_PASSWORD'))
   #db <- src_postgres(dbname='conte_dev', host='ecosheds.org', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
   
   
