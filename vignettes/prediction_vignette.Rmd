@@ -5,18 +5,11 @@ output: html_document
 
 ```{r load, echo=FALSE, results='hide'}
 # library(rjson)
-library(jsonlite)
 library(ggplot2)
-library(reshape2)
 library(dplyr)
-library(tidyr)
-library(zoo)
-library(lubridate)
-library(DataCombine) # for the slide function
-library(RPostgreSQL)
-library(devtools)
+
 #install_github("Conte-Ecology/conteStreamTemperature")
-library(conteStreamTemperature)
+#library(conteStreamTemperature)
 
 data_dir <- "localData_2015-07-09" 
   
@@ -32,7 +25,7 @@ data_dir <- "localData_2015-07-09"
   
   #load((paste0(dataOutDir, 'modSummary.RData')))
 coef.list <- readRDS(paste0(dataLocalDir, 'coef.RData'))
-  load(paste0(dataLocalDir, 'tempDataSync.RData'))
+  load(paste0(data_dir, '/tempDataSync.RData'))
   #load(paste0(dataLocalDir, 'covariate_list.RData'))
   #load(paste0(dataLocalDir, 'springFallBreakpoints.RData'))
 
@@ -121,6 +114,11 @@ To estimate all the parameters and their uncertainties, we used a Bayesian analy
 All spatial information in the database is centered around the `featureid`. Select the `featureid` or IDs of interest for the prediction. Then pull the associated landscape and land-use information (basin characteristics). Information on these metrics can be found in the GitHub repo: [https://github.com/Conte-Ecology/basinCharacteristics](https://github.com/Conte-Ecology/basinCharacteristics).
 
 
+
+For one site how do you loop through to calculate the time series (when site-specific values, no site-specific coefficient values, huc values, year values)
+
+
+
 ### Pull Temporal Data (from daymet)
 
 ### Clip to Synchronized Time Period
@@ -138,23 +136,30 @@ head(springFallBPs)
 
 Example of standardization file:
 
-```{r breakpoints, echo=FALSE}
+```{r stds, echo=FALSE}
 str(df_stds)
 head(df_stds)
 ```
+
+get real values
+
+standardize
+
+then compute interactions
+
 
 ### Assign Conditional or Marginal Coefficient Estimates for Random Effects
 
 Example of covariate list:
 
-```{r breakpoints, echo=FALSE}
+```{r covs, echo=FALSE}
 str(cov.list)
 head(cov.list)
 ```
 
 Example of coeficient data:
 
-```{r breakpoints, echo=FALSE}
+```{r coefs, echo=FALSE}
 str(coef.list)
 head(coef.list)
 ```
@@ -180,5 +185,6 @@ head(coef.list)
 ### Add Autoregressive Error
 
 
+### Save predictions for featureid to csv
 
 
