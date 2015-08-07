@@ -3,35 +3,46 @@ title: "Predictions"
 output: html_document
 ---
 
-```{r load, echo=FALSE, results='hide'}
-# library(rjson)
+```{r load, echo=FALSE, results='hide', warning=FALSE}
+library(RPostgreSQL)
 library(ggplot2)
 library(dplyr)
+library(stringr)
+library(lubridate)
+library(zoo)
 
 #install_github("Conte-Ecology/conteStreamTemperature")
 #library(conteStreamTemperature)
 
-data_dir <- "localData_2015-07-09" 
-  
-  baseDir <- getwd()
-  
-  dataInDir <- paste0(baseDir, '/dataIn/')
-  dataOutDir <- paste0(baseDir, '/dataOut/')
-  dataLocalDir <- paste0(baseDir, '/localData/')
-  graphsDir <- paste0(baseDir, '/graphs/')
-  
-  #source(paste0(baseDir, 'code/functions/temperatureModelingFunctions.R'))
-  #source(paste0(baseDir, 'code/functions/dataIndexingFunctions.R'))
-  
-  #load((paste0(dataOutDir, 'modSummary.RData')))
-coef.list <- readRDS(paste0(dataLocalDir, 'coef.RData'))
-  load(paste0(data_dir, '/tempDataSync.RData'))
-  #load(paste0(dataLocalDir, 'covariate_list.RData'))
-  #load(paste0(dataLocalDir, 'springFallBreakpoints.RData'))
+setwd("/home/dan/conteStreamTemperature_northeast/vignettes")
 
-cov.list <- readRDS(paste0(dataLocalDir, 'covariate-list.RData'))
-springFallBPs <- readRDS(paste0(dataLocalDir, 'springFallBPs.RData'))
-  
+coef_list <- readRDS(paste0('coef.RData'))
+load(paste0('tempDataSync.RData'))
+cov_list <- readRDS(paste0('covariate_list.RData'))
+
+# make sure get rid of factors
+coef_list$B.fixed <- coef_list$B.fixed %>%
+  dplyr::mutate(Parameter = as.character(Parameter),
+                coef = as.character(coef))
+
+coef_list$B.site <- coef_list$B.site %>%
+  dplyr::mutate(Parameter = as.character(Parameter),
+                site = as.character(site),
+                coef = as.character(coef))
+
+coef_list$B.huc <- coef_list$B.huc %>%
+  dplyr::mutate(Parameter = as.character(Parameter),
+                huc = as.character(huc),
+                coef = as.character(coef))
+
+coef_list$B.year <- coef_list$B.year %>%
+  dplyr::mutate(Parameter = as.character(Parameter),
+                year = as.character(year),
+                coef = as.character(coef))
+
+coef_list$B.ar1 <- coef_list$B.ar1 %>%
+  dplyr::mutate(Parameter = as.character(Parameter),
+                site = as.character(site))
 ```
   
   
@@ -50,7 +61,7 @@ $$ t_{h,r,y,d} \sim \mathcal{N}(\mu_{h,r,y,d}, \sigma) $$
 
 where $t_{h,r,y,d}$ is the observed stream water temperature at the reach ($r$) within the sub-basin identified by the 8-digit Hydrologic Unit Code (HUC8; $h$) for each day ($d$) in each year ($y$). We describe the normal distribution based on the mean ($mu_{h,r,y,d}$) and standard deviation ($\sigma$) and assign a vague prior of $\sigma = 100$. The mean temperature is modelled to follow a linear trend
 
-$$ \omega_{h,r,y,d} = X_0 B_0 + X_{h,r} B_{h,r} + X_{h} B_{h} + X_{y} B_{y} $$
+$$ \omega_{h,r,y,d} = X_0 B_0 + X_{h,r,d} B_{h,r} + X_{h,d} B_{h} + X_{y,d} B_{y} $$
 
 but the expected mean temperature ($\mu_{h,r,y,d}$) was also adjusted based on the residual error from the previous day
 
@@ -62,129 +73,431 @@ $$ \mu_{h,r,y,d} = \begin{cases}
 
 where $\delta_{r}$ is an autoregressive [AR(1)] coefficient that varies randomly by reach and $\omega_{h,r,y,d}$ is the expected temperature before accounting for temporal autocorrelation in the error structure.
 
-$X_{0}$ is the $n \times K_0$ matrix of predictor values. $B_0$ is the vector of $K_0$ coefficients, where $K_0$ is the number of fixed effects parameters including the overall intercept. We used **???XX???** fixed effect parameters including the overall intercept. These include **??latitude, longitude, upstream drainage area, percent forest cover, elevation, surficial coarseness classification, percent wetland area, upstream impounded area, and an interaction of drainage area and air temperature??**. We assumed the following distributions and vague priors for the fixed effects coefficients
+$X_{0}$ is the $n \times K_0$ matrix of predictor values. $B_0$ is the vector of $K_0$ coefficients, where $K_0$ is the number of fixed effects parameters including the overall intercept. 
 
-$$ B_0 \sim \mathcal{N}(0,\sigma_{k_0}), \text{for $k_0 = 1,...,K_0$,} $$
-
-$$ B_0 = \beta_{0}^{1},...,\beta_{0}^{K_{0}} \sim \mathcal{N}(0, 100) $$
-
-$$ \sigma_{k_0} = 100 $$
-
-**??The effects of air temperature on the day of observation ($d$) and mean air temperature over the previous 7 days varied randomly with reach nested within HUC8, as did precipitation, the previous 30-day precipitation mean, and the interactions of air temperature and preciptation (all 4 combinations).??**
-
-$B_{h,r}$ is the $R \times K_{R}$ matrix of regression coefficients where $R$ is the number of unique reaches and $K_{R}$ is the number of regression coeffcients that vary randomly by reach within HUC8. We assumed prior distributions of
-
-$$ B_{h,r} \sim \mathcal{N}(0,\sigma_{k_{r}}), \text{for $k_{r} = 1,...,K_{R}$,} $$
-
-$$ \sigma_{r_0} = 100 $$
-
-$X_{h}$ is the matrix of parameters that vary by HUC8. We allowed for correlation among the effects of these HUC8 coefficients as described by Gelman and Hill [-@Gelman2007].
-
-$B_{h}$ is the $H \times K_{H}$ matrix of coefficients where $H$ is the number of HUC8 groups and $K_H$ is the number of paramaters that vary by HUC8 including a constant term. In our model, $K_{H} = K_{R}$ and we assumed priors distributions of
-
-$$ B_{h} \sim \mathcal{N}(M_{h},\Sigma_{B_{h}}), \text{for $h = 1,...,H$} $$
-
-where $M_{h}$ is a vector of length $K_{H}$ and $\Sigma_{B_{h}}$ is the $K_{H} \times K_{H}$ covariance matrix.
-
-$$ M_{h} \sim MVN(\mu_{1:K_h}^h, \sigma_{1:K_h}^h) $$
-
-$$ \mu_{1}^h = 0; \mu_{2:K_h}^h \sim \mathcal{N}(0, 100) $$
-
-$$ \Sigma_{B_{h}} \sim \text{Inv-Wishart}(diag(K_{h}), K_{h}+1) $$
-
-Similarly, we allowed the some effects of some parameters ($X_{y}$) to vary randomly by year with potential correlation among the coefficients. The intercept, day of the year ($day$), $day^2$, and $day^3$ all varied randomly with year such that $K_{y} = 4$. We assumed prior distributions of
-
-$$ B_{y} \sim \mathcal{N}(M_{y},\Sigma_{B_{y}}), \text{for $y = 1,...,Y$} $$
-
-where $M_{y}$ is a vector of length $K_{Y}$ and $\Sigma_{B_{y}}$ represents the $K_{Y} \times K_{Y}$ covariance matrix.
-
-$$ M_{y} \sim MVN(\mu_{1:K_y}^y, \sigma_{1:K_y}^y) $$
-
-$$ \mu_{1}^y = 0; \mu_{2:K_y}^y \sim \mathcal{N}(0, 100) $$
-
-$$ \Sigma_{B_{y}} \sim \text{Inv-Wishart}(diag(K_{y}), K_{y}+1) $$
-
-To estimate all the parameters and their uncertainties, we used a Bayesian analysis with a Gibbs sampler implemented in JAGS (ref) through R (ref) using the rjags package (ref). This approach was beneficial for hierarchical model flexibility and tractibility for large datasets. We used vague priors for all parameters so all inferences would be based on the data.
 
 
 # Predictions
+
+**Pick a catchment based on featureid:**
+
+```{r featureid}
+# featureid with observed data
+id1 <- "730912"
+
+# featureid without observed data in a huc with data
+id2 <- "831619"
+
+# featureid without observed data in a huc without any data
+id3 <- "767093"
+
+```
 
 ### Pull Landscape & Land-use Data Associated with particular `featureid`
 
 All spatial information in the database is centered around the `featureid`. Select the `featureid` or IDs of interest for the prediction. Then pull the associated landscape and land-use information (basin characteristics). Information on these metrics can be found in the GitHub repo: [https://github.com/Conte-Ecology/basinCharacteristics](https://github.com/Conte-Ecology/basinCharacteristics).
 
+```{r get catchment data}
+# connect to database
+drv <- dbDriver("PostgreSQL")
+con <- dbConnect(drv, dbname="sheds", host='ecosheds.org', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
 
 
-For one site how do you loop through to calculate the time series (when site-specific values, no site-specific coefficient values, huc values, year values)
+param_list <- c("forest", 
+              "herbaceous", 
+              "agriculture", 
+              "devel_hi", 
+              "developed",
+              "AreaSqKM",  
+              "allonnet",
+              "alloffnet",
+              "surfcoarse", 
+              "srad", 
+              "dayl", 
+              "swe")
+
+param_list_string <- paste(shQuote(param_list), collapse = ", ")
+featureid_list_string <- paste(shQuote(c(id1, id2, id3)), collapse = ", ")
+
+qry_covariates <- paste0("SELECT * FROM covariates WHERE zone='upstream' AND variable IN (", param_list_string, ") AND featureid IN (", featureid_list_string, ") ;") # could add AreaSqKM <400
+rs <- dbSendQuery(con, qry_covariates)
+df_covariates_long <- fetch(rs, n=-1)
+```
+
+The covariate data is stored in long format in the sheds database. I then convert it to wide format in R.
+
+```{r convert long to wide}
+# show long format data structure
+str(df_covariates_long)
+
+# convert from long to wide format
+df_covariates_upstream <- tidyr::spread(df_covariates_long, variable, value)
+
+# show wide format data structure
+str(df_covariates_upstream)
+head(df_covariates_upstream)
+```
 
 
+### Get HUC info
+
+Get HUC information for the desired covariates and join to the covariate dataframe
+
+```{r hucs}
+qry_huc <- paste0("SELECT featureid, huc12 FROM catchment_huc12 WHERE featureid IN (", featureid_list_string, ");")
+
+rs <- dbSendQuery(con, statement = qry_huc)
+df_huc <- fetch(rs, n=-1)
+
+df_huc <- df_huc %>%
+  dplyr::mutate(HUC4=str_sub(huc12, 1, 4),
+                HUC8=str_sub(huc12, 1, 8),
+                HUC10=str_sub(huc12, 1, 10),
+                huc = as.character(HUC8)) %>% # huc = HUC8 for legacy code reasons
+  dplyr::rename(HUC12 = huc12)
+
+str(df_huc)
+```
 
 ### Pull Temporal Data (from daymet)
 
+Pulling from the daymet records is the most time consuming piece of doing predictions (at least in R). We have daily meteorological data via daymet for 1980-2013. Therefore, we can predict daily stream temperatures for that time period. In the future, it may be useful to use Scott Steinschneider's weather generator to create air temperature and precipitation time series for alternative scenarios or future conditions.
+
+For this example, I will just pull daymet data from 2013 for the three featureid (catchments/reaches/sites) of interest. *Note: daymet only contains tmin and tmax air temperatures but we are using the average of those as our predictor variable. In the postgres query below, I calculate `airTemp` as the mean in the database and export that along with the other daymet variables. Similarly, efficient query of data from 1 year using date column is important. I add year as a column later but it could be done in the query: [http://stackoverflow.com/questions/9186741/sql-query-where-dates-year-is-year](http://stackoverflow.com/questions/9186741/sql-query-where-dates-year-is-year)*
+
+```{r daymet}
+year <- 2009
+# Efficient Query of data from 1 year using date column: http://stackoverflow.com/questions/9186741/sql-query-where-dates-year-is-year
+date_start <- shQuote("2009-01-01")
+date_end <- shQuote("2009-12-31")
+qry_daymet <- paste0("SELECT featureid, date, tmax, tmin, prcp, dayl, srad, vp, swe, (tmax + tmin) / 2.0 AS airTemp FROM daymet WHERE featureid IN (", featureid_list_string, ") AND date BETWEEN ", date_start, "AND ", date_end, ";")
+
+rs <- dbSendQuery(con, statement = qry_daymet)
+df_daymet <- fetch(rs, n=-1)
+
+str(df_daymet)
+head(df_daymet)
+
+```
+
+Apparently my SQL code isn't case sensitive when creating `airTemp` so I have to rename it from `airtemp` to `airTemp` to match the rest of my code.
+
+```{r rename air temp}
+df_daymet <- df_daymet %>%
+  dplyr::rename(airTemp = airtemp)
+```
+### Calculate derived parameters
+
+There are some parameters that are derived from those in the database such as 2-day precip sum, previous 7-day mean air temperature, day of the year.
+
+```{r derived parameters}
+  df_daymet <- df_daymet %>%
+    group_by(featureid) %>% # only necessary when doing for multiple featureid
+    arrange(featureid, date) %>% # make sure sorted in order
+    mutate(airTempLagged1 = lag(airTemp, n = 1, fill = NA),
+           temp7p = rollapply(data = airTempLagged1, 
+                              width = 7, 
+                              FUN = mean, 
+                              align = "right", 
+                              fill = NA, 
+                              na.rm = T),
+           prcp2 = rollsum(x = prcp, 2, align = "right", fill = NA),
+           prcp7 = rollsum(x = prcp, 7, align = "right", fill = NA),
+           prcp30 = rollsum(x = prcp, 30, align = "right", fill = NA),
+           dOY = yday(date))
+```
+
 ### Clip to Synchronized Time Period
 
-Example of breakpoints file:
+```{r breakpoints, echo=FALSE, eval = FALSE}
+# Example of breakpoints file:
 
-```{r breakpoints, echo=FALSE}
 str(springFallBPs)
 head(springFallBPs)
 ```
 
+We just model data for the period of the year where air and water temperatures are relatively synchronized (free of ice and snow-melt influences). For now it's probably just easiest to do predictions from 01 May through 01 October since that period will be synchronized in almost every year for all sites from Virginia to Maine. This could be done in the daymet query above, but for flexibility I filter the data here. Also the full annual time series is used for calculating things like the 30-day precip.
+
+```{r synch period}
+
+df_daymet_sync <- df_daymet %>%
+  dplyr::mutate(month = month(date)) %>%
+  dplyr::filter(month >= 05 & month < 10 )
+
+```
+
 ### Pull Observed Data if Available
+
+The raw data are stored in the database. These are often subdaily temperatures and they have not undergone full QAQC. You could pull directly from the database and reduce to daily mean temperatures. The alternative, which I'm employing right now, is to just use the observed data that I used for model fitting (calibration). For the web applications, we'd likely want to have site-specific values anywhere there is data. Therefore, in the future I could do a model run without holding out any data for validation (assuming that the past validations are sufficient if the model hasn't changed and the general extent of the data haven't changed).
+
+The observed temperatures I use are stored in the `tempDataSync` dataframe with the column heading `temp`.
+
+```{r observed data}
+df_obs <- tempDataSync %>%
+  dplyr::select(featureid, date, temp)
+```
+
+### Combine independent and dependent data
+
+```{r combine data}
+df_master <- df_daymet_sync %>%
+  dplyr::left_join(df_covariates_upstream) %>%
+  dplyr::left_join(df_huc) %>%
+  dplyr::left_join(df_obs)
+```
+
+It will be important to check if there are any predictors with missing data. If so, the temperature cannot be predicted. This is the case for a few random areas (NH White Mountains) and the edges of the mapped delineation (Canadian border). The model is also only valid for streams with drainage areas < 400 km^2. Larger drainages don't get predictions (assign `NA`).
+
+```{r check 400sqkm drainage}
+all(df_master$AreaSqKM < 400)
+
+```
+
 
 ### Standardize Covariates (independent data)
 
-Example of standardization file:
+Example of standardization file and conversion to standardized values. For each variable of interest (variables used in the model excluding interactions are stored in the `var.names` dataframe which is loaded with `tempDataSync.RData`).
 
 ```{r stds, echo=FALSE}
 str(df_stds)
 head(df_stds)
+
+# x = dataframe to standardize
+# y = dataframe of means and standard deviations for each parameter
+# var.names = vector of names of parameters to standardize
+stdCovs <- function(x, y, var.names){
+  # add checks for factors and convert with warning
+  for(i in 1:length(var.names)){
+    x[ , var.names[i]] <- (x[ , var.names[i]] - y[which(y$var.names == var.names[i]), "means"]) / y[which(y$var.names == var.names[i]), "stdevs"]
+  }
+  return(x)
+}
+
+var.names %in% names(df_master)
+df_master_std <- stdCovs(df_master, df_stds, var.names = var.names)
+
+str(df_master_std)
+head(df_master_std)
 ```
 
-get real values
 
-standardize
+### Get list of covariates and calculate interation terms
 
-then compute interactions
+I'm not sure the best way to get the list of interaction terms. I have hard coded as many interactions as I could think of and calculate all of them every time then just use the ones I want in the model.
 
+I only use interactions in the fixed effects (except day of the year squared and cubed which will always be used), so they can be extracted by looking for the names with dots.
+
+```{r interactions}
+cov_list$fixed.ef
+
+(interactions <- filter(as.data.frame(cov_list$fixed.ef, stringsAsFactors = FALSE), grepl("\\.", cov_list$fixed.ef))[["cov_list$fixed.ef"]])
+
+# if you always calculate these interactions you can then just use the subset of them which match those used in the model
+
+addInteractions <- function (data) 
+{
+  data <- data %>% 
+    dplyr::mutate(intercept = 1, intercept.site = 1, 
+                  intercept.year = 1, 
+                  dOY2 = dOY^2, 
+                  dOY3 = dOY^3, 
+                  airTemp.forest = airTemp * forest, 
+                  airTemp.prcp2.da = airTemp * prcp2 * AreaSqKM, 
+                  airTemp.prcp2.da.forest = airTemp * prcp2 * AreaSqKM * forest, 
+                  airTemp.prcp30.da = airTemp * prcp30 * AreaSqKM, 
+                  airTemp.agriculture = airTemp * agriculture, 
+                  airTemp.devel_hi = airTemp * devel_hi, 
+                  temp7p.forest = temp7p * forest, 
+                  temp7p.prcp7.da = temp7p * prcp7 * AreaSqKM, 
+                  temp7p.forest.prcp7.da = temp7p * forest * prcp7 * AreaSqKM,
+                  srad.forest = srad * forest, 
+                  airTemp.swe = airTemp * swe, 
+                  airTemp.allonnet = airTemp * allonnet, 
+                  airTemp.alloffnet = airTemp * alloffnet, 
+                  allonnet2 = allonnet * allonnet, 
+                  airTemp.allonnet2 = airTemp * allonnet * allonnet, 
+                  devel_hi.prcp2.da = devel_hi * prcp2 * AreaSqKM, 
+                  agriculture.prcp2.da = agriculture * prcp2 * AreaSqKM)
+  return(data)
+}
+
+
+df_master_std = addInteractions(data = df_master_std)
+df_master_std <- as.data.frame(unclass(df_master_std))
+# str(df_master_std)
+# df_master_std[1, ]
+```
 
 ### Assign Conditional or Marginal Coefficient Estimates for Random Effects
 
 Example of covariate list:
 
 ```{r covs, echo=FALSE}
-str(cov.list)
-head(cov.list)
+str(cov_list)
+# head(cov_list)
 ```
 
 Example of coeficient data:
 
 ```{r coefs, echo=FALSE}
-str(coef.list)
-head(coef.list)
+str(coef_list)
+# head(coef_list)
 ```
 
 ### Calculate Trend
 
+check if featureid in list of featureid with specific (conditional) site-level effects. This will help to decide which coefficients to choose, the site-specific or the mean. In the following example, I will do it for the first featureid (`id1`). The sites (featureid) with specific coefficients are listed in `coef_list$B.site$site`. If it is, then pull the specific coefficient estimates from `B.site` and `B.ar1` which both vary by featureid (site), otherwise use the means, which in the case of random site effects are 0 by definition but not for ar1.
+
+```{r check if site-specific effects}
+
+id_site_specific <- id1 %in% coef_list$B.site$site
+
+if(id_site_specific == TRUE) {
+  B.site <- dplyr::filter(coef_list$B.site, site == id1)
+  B.ar1 <- dplyr::filter(coef_list$B.ar1, site == id1)
+} else {
+  B.site <- data.frame(mean = rep(0, times = length(cov_list$site.ef)))
+  B.ar1 <- coef_list$mu.ar1$mean
+}
+
+B.site
+B.ar1
 ```
-  df$trend <- NA
-  df$trend <- as.vector(coef.list$B.fixed$mean %*% t(as.matrix(as.data.frame(unclass(select(ungroup(data), one_of(cov.list$fixed.ef))))))) +
-    rowSums(as.matrix(select(df, one_of(cov.list$site.ef))) * as.matrix(select(df, one_of(names(B.site[-1]))))) +
-    rowSums(as.matrix(select(df, one_of(cov.list$huc.ef))) * as.matrix(select(df, one_of(names(B.huc[-1]))))) +
-    rowSums(as.matrix(select(df, one_of(cov.list$year.ef))) * as.matrix(select(df, one_of(names(B.year[-1])))))
-  
-  # Add B.ar1 to predictions
-  df <- mutate(df, prev.temp = c(NA, temp[(2:(nrow(data))) -1]))
-  df <- mutate(df, prev.trend = c(NA, trend[(2:nrow(data)) - 1]))
-  df <- mutate(df, prev.err = prev.temp - prev.trend)
-  df <- mutate(df, tempPredicted = trend)
-  df[which(!is.na(df$prev.err)), ]$tempPredicted <- df[which(!is.na(df$prev.err)), ]$trend + df[which(!is.na(df$prev.err)), ]$B.ar1 * df[which(!is.na(df$prev.err)), ]$prev.err
-  
+
+Get huc effects
+
+```{r huc effects}
+hucid <- df_huc[which(df_huc$feature == id1), ]$huc
+id_huc_specific <- hucid %in% coef_list$B.huc$huc
+
+if(id_huc_specific == TRUE) {
+  B.huc <- dplyr::filter(coef_list$B.huc, huc == hucid)
+} else {
+  B.huc <- coef_list$mu.huc$mean
+}
+
+# B.huc
+```
+
+Get year effects (need to pick a year in which to predict earlier)
+
+```{r year effects}
+yearid <- year # rename because of scoping problem in dplyr
+id_year_specific <- year %in% coef_list$B.year$year
+
+if(id_year_specific == TRUE) {
+  B.year <- dplyr::filter(coef_list$B.year, year == yearid)
+} else {
+  B.year <- coef_list$mu.year$mean
+}
+
+# B.year
+```
+
+Get fixed effects (B.0)
+
+```{r B.0}
+B.0 <- coef_list$B.fixed
+
+B.0
+```
+
+Separate the data into matrices by fixed effects, site effects, huc effects, and year effects
+
+```{r create data matrices}
+
+# just cycle through data for the 1 featureid of interest
+df_master_std1 <- dplyr::filter(df_master_std, featureid == id1)
+
+X.0 <- dplyr::select(df_master_std1, one_of(B.0$coef))
+X.site <- dplyr::select(df_master_std1, one_of(as.character(coef_list$B.site$coef)))
+X.huc <- dplyr::select(df_master_std1, one_of(as.character(coef_list$B.huc$coef)))
+X.year <- dplyr::select(df_master_std1, one_of(as.character(coef_list$B.year$coef)))
+
+str(X.0)
+str(X.site)
+str(X.huc)
+str(X.year)
+
+```
+
+Loop through to calculate expected temperature timeseries (trend before accounting for temporal autocorrelation)
+
+```{r calc trend}
+temp_expected <- rep(NA, times = nrow(df_master_std1))
+for(i in 1:nrow(df_master_std1)) { # loop through time (each row = a date for the given featureid)
+  t.fixed <- 0
+  for(j in 1:nrow(B.0)) { # loop through fixed effects
+    foo <- B.0[j, "mean"] * X.0[i,j]
+    t.fixed <- foo + t.fixed
+  }
+    t.site <- 0
+  for(k in 1:nrow(B.site)) { # loop through fixed effects
+    foo <- B.site[k, "mean"] * X.site[i,k]
+    t.site <- foo + t.site
+  }
+      t.huc <- 0
+  for(l in 1:nrow(B.huc)) { # loop through fixed effects
+    foo <- B.huc[l, "mean"] * X.huc[i,l]
+    t.huc <- foo + t.huc
+  }
+        t.year <- 0
+  for(m in 1:nrow(B.year)) { # loop through fixed effects
+    foo <- B.year[m, "mean"] * X.year[i,m]
+    t.year <- foo + t.year
+  }
+  temp_expected[i] <- as.numeric(t.fixed + t.site + t.huc + t.year)
+}
+
+summary(temp_expected)
+
 ```
 
 ### Add Autoregressive Error
 
+Now you have the expected stream temperatures for a site (featureid) for each day within the generally synchronized period of the year. I'm not sure how you want to handle updating these with corrections for the temporal autocorrelation. The autocorrelation coefficient (`B.ar1`) varies by site (`featureid`), which is why I included it above in the `ifelse` statement to get the appropriate `B.ar1` estimate and if not available for that site, then I assigned it the mean value across all sites. 
+
+Essentially, what you do to add the autoregressive part is test whether there is observed temperature data from the previous day. If so then calculate the residual for that day (observed - expected) multiply it by the autoregressive coefficient and add the value to today's expected temperature (I believe before updating yesterday's to account for the autoregressive but I'll double check). It might be helpful to test whether there is any data for that site on the dates for prediction because if not, there's no need to go through the daily loop.
+
+```{r add autoregressive}
+temp_pred <- rep(NA, times = nrow(df_master_std1))
+if(any(!is.na(df_master_std1)) == TRUE) {
+  temp_pred[1] <- temp_expected[1]
+  for(i in 2:nrow(df_master_std1)) { # loop through each day
+    if(!is.na(df_master_std1$temp[i-1])) { # check if previous day had observed stream temperature data
+      temp_pred[i] = temp_expected[i] + B.ar1$mean * (df_master_std1$temp[i-1] - temp_expected[i-1])
+    } else { # else if no observed data yesterday 
+      temp_pred[i] <- temp_expected[i]
+    }
+  }
+} else { # else if no observed temp data for any days just use the expected for all predictions
+  temp_pred <- temp_expected
+} # end outer ifelse any data statement
+
+summary(temp_pred)
+
+```
+
+### Plot Predictions
+
+* Blue = predicted stream temperature
+* Black = observed stream temperature
+
+```{r plot predictions}
+library(ggplot2)
+df <- data.frame(featureid = id1, date = df_master_std1$date, temp_observed = df_master_std1$temp, temp_expected = temp_expected, temp_predicted = temp_pred)
+
+ggplot(df, aes(date, temp_predicted)) + geom_point(colour = 'blue', size = 3) + geom_line(colour = 'blue', size = 0.3) + geom_point(aes(date, df_master_std1$temp), colour = 'black', size = 2) + geom_line(aes(date, df_master_std1$temp), colour = 'black', size = 0.2)  + theme_bw()
+
+```
 
 ### Save predictions for featureid to csv
+
+```{r save predictions}
+
+write.csv(df, file = "predictions.csv", row.names = FALSE)
+
+```
+
 
 
