@@ -22,7 +22,7 @@ config <- fromJSON('model_config.json')
 
 # validate = TRUE # get rid of this once model_config.json is ready
 
-data_dir <- "localData_2015-06-09" 
+data_dir <- "localData_2015-07-09" 
 
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
@@ -312,9 +312,25 @@ if (config[['validate']]) {
   firstObsRows <- createFirstRows(tempDataSyncS)
   evalRows <- createEvalRows(tempDataSyncS)
   
+  tempDataSyncS <- stdCovs(x = tempDataSync, y = df_stds, var.names = var.names)
+  tempDataSyncS <- addInteractions(tempDataSyncS)
+  tempDataSyncS <- indexDeployments(tempDataSyncS, regional = TRUE)
+  firstObsRows <- createFirstRows(tempDataSyncS)
+  evalRows <- createEvalRows(tempDataSyncS)
   
+  df_site <- data.frame(site = unique(tempDataSyncS$featureid))
+  df_site$sitef <- seq(1, nrow(df_site), by = 1)
+  df_huc <- data.frame(huc = unique(tempDataSyncS$huc))
+  df_huc$hucf <- seq(1, nrow(df_huc), by = 1)
+  df_year <- data.frame(year = unique(tempDataSyncS$year))
+  df_year$yearf <- seq(1, nrow(df_year), by = 1)
+  J <- nrow(df_site)
+  M <- nrow(df_huc)
+  Ti <- nrow(df_year)
   
-  save(tempDataSync, tempDataSyncS, tempDataSyncValid, tempDataSyncValidS, firstObsRows, evalRows, firstObsRowsValid, evalRowsValid, df_stds, file = output_file)
+  rand_ids <- list(df_site = df_site, df_huc = df_huc, df_year = df_year, J = J, M = M, Ti = Ti)
+  
+  save(tempDataSync, tempDataSyncS, tempDataSyncValid, tempDataSyncValidS, firstObsRows, evalRows, firstObsRowsValid, evalRowsValid, var.names, df_stds, rand_ids, file = output_file)
   
 } else {
   #tempDataSyncValid <- NULL
@@ -326,7 +342,7 @@ if (config[['validate']]) {
     stdevs[i] <- sd(tempDataSync[, var.names[i]], na.rm = T)
   }
   
-  df_stds <- data.frame(var.names, means, stdevs, stringsAsFactors = FALSE)
+  df_stds <- data.frame(var.names, means, var.names, stdevs, stringsAsFactors = FALSE)
   
   tempDataSyncS <- stdCovs(x = tempDataSync, y = df_stds, var.names = var.names)
   tempDataSyncS <- addInteractions(tempDataSyncS)
@@ -334,7 +350,19 @@ if (config[['validate']]) {
   firstObsRows <- createFirstRows(tempDataSyncS)
   evalRows <- createEvalRows(tempDataSyncS)
   
-  save(tempDataSync, tempDataSyncS, firstObsRows, evalRows, df_stds, file = output_file)
+  df_site <- data.frame(site = unique(tempDataSyncS$featureid))
+  df_site$sitef <- seq(1, nrow(df_site), by = 1)
+  df_huc <- data.frame(huc = unique(tempDataSyncS$huc))
+  df_huc$hucf <- seq(1, nrow(df_huc), by = 1)
+  df_year <- data.frame(year = unique(tempDataSyncS$year))
+  df_year$yearf <- seq(1, nrow(df_year), by = 1)
+  J <- nrow(df_site)
+  M <- nrow(df_huc)
+  Ti <- nrow(df_year)
+  
+  rand_ids <- list(df_site = df_site, df_huc = df_huc, df_year = df_year, J = J, M = M, Ti = Ti)
+  
+  save(tempDataSync, tempDataSyncS, firstObsRows, evalRows, var.names, df_stds, rand_ids, file = output_file)
 }
 
 rm(list = ls())
