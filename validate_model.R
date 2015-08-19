@@ -7,8 +7,18 @@
 
 # NOTE: this has not actually been run, and is mostly just copy and pasted from the analysis vignette
 
+# determine whether to run the code or not
+library(jsonlite)
+config <- fromJSON('model_config.json')
+
+data_dir <- "localData_2015-07-09" 
+
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
+
+if(length(args) < 1) {
+  args <- c(paste0(data_dir, "/tempDataSync.RData"), paste0(data_dir, "/covariate_list.RData"), paste0(data_dir, "/coef.RData"), paste0(data_dir, "/rmse_table.RData"), paste0(data_dir, "/valid_results.RData")) # 
+}
 
 tempDataSync_file <- args[1]
 if (!file.exists(tempDataSync_file)) {
@@ -24,7 +34,7 @@ cov.list <- readRDS(cov_file)
 
 coef_file <- args[3]
 if (!file.exists(coef_file)) {
-  stop(paste0('Could not find covariate binary file: ', coef_file))
+  stop(paste0('Could not find coefficient binary file: ', coef_file))
 }
 coef.list <- readRDS(coef_file)
 
@@ -33,33 +43,45 @@ if (file.exists(output_file)) {
   warning(paste0('Output file already exists, overwriting: ', output_file))
 }
 
-# ----
+output_file2 <- args[5]
+if (file.exists(output_file2)) {
+  warning(paste0('Output file 2 already exists, overwriting: ', output_file2))
+}
 
+# ----
 if(config[["validate"]]) {
   
 library(ggplot2)
 library(reshape2)
 library(dplyr)
 library(devtools)
-#install_github("Conte-Ecology/conteStreamTemperature")
+install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 library(rjags)
 
 # temporary when not running via bash
-coef.list <- readRDS("localData/coef.RData")
-cov.list <- readRDS("localData/covariate-list.RData")
-load("localData/tempDataSync.RData")
+#coef.list <- readRDS("localData/coef.RData")
+#cov.list <- readRDS("localData/covariate-list.RData")
+#load("localData/tempDataSync.RData")
 
-tempDataSyncS <- predictTemp(data = tempDataSyncS, coef.list = coef.list, cov.list = cov.list)
+  featureid_site <- tempDataSyncS %>%
+    dplyr::select(featureid, site) %>%
+    dplyr::distinct() %>%
+    dplyr::mutate(site = as.character(site))
+  
+tempDataSyncS <- predictTemp(data = tempDataSyncS, coef.list = coef.list, cov.list = cov.list, featureid_site = featureid_site)
 
-tempDataSyncValidS <- predictTemp(data = tempDataSyncValidS, coef.list = coef.list, cov.list = cov.list)
+tempDataSyncValidS <- predictTemp(data = tempDataSyncValidS, coef.list = coef.list, cov.list = cov.list, featureid_site = featureid_site)
 
 
 
 #library(ggplot2)
 #ggplot(tempDataSyncValidS, aes(temp, tempPredicted)) + geom_point() + geom_abline(aes(1,1), colour = 'blue')
-tempDataSyncValidS$resid.r <- tempDataSyncValidS$temp - tempDataSyncValidS$tempPredicted
+tempDataSyncValidS$resid.r <- tempDataSyncValidS$temp - tempDataSyncValidS$trend
 rmse.valid <- rmse(tempDataSyncValidS$resid.r)
+
+tempDataSyncValidS$resid.r.ar1 <- tempDataSyncValidS$temp - tempDataSyncValidS$tempPredicted
+(rmse.valid.ar1 <- rmse(tempDataSyncValidS$resid.r.ar1))
 
 
 #library(ggplot2)
@@ -71,7 +93,7 @@ rmse.fit <- rmse(tempDataSyncS$resid.r)
 rmse.table <- data.frame(rbind(rmse.fit, rmse.valid))
 colnames(rmse.table) <- "rmse"
 
-output_file <- "localData/rmse_table.RData"
+output_file <- paste0(data_dir, "/rmse_table.RData")
 saveRDS(rmse.table, file=output_file)
 
 foo <- tempDataSyncS %>%
@@ -84,7 +106,11 @@ tempDataSync <- tempDataSync %>%
 tempDataSync <- tempDataSync %>%
   left_join(foo, by = c("featureid", "date"))
 
-saveRDS(tempDataSync, "localData/obs_predicted.RData")
-saveRDS(tempDataSyncValidS, "localData/valid_results.RData")
+saveRDS(tempDataSync, paste0(data_dir, "/obs_predicted.RData"))
+saveRDS(tempDataSyncValidS, paste0(data_dir, "/valid_results.RData"))
 
 }
+
+rm(list = ls())
+gc()
+
