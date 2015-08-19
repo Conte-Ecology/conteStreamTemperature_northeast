@@ -11,14 +11,16 @@ gc()
 
 library(dplyr)
 library(devtools)
-# install_github("Conte-Ecology/conteStreamTemperature")
+install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
+
+data_dir <- "localData_2015-07-09"
 
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
 
 if(length(args) < 1) {
-  args <- c("localData/tempDataSync.RData", "localData/jags.RData", "localData/covariate_list.RData") # "localData/covariateData.RData",
+  args <- c(paste0(data_dir, "/tempDataSync.RData"), paste0(data_dir, "/jags.RData"), paste0(data_dir, "/covariate_list.RData")) # "localData/covariateData.RData",
 }
 
 tempDataSync_file <- args[1]
@@ -40,25 +42,28 @@ if (file.exists(output2_file)) {
 ### Run the model in JAGS
 
 fixed.ef <- c("intercept" 
+              , "forest"
               , "airTemp.forest"
+              , "prcp2.da"
               , "airTemp.prcp2.da"
               #, "airTemp.prcp2.da.forest" # maybe add in when have riparian forest
-              #, "airTemp.prcp30.da" # try later
               #, "temp7p.prcp7.da"
               #, "temp7p.forest.prcp7.da"
+              , "devel_hi"
               , "airTemp.devel_hi"
+              , "prcp30.da"
               , "airTemp.prcp30.da"
              , "allonnet"
              , "allonnet2"
              , "airTemp.allonnet"
-             , "airTemp.allonnet2"
-             #, "agriculture" # consider making random when extend to VA
+            # , "airTemp.allonnet2"
+             , "agriculture" # consider making random when extend to VA
              , "airTemp.agriculture" # try making random when extend to VA
 )
 
 site.ef <- c( "intercept.site" 
               , "airTemp"
-              #, "temp7p"
+              , "temp7p"
 )
 
 year.ef <- c( "intercept.year"
@@ -84,6 +89,7 @@ monitor.params <- c(#"residuals",
   "B.site",
   #"B.site",
   #"rho.B.site",
+  "stream.mu",
   "sigma.b.site",
   "B.huc",
   "rho.B.huc",
@@ -97,12 +103,15 @@ monitor.params <- c(#"residuals",
 coda.tf <- T # currently only works in full for TRUE (using coda.samples)
 
 # create code directory if doesn't exist
-if (!file.exists('code')) {
-  dir.create('code')
+if (!file.exists(paste0(data_dir, '/code'))) {
+  dir.create(paste0(data_dir, '/code'))
 }
 
-system.time(M.ar1 <- modelRegionalTempAR1(tempDataSyncS, cov.list, firstObsRows = firstObsRows, evalRows = evalRows, n.burn = 3000, n.it = 1000, n.thin = 1, nc = 3, coda = coda.tf, param.list = monitor.params)) # Slow with AR1: ~13 min per 100 iter for site AR = 13 hours for 6000 iterations
+system.time(M.ar1 <- modelRegionalTempAR1(tempDataSyncS, cov.list=cov.list, firstObsRows = firstObsRows, evalRows = evalRows, n.burn = 1000, n.it = 1000, n.thin = 1, nc = 3, coda = coda.tf, param.list = monitor.params)) # Slow with AR1: ~13 min per 100 iter for site AR = 13 hours for 6000 iterations
 
 # save to rdata
 saveRDS(M.ar1, file = output_file)
 saveRDS(cov.list, file = output2_file)
+
+rm(list = ls())
+gc()
