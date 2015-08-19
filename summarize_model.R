@@ -17,12 +17,12 @@ library(devtools)
 library(conteStreamTemperature)
 library(rjags)
 
-gc()
+data_dir <- "localData_2015-07-09" 
 
 args <- commandArgs(trailingOnly = TRUE)
 
 if(length(args) < 1) {
-  args <- c("localData/tempDataSync.RData", "localData/jags.RData", "localData/covariate_list.RData", "localData/coef.RData") # "localData/covariateData.RData",
+  args <- c(paste0(data_dir, "/tempDataSync.RData"), paste0(data_dir, "/jags.RData"), paste0(data_dir, "/covariate_list.RData"), paste0(data_dir, "/coef.RData")) # "localData/covariateData.RData",
 }
 
 tempDataSync_file <- args[1]
@@ -50,33 +50,53 @@ if (file.exists(output_file)) {
 
 # ----
 
-if (!file.exists('localData/figures/')) {
-  dir.create('localData/figures/')
+if (!file.exists(paste0(data_dir, "/figures/"))) {
+  dir.create(paste0(data_dir, "/figures/"))
 }
+
+
+test_jags_pred <- TRUE
+if(test_jags_pred) {
+  plot(M.ar1[ , 1])
+  mat.ar1 <- as.matrix(M.ar1) # massive
+  str(mat.ar1)
+  # need to use regex to rename coefficients
+  temp.predicted.mean <- as.data.frame(mat.ar1) %>%
+    dplyr::select(contains("stream.mu")) %>%
+    colMeans()
+  temps <- data.frame(tempDataSyncS$temp, temp.predicted.mean)
+  names(temps) <- c("temp", "temp.predicted")
+  
+  ggplot(temps, aes(temp, temp.predicted)) + geom_point() + geom_abline(intercept = 0, slope = 1, colour = "blue")
+  
+  rmse(temps$temp - temps$temp.predicted) # 0.645
+}
+
+
 
 system.time(ggs.ar1 <- ggs(M.ar1)) 
 
 gc(verbose = FALSE) 
 
-ggmcmc(ggs.ar1, file = 'localData/figures/ggmcmc-B0.pdf', family = "B.0", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
+ggmcmc(ggs.ar1, file = paste0(data_dir, "/figures/ggmcmc-B0.pdf"), family = "B.0", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
 
-ggmcmc(ggs.ar1, file = 'localData/figures/ggmcmc-mu-huc.pdf', family = "mu.huc", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
+ggmcmc(ggs.ar1, file = paste0(data_dir, "/figures/ggmcmc-mu-huc.pdf"), family = "mu.huc", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
 
-ggmcmc(ggs.ar1, file = 'localData/figures/ggmcmc-mu-year.pdf', family = "mu.year", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
+ggmcmc(ggs.ar1, file = paste0(data_dir, "/figures/ggmcmc-mu-year.pdf"), family = "mu.year", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
 
-ggmcmc(ggs.ar1, file = 'localData/figures/ggmcmc-mu-ar1.pdf', family = "mu.ar1", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
+ggmcmc(ggs.ar1, file = paste0(data_dir, "/figures/ggmcmc-mu-ar1.pdf"), family = "mu.ar1", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
 
-ggmcmc(ggs.ar1, file = 'localData/figures/ggmcmc-sigma-ar1.pdf', family = "sigma.ar1", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
+ggmcmc(ggs.ar1, file = paste0(data_dir, "/figures/ggmcmc-sigma-ar1.pdf"), family = "sigma.ar1", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
 
-ggmcmc(ggs.ar1, file = 'localData/figures/ggmcmc-sigma-site.pdf', family = "sigma.b.site", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
+ggmcmc(ggs.ar1, file = paste0(data_dir, "/figures/ggmcmc-sigma-site.pdf"), family = "sigma.b.site", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
 
-ggmcmc(ggs.ar1, file = 'localData/figures/ggmcmc-sigma-huc.pdf', family = "sigma.b.huc", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
+ggmcmc(ggs.ar1, file = paste0(data_dir, "/figures/ggmcmc-sigma-huc.pdf"), family = "sigma.b.huc", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
 
-ggmcmc(ggs.ar1, file = 'localData/figures/ggmcmc-sigma-year.pdf', family = "sigma.b.year", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
+ggmcmc(ggs.ar1, file = paste0(data_dir, "/figures/ggmcmc-sigma-year.pdf"), family = "sigma.b.year", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
 
-ggmcmc(ggs.ar1, file = 'localData/figures/ggmcmc-ar1-rho-huc.pdf', family = "rho.B.huc", plot = "ggs_traceplot")
+ggmcmc(ggs.ar1, file = paste0(data_dir, "/figures/ggmcmc-ar1-rho-huc.pdf"), family = "rho.B.huc", plot = "ggs_traceplot")
 
-ggmcmc(ggs.ar1, file = 'localData/figures/ggmcmc-ar1-B-ar1.pdf', family = "B.ar1", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
+ggmcmc(ggs.ar1, file = paste0(data_dir, "/figures/ggmcmc-ar1-B-ar1.pdf"), family = "B.ar1", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
 
 
 system.time(coef.summary <- avgCoefs(ggs.ar1)) 
@@ -161,4 +181,5 @@ coef.list <- list(fix.ef = fix.ef
 saveRDS(coef.list, file=output_file)
 
 
-
+rm(list = ls())
+gc()
