@@ -12,9 +12,11 @@ library(ggplot2)
 library(ggmcmc) # load before dplyr so later plyr doesn't override dplyr
 library(dplyr)
 library(DataCombine) # for the slide function
+library(zoo) # for rollapply function
 library(lubridate)
+library(stringr)
 library(devtools)
-# install_github("Conte-Ecology/conteStreamTemperature")
+install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 library(jsonlite)
 
@@ -139,7 +141,7 @@ tempDataSync <- dplyr::filter(tempDataBP, dOY >= finalSpringBP & dOY <= finalFal
 
 # Filter by Drainage area
 tempDataSync <- tempDataSync %>%
-  filter(AreaSqKM  < 400)
+  filter(AreaSqKM  < 200)
 
 
 #tempDataSync <- left_join(tempDataSync, covariateData)
@@ -330,6 +332,15 @@ if (config[['validate']]) {
   
   rand_ids <- list(df_site = df_site, df_huc = df_huc, df_year = df_year, J = J, M = M, Ti = Ti)
   
+  rand_ids$df_site$site <- as.character(rand_ids$df_site$site)
+  rand_ids$df_huc$huc <- as.character(rand_ids$df_huc$huc)
+  
+  tempDataSyncS <- tempDataSyncS %>%
+    dplyr::select(-sitef) %>%
+    dplyr::left_join(rand_ids$df_site) %>%
+    dplyr::left_join(rand_ids$df_huc) %>%
+    dplyr::left_join(rand_ids$df_year)
+  
   save(tempDataSync, tempDataSyncS, tempDataSyncValid, tempDataSyncValidS, firstObsRows, evalRows, firstObsRowsValid, evalRowsValid, var.names, df_stds, rand_ids, file = output_file)
   
 } else {
@@ -352,7 +363,7 @@ if (config[['validate']]) {
   
   df_site <- data.frame(site = unique(tempDataSyncS$featureid))
   df_site$sitef <- seq(1, nrow(df_site), by = 1)
-  df_huc <- data.frame(huc = unique(tempDataSyncS$huc))
+  df_huc <- data.frame(huc = as.character(unique(tempDataSyncS$huc)))
   df_huc$hucf <- seq(1, nrow(df_huc), by = 1)
   df_year <- data.frame(year = unique(tempDataSyncS$year))
   df_year$yearf <- seq(1, nrow(df_year), by = 1)
@@ -361,6 +372,15 @@ if (config[['validate']]) {
   Ti <- nrow(df_year)
   
   rand_ids <- list(df_site = df_site, df_huc = df_huc, df_year = df_year, J = J, M = M, Ti = Ti)
+  
+  rand_ids$df_site$site <- as.character(rand_ids$df_site$site)
+  rand_ids$df_huc$huc <- as.character(rand_ids$df_huc$huc)
+  
+  tempDataSyncS <- tempDataSyncS %>%
+    dplyr::select(-sitef) %>%
+    dplyr::left_join(rand_ids$df_site) %>%
+    dplyr::left_join(rand_ids$df_huc) %>%
+    dplyr::left_join(rand_ids$df_year)
   
   save(tempDataSync, tempDataSyncS, firstObsRows, evalRows, var.names, df_stds, rand_ids, file = output_file)
 }
