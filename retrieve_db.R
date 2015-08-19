@@ -13,37 +13,35 @@ library(tidyr)
 library(lubridate)
 library(RPostgreSQL)
 library(ggplot2)
+library(devtools)
 # install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 
-data_dir <- getOption("SHEDS_DATA")
+#data_dir <- getOption("SHEDS_DATA")
+data_dir <- paste0("localData_", Sys.Date())
+
+if(!file.exists(file.path(getwd(), data_dir))) dir.create(file.path(getwd(), data_dir))
   
+# parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
 
-wd <- args[1]
-#if (!file.exists(csv_file)) {
-#  stop(paste0('Could not find temperatureData csv file: ', csv_file))
-#}
-output_file1 <- args[2]
+# until running as a bash script add the files here
+if(length(args) < 1) {
+  print("No arguments imported. Using default input and output files and directories")
+  args <- c(paste0(data_dir, "/temperatureData.RData"), paste0(data_dir, "/covariateData.RData"), paste0(data_dir, "/climateData.RData"))
+}
+
+output_file1 <- args[1]
 if (file.exists(output_file1)) {
   warning(paste0('Output file 1 already exists, overwriting: ', output_file1))
 }
-output_file2 <- args[3]
+output_file2 <- args[2]
 if (file.exists(output_file2)) {
   warning(paste0('Output file 2 already exists, overwriting: ', output_file2))
 }
-output_file3 <- args[4]
+output_file3 <- args[3]
 if (file.exists(output_file3)) {
   warning(paste0('Output file 3 already exists, overwriting: ', output_file3))
-}
-
-if(exists(wd)) setwd(wd)
-
-if(length(args) < 1) {
-  print("No arguments imported. Using default input and output files and directories")
-  output_file1 <- file.path("localData/temperatureData.RData")
-  output_file2 <- file.path("localData/covariateData.RData")
-  output_file3 <- file.path("localData/climateData.RData")
 }
 
 #------------------set up database connections--------------------
@@ -58,6 +56,7 @@ tbl_locations <- tbl(db, 'locations') %>%
 tbl_agencies <- tbl(db, 'agencies') %>%
   rename(agency_id=id, agency_name=name) %>%
   select(-created_at, -updated_at)
+df_agencies <- collect(tbl_agencies)
 
 tbl_series <- tbl(db, 'series') %>%
   rename(series_id=id) %>%
@@ -109,8 +108,7 @@ Sys.time() - start.time # only 3.5 minutes for 16 million records from New Engla
 
 summary(df_values)
 
-if(!file.exists(file.path(getwd(), "localData"))) dir.create(file.path(getwd(), "localData"))
-saveRDS(df_values, file = file.path(getwd(), "localData/df_values.RData"))
+saveRDS(df_values, file = file.path(getwd(), data_dir, "df_values.RData"))
 
 # df_values <- readRDS(file = file.path(getwd(), "localData/df_values.RData"))
 
@@ -130,7 +128,20 @@ df_values <- df_values %>%
   convert_neg(.) %>%
   dplyr::select(-row, -temp_prev, -series_prev, -series_start)
 
+str(df_values)
+summary(df_values)
+
 # output flags table
+sd_flags <- df_values %>%
+  dplyr::filter(flag_incomplete == TRUE | 
+                  flag_hourly_rise == TRUE |
+                  flag_cold_obs == TRUE |
+                  flag_hot_obs == TRUE |
+                  flag_extremes == TRUE |
+                  flag_interval == TRUE) %>%
+  dplyr::select(-temp, -obs_per_day, -median_freq, -min_n90, -d_temp, -time_prev, -date)
+
+write.csv(sd_flags, file = file.path(getwd(), data_dir, "subdaily_flags.csv"))
 
 # Filter based on subdaily flags
 df_values2 <- df_values %>%
@@ -141,9 +152,7 @@ df_values2 <- df_values %>%
          flag_interval == "FALSE" | is.na(flag_interval),
          abs(d_temp) < 10 | is.na(d_temp))
 
-
 # Convert to daily
-
 df_values3 <- df_values2 %>%
   group_by(series_id, date, location_id, agency_id) %>%
   filter(flagged == "FALSE") %>%
@@ -162,19 +171,28 @@ df_values3 <- df_values3 %>%
   flag_daily_rise(.) %>%
   flag_cold_days(.) %>%
   flag_hot_days(.) %>%
-  flag_extreme_days(.) %>%
-  dplyr::filter(flag_cold_days == "FALSE",
-                abs(d_temp) < 15 | is.na(d_temp))
+  flag_extreme_days(.)
+
 
 # output daily flags
+d_flags <- df_values3 %>%
+  dplyr::filter(flag_daily_rise == TRUE |
+                  flag_cold_days == TRUE |
+                  flag_hot_days == TRUE |
+                  flag_extreme_days == TRUE) %>%
+  dplyr::select(-row, -temp_prev, -series_prev, -series_start, -median_freq, -min_n90)
+
+write.csv(d_flags, file = file.path(getwd(), data_dir, "daily_flags.csv"))
+
+# filter for use in the model
+df_values3 <- df_values3 %>%
+  dplyr::filter(flag_cold_days == "FALSE",
+                abs(d_temp) < 15 | is.na(d_temp))
 
 # End QAQC
 
 # Get location and agency data and join to temperature data
 # df_locations <- collect(select(tbl_locations, location_id, location_name, latitude, longitude, featureid=catchment_id))
-
-df_agencies <- collect(tbl_agencies)
-
 temperatureData <- df_values3 %>%
   left_join(df_locations, by = c('location_id', 'agency_id')) %>%
   #left_join(df_agencies, by = 'agency_id') %>%
@@ -193,11 +211,12 @@ summary(temperatureData)
 
 # Need to filter by agency and such by here because can't do it later if multiple agencies in the same reach (featureid)
 temperatureData2 <- temperatureData %>%
-  dplyr::group_by(featureid, date, year) %>%
+  dplyr::group_by(featureid, year, date) %>%
   dplyr::summarise(temp = mean(temp, na.rm = T), 
                    tempMax = mean(maxTemp, na.rm = T),
                    tempMin = mean(minTemp, na.rm = T),
-                   n_obs = n())
+                   n_per_day = sum(n_obs))
+summary(temperatureData2)
 
 years <- unique(temperatureData2$year)
 featureids <- unique(temperatureData2$featureid)
@@ -241,14 +260,15 @@ years_string <- paste(years, collapse=', ')
 
 qry <- paste0("COPY(SELECT featureid, date_part('year', date) as year, date, tmax, tmin, prcp, dayl, srad, swe FROM daymet WHERE featureid IN (", featureids_string, ") AND date_part('year', date) IN (",years_string, ") ) TO STDOUT CSV HEADER;")  # "select * from whatever where featureid in (80001, 80002, 80003)"
 
-if(!file.exists(file.path(getwd(), "code"))) dir.create(file.path(getwd(), "code"))
-cat(qry, file = "code/daymet_query.sql")
+if(!file.exists(file.path(getwd(), data_dir, "code"))) dir.create(file.path(getwd(), data_dir, "code"))
+cat(qry, file = paste0(data_dir, "/code/daymet_query.sql"))
 
 
 #----------------save files---------------------
 
 saveRDS(temperatureData2, file=output_file1)
 saveRDS(upstream, file=output_file2)
+#saveRDS(data_dir, file=)
 #saveRDS(climateData, file=output_file3)
 
 
