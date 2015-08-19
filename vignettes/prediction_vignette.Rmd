@@ -281,7 +281,7 @@ head(df_master_std)
 ```
 
 
-### Get list of covariates and calculate interation terms
+### Get list of covariates and calculate interaction terms
 
 I'm not sure the best way to get the list of interaction terms. I have hard coded as many interactions as I could think of and calculate all of them every time then just use the ones I want in the model.
 
