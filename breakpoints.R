@@ -20,13 +20,14 @@ library(stringr)
 # install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 
+data_dir <- "localData_2015-06-09" # problem is that it takes multiple days to run
 
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
 
 # temporary for testing
 if(length(args) < 1) {
-  args <- c("localData/temperatureData.RData", "localData/daymet_results.csv", "localData/springFallBPs.RData") # "localData/covariateData.RData",
+  args <- c(paste0(data_dir, "/temperatureData.RData"), paste0(data_dir, "/daymet_results.csv"), paste0(data_dir, "/springFallBPs.RData")) # "localData/covariateData.RData",
 }
   
 temperatureData_file <- args[1]
