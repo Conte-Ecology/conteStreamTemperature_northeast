@@ -20,7 +20,7 @@ library(stringr)
 # install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 
-data_dir <- "localData_2015-06-09" # problem is that it takes multiple days to run
+data_dir <- "localData_2015-08-24" # problem is that it takes multiple days to run
 
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
@@ -67,32 +67,6 @@ summary(masterData)
 
 featureids <- unique(masterData$featureid)
 
-# Enter the common fields from the temperature ("site" must be one).
-# tempFields <- c('site', 'year', 'dOY', 'date', 'agency', 'temp', 'airTemp')
-
-# Enter the specific covariate fields you want to pull ("site" must be one) or for the entire file, enter "ALL"
-# covFields <- c('site', 'HUC4', 'HUC8', 'HUC12')
-
-# select temperature data columns
-# masterData <- masterData[, tempFields]
-
-# Add HUC info - why not just include as columns in covariate data?
-# drv <- dbDriver("PostgreSQL")
-# con <- dbConnect(drv, dbname="sheds", host='felek.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
-
-# rs <- dbSendQuery(con, "SELECT l.n_locations, c.featureid as featureid,
-#        w.huc12 as huc12
-# FROM (
-#   SELECT count(l.*) as n_locations, c.featureid as featureid
-#   FROM locations l
-#   LEFT JOIN catchments c
-#   ON l.catchment_id=c.featureid
-#   GROUP BY c.featureid) l
-# LEFT JOIN catchments c
-# ON l.featureid=c.featureid
-# LEFT JOIN wbdhu12 w
-# ON ST_Contains(w.geom, ST_Centroid(c.geom));")
-
 # connect to database source
 db <- src_postgres(dbname='sheds', host='felek.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
 
@@ -105,9 +79,6 @@ df_huc <- tbl_huc12 %>%
          HUC8=str_sub(huc12, 1, 8),
          HUC10=str_sub(huc12, 1, 10)) %>%
   dplyr::rename(HUC12 = huc12)
-
-# select covariate data columns
-# covariateData <- covariateData[, covFields]
 
 # merge masterData huc info
 e <- left_join(masterData, df_huc) %>%
@@ -194,8 +165,8 @@ close(pb)
 e <- e[order(e$count),]
 
 # Define breakpoint time period and range for tempIndex
-beginningDayForCI <- 125
-endingDayForCI <- 275
+beginningDayForCI <- 150
+endingDayForCI <- 250
 loCI <- 0.001
 hiCI <- 0.999
 

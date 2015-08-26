@@ -17,7 +17,7 @@ library(devtools)
 library(conteStreamTemperature)
 library(rjags)
 
-data_dir <- "localData_2015-07-09" 
+data_dir <- "localData_2015-08-24" 
 
 args <- commandArgs(trailingOnly = TRUE)
 
@@ -127,12 +127,12 @@ str(df_years)
 B.0 <- df.ar1 %>%
   dplyr::select(starts_with("B.0"))# %>%
 #dplyr::mutate(iter = 1:nrow(df_ar1))
-B.0.summary <- data.frame(coef = cov.list$fixed.ef)
-B.0.summary$mean <- colMeans(B.0)
-B.0.summary$sd <- apply(B.0, MARGIN = 2, sd, na.rm=T)
-B.0.summary$LCRI <- apply(B.0, MARGIN = 2, function(x) quantile(x, probs = 0.025, na.rm=T))
-B.0.summary$UCRI <- apply(B.0, MARGIN = 2, function(x) quantile(x, probs = 0.975, na.rm=T))
-B.0.summary
+B.0.fixed <- data.frame(coef = cov.list$fixed.ef)
+B.0.fixed$mean <- colMeans(B.0)
+B.0.fixed$sd <- apply(B.0, MARGIN = 2, sd, na.rm=T)
+B.0.fixed$LCRI <- apply(B.0, MARGIN = 2, function(x) quantile(x, probs = 0.025, na.rm=T))
+B.0.fixed$UCRI <- apply(B.0, MARGIN = 2, function(x) quantile(x, probs = 0.975, na.rm=T))
+B.0.fixed
 
 ######## Random Site Effects #########
 # extract site effect coefficients
@@ -176,11 +176,11 @@ B.site.means$UCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.975, na.rm 
 B.site.list.sd <- lapply(B.site.list, FUN = function(x) apply(x, 2, sd, na.rm = T))
 foo <- matrix(unlist(B.site.list.sd), ncol = length(B.site.list.sd[[1]]), byrow = TRUE)[ , -1]
 colnames(foo) <- names(B.site.list[[1]])[-1]
-B.site.stds <- data.frame(coef = names(B.site.list[[1]])[-1])
-B.site.stds$mean.sd <- colMeans(foo, na.rm = T)
-B.site.stds$sd <- apply(foo, 2, sd, na.rm = T)
-B.site.stds$LCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.025, na.rm = T))
-B.site.stds$UCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.975, na.rm = T))
+sigma.b.site <- data.frame(coef = names(B.site.list[[1]])[-1])
+sigma.b.site$mean.sd <- colMeans(foo, na.rm = T)
+sigma.b.site$sd <- apply(foo, 2, sd, na.rm = T)
+sigma.b.site$LCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.025, na.rm = T))
+sigma.b.site$UCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.975, na.rm = T))
 
 
 ######## Random HUC Effects #########
@@ -215,21 +215,21 @@ B.huc.means.huc <- apply(foo, 1:2, mean, na.rm = TRUE) # not sure if I will use 
 B.huc.list.means <- lapply(B.huc.list, colMeans, na.rm = T)
 foo <- matrix(unlist(B.huc.list.means), ncol = length(B.huc.list.means[[1]]), byrow = TRUE)[ , -1]
 colnames(foo) <- names(B.huc.list[[1]])[-1]
-B.huc.means <- data.frame(coef = names(B.huc.list[[1]])[-1])
-B.huc.means$mean <- colMeans(foo, na.rm = T) # should be ~0
-B.huc.means$sd <- apply(foo, 2, sd, na.rm = T)
-B.huc.means$LCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.025, na.rm = T))
-B.huc.means$UCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.975, na.rm = T))
+mu.huc <- data.frame(coef = names(B.huc.list[[1]])[-1])
+mu.huc$mean <- colMeans(foo, na.rm = T) # should be ~0
+mu.huc$sd <- apply(foo, 2, sd, na.rm = T)
+mu.huc$LCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.025, na.rm = T))
+mu.huc$UCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.975, na.rm = T))
 
 # standard deviations
 B.huc.list.sd <- lapply(B.huc.list, FUN = function(x) apply(x, 2, sd, na.rm = T))
 foo <- matrix(unlist(B.huc.list.sd), ncol = length(B.huc.list.sd[[1]]), byrow = TRUE)[ , -1]
 colnames(foo) <- names(B.huc.list[[1]])[-1]
-B.huc.stds <- data.frame(coef = names(B.huc.list[[1]])[-1])
-B.huc.stds$mean.sd <- colMeans(foo, na.rm = T)
-B.huc.stds$sd <- apply(foo, 2, sd, na.rm = T)
-B.huc.stds$LCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.025, na.rm = T))
-B.huc.stds$UCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.975, na.rm = T))
+sigma.b.huc <- data.frame(coef = names(B.huc.list[[1]])[-1])
+sigma.b.huc$mean.sd <- colMeans(foo, na.rm = T)
+sigma.b.huc$sd <- apply(foo, 2, sd, na.rm = T)
+sigma.b.huc$LCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.025, na.rm = T))
+sigma.b.huc$UCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.975, na.rm = T))
 
 ######## Random year Effects #########
 # extract year effect coefficients
@@ -263,21 +263,21 @@ B.year.means.year <- apply(foo, 1:2, mean, na.rm = TRUE) # not sure if I will us
 B.year.list.means <- lapply(B.year.list, colMeans, na.rm = T)
 foo <- matrix(unlist(B.year.list.means), ncol = length(B.year.list.means[[1]]), byrow = TRUE)[ , -1]
 colnames(foo) <- names(B.year.list[[1]])[-1]
-B.year.means <- data.frame(coef = names(B.year.list[[1]])[-1])
-B.year.means$mean <- colMeans(foo, na.rm = T) # should be ~0
-B.year.means$sd <- apply(foo, 2, sd, na.rm = T)
-B.year.means$LCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.025, na.rm = T))
-B.year.means$UCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.975, na.rm = T))
+mu.year <- data.frame(coef = names(B.year.list[[1]])[-1])
+mu.year$mean <- colMeans(foo, na.rm = T) # should be ~0
+mu.year$sd <- apply(foo, 2, sd, na.rm = T)
+mu.year$LCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.025, na.rm = T))
+mu.year$UCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.975, na.rm = T))
 
 # standard deviations
 B.year.list.sd <- lapply(B.year.list, FUN = function(x) apply(x, 2, sd, na.rm = T))
 foo <- matrix(unlist(B.year.list.sd), ncol = length(B.year.list.sd[[1]]), byrow = TRUE)[ , -1]
 colnames(foo) <- names(B.year.list[[1]])[-1]
-B.year.stds <- data.frame(coef = names(B.year.list[[1]])[-1])
-B.year.stds$mean.sd <- colMeans(foo, na.rm = T)
-B.year.stds$sd <- apply(foo, 2, sd, na.rm = T)
-B.year.stds$LCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.025, na.rm = T))
-B.year.stds$UCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.975, na.rm = T))
+sigma.b.year <- data.frame(coef = names(B.year.list[[1]])[-1])
+sigma.b.year$mean.sd <- colMeans(foo, na.rm = T)
+sigma.b.year$sd <- apply(foo, 2, sd, na.rm = T)
+sigma.b.year$LCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.025, na.rm = T))
+sigma.b.year$UCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.975, na.rm = T))
 
 
 ######## Random AR1 Effects #########
@@ -287,13 +287,37 @@ B.ar1 <- df.ar1 %>%
 str(B.ar1)
 B.ar1 <- as.data.frame(t(B.ar1)) # site by row, iteration by column
 str(B.ar1)
+B.ar1$sitef <- B.site.list[[1]]$sitef
 
 
 
+
+
+########### Make Coef List #########
+
+fix.ef <- rbind(B.fixed, select(mu.huc, -index), select(mu.year, -index), mu.ar1)
+
+coef.list <- list(fix.ef = fix.ef
+                  ,B.fixed = B.fixed
+                  , mu.huc = mu.huc
+                  , mu.year = mu.year
+                  , mu.ar1 = mu.ar1
+                  , sigma.site = sigma.b.site
+                  , sigma.huc = sigma.b.huc
+                  , sigma.year = sigma.b.year
+                  , sigma.ar1 = sigma.ar1
+                  , cor.huc = cor.huc
+                  , cor.year = cor.year
+                  , B.site = B.site
+                  , B.huc = B.huc
+                  , B.year = B.year
+                  , B.ar1 = B.ar1
+)
 
 ########### Predictions ##########
 
 # by iteration
+data <- tempDataSyncValidS
 
 #pb <- txtProgressBar(style = 3)
 metrics.list <- list()
@@ -301,9 +325,33 @@ start <- Sys.time()
 for(i in 1:n.iter) {
   fixed.ef <- as.numeric(B.0[i, ]) # separate out the iteration or do for mean/median
   # add specific random effects to the dataframe
-  df <- left_join(tempDataSyncS, B.site.list[[i]], by = "sitef")
-  df <- left_join(df, B.huc.list[[i]], by = "hucf")
+ df <- data %>%
+    dplyr::select(-sitef) %>%
+    left_join(rand_ids$df_site) %>%
+    left_join(rand_ids$df_huc) %>%
+    left_join(rand_ids$df_year)
+  
+  
+  
+  df <- left_join(df, B.site.list[[i]], by = "sitef")
+  df <- left_join(df, B.huc.list[[i]], by = "hucf") # problem with validation data, need to use the mean when huc don't match
   df <- left_join(df, B.year.list[[i]], by = "yearf")
+  
+  
+  for (j in 2:length(names(B.site.list[[i]]))) {
+    df[, names(B.site.list[[i]][j])][is.na(df[, names(B.site.list[[i]][j])])] <- colMeans(B.site.list[[i]][j])
+  }
+  for (j in 2:length(names(B.huc.list[[i]]))) {
+    df[, names(B.huc.list[[i]][j])][is.na(df[, names(B.huc.list[[i]][j])])] <- colMeans(B.huc.list[[i]][j])
+  }
+  for (j in 2:length(names(B.year.list[[i]]))) {
+    df[, names(B.year.list[[i]][j])][is.na(df[, names(B.year.list[[i]][j])])] <- colMeans(B.year.list[[i]][j])
+  }
+  #     dplyr::filter(dOY >= finalSpringBP & dOY <= finalFallBP | is.na(finalSpringBP) | is.na(finalFallBP & finalSpringBP != "Inf" & finalFallBP != "Inf")) %>%
+  #dplyr::filter(dOY >= mean.spring.bp & dOY <= mean.fall.bp) %>%
+    # df <- dplyr::filter(df, AreaSqKM < 200) only works on the original scale
+  
+  
   
   df$fixed.ef <- as.vector(fixed.ef %*% t(as.matrix(as.data.frame(unclass(select(ungroup(data), one_of(cov.list$fixed.ef)))))))
   df$site.ef <- rowSums(as.matrix(select(df, one_of(cov.list$site.ef))) * as.matrix(select(df, starts_with("B.site"))))
@@ -323,6 +371,9 @@ for(i in 1:n.iter) {
   B.ar1.sub <- data.frame(sitef = rand_ids$df_site$sitef)
   B.ar1.sub$B.ar1 <- as.numeric(B.ar1[ ,i]) # iteration i
   df <- left_join(df, B.ar1.sub, by = c("sitef"))
+  df <- df %>%
+    dplyr::mutate(B.ar1 = ifelse(is.na(B.ar1), mean(B.ar1.sub$B.ar1, na.rm = T), B.ar1)) %>%
+    dplyr::arrange(featureid, date)
   
   df[which(!is.na(df$prev.err)), ]$tempPredicted <- df[which(!is.na(df$prev.err)), ]$trend + df[which(!is.na(df$prev.err)), ]$B.ar1 * df[which(!is.na(df$prev.err)), ]$prev.err
   
@@ -354,10 +405,57 @@ df_preds_summary <- df_preds %>%
 
 plot(df$temp, df$trend)
 rmse(df$temp - df$trend)
-rmse(df$temp - temps$temp.predicted)
+rmse(temps$temp - temps$temp.predicted)
 
 rmse(df$temp - df$tempPredicted)
 
+######## Validation ##########
+
+df <- df %>%
+  dplyr::mutate(site_day = paste0(df$featureid, "_", df$date))
+site_days <- unique(tempDataSyncS$site_day)
+sites <- unique(tempDataSyncS$featureid)
+hucs <- unique(tempDataSyncS$huc)
+years <- unique(tempDataSyncS$year)
+
+# overall validation
+
+rmse(df$temp - df$trend)
+rmse(df$temp - df$tempPredicted)
+
+# missing days but sites, hucs, years with data
+valid_miss_days <- df %>%
+  dplyr::filter(!(site_day %in% site_days))
+
+rmse(valid_miss_days$temp - valid_miss_days$trend)
+rmse(valid_miss_days$temp - valid_miss_days$tempPredicted)
+
+# missing sites but hucs and years with data
+
+valid_miss_sites <- df %>%
+  dplyr::filter(!(featureid %in% sites) & huc %in% hucs & year %in% years)
+
+rmse(valid_miss_sites$temp - valid_miss_sites$trend)
+rmse(valid_miss_sites$temp - valid_miss_sites$tempPredicted)
+
+# sites and huc data but missing years
+
+valid_miss_years <- df %>%
+  dplyr::filter(!(year %in% years) & site %in% sites & huc %in% hucs)
+
+rmse(valid_miss_years$temp - valid_miss_years$trend)
+rmse(valid_miss_years$temp - valid_miss_years$tempPredicted)
+
+# no data
+
+valid_miss_all <- df %>%
+  dplyr::filter(!(year %in% years) & !(site %in% sites) & !(huc %in% hucs))
+
+rmse(valid_miss_all$temp - valid_miss_all$trend)
+rmse(valid_miss_all$temp - valid_miss_all$tempPredicted)
+
+
+##################
 g <- ggplot(df, aes(temp, ((df$airTemp*df_stds[var.names == "airTemp", "stdevs"])+df_stds[var.names == "airTemp", "means"]))) + geom_point() + geom_point(aes(temp, trend), colour = "dark red") + geom_point(aes(temp, tempPredicted), colour = 'blue') + geom_abline(intercept = 0, slope = 1, colour = 'black') + theme_bw() + xlab("observered temperature (C)") + ylab("predicted temperature (C)")
 
 g

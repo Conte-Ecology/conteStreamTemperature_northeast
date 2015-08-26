@@ -69,9 +69,9 @@ library(rjags)
     dplyr::distinct() %>%
     dplyr::mutate(site = as.character(site))
   
-tempDataSyncS <- predictTemp(data = tempDataSyncS, coef.list = coef.list, cov.list = cov.list, featureid_site = featureid_site)
+tempDataSyncS <- predictTemp(data = tempDataSyncS, coef.list = coef.list, cov.list = cov.list, featureid_site = featureid_site, validate = FALSE)
 
-tempDataSyncValidS <- predictTemp(data = tempDataSyncValidS, coef.list = coef.list, cov.list = cov.list, featureid_site = featureid_site)
+tempDataSyncValidS <- predictTemp(data = tempDataSyncValidS, coef.list = coef.list, cov.list = cov.list, featureid_site = featureid_site, validate = TRUE)
 
 
 

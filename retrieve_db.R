@@ -104,7 +104,7 @@ df_values <- tbl_values %>%
          series_id = as.character(series_id)) %>%
   rename(temp = value)
 
-Sys.time() - start.time # only 3.5 minutes for 16 million records from New England
+Sys.time() - start.time # ~ 6 minutes
 
 summary(df_values)
 
@@ -216,6 +216,11 @@ temperatureData2 <- temperatureData %>%
                    tempMax = mean(maxTemp, na.rm = T),
                    tempMin = mean(minTemp, na.rm = T),
                    n_per_day = sum(n_obs))
+
+temperatureData2 <- temperatureData2 %>%
+  dplyr::mutate(temp = ifelse(temp < 0, 0, temp),
+                tempMax = ifelse(tempMax < 0, 0, tempMax),
+                tempMin = ifelse(tempMin < 0, 0, tempMin))
 summary(temperatureData2)
 
 years <- unique(temperatureData2$year)

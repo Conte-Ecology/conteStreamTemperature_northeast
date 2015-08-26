@@ -17,7 +17,7 @@ library(devtools)
 library(conteStreamTemperature)
 library(rjags)
 
-data_dir <- "localData_2015-07-09" 
+data_dir <- "localData_2015-08-24" 
 
 args <- commandArgs(trailingOnly = TRUE)
 
@@ -69,7 +69,7 @@ if(test_jags_pred) {
   
   ggplot(temps, aes(temp, temp.predicted)) + geom_point() + geom_abline(intercept = 0, slope = 1, colour = "blue")
   
-  rmse(temps$temp - temps$temp.predicted) # 0.645
+  rmse(temps$temp - temps$temp.predicted) # 0.633
 }
 
 

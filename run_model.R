@@ -14,7 +14,7 @@ library(devtools)
 install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 
-data_dir <- "localData_2015-07-09"
+data_dir <- "localData_2015-08-24"
 
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
@@ -42,21 +42,24 @@ if (file.exists(output2_file)) {
 ### Run the model in JAGS
 
 fixed.ef <- c("intercept" 
-              , "forest"
-              , "airTemp.forest"
+              , "prcp2"
+              , "AreaSqKM"
               , "prcp2.da"
               , "airTemp.prcp2.da"
+              , "forest"
+              , "airTemp.forest"
               #, "airTemp.prcp2.da.forest" # maybe add in when have riparian forest
               #, "temp7p.prcp7.da"
               #, "temp7p.forest.prcp7.da"
               , "devel_hi"
               , "airTemp.devel_hi"
+              , "prcp30"
               , "prcp30.da"
               , "airTemp.prcp30.da"
              , "allonnet"
              , "allonnet2"
              , "airTemp.allonnet"
-            # , "airTemp.allonnet2"
+             , "airTemp.allonnet2"
              , "agriculture" # consider making random when extend to VA
              , "airTemp.agriculture" # try making random when extend to VA
 )
@@ -87,7 +90,6 @@ monitor.params <- c(#"residuals",
   "sigma.ar1",
   "B.0",
   "B.site",
-  #"B.site",
   #"rho.B.site",
   "stream.mu",
   "sigma.b.site",
