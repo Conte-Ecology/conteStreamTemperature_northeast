@@ -1,0 +1,58 @@
+---
+title: "Interactive Time Series Plot"
+output: html_document
+---
+
+## Plotting interactive time series with dygraphs. 
+
+For example see:  <http://blog.revolutionanalytics.com/2015/08/plotting-time-series-in-r.html>.
+
+```{r load libraries}
+library(xts)
+library(dygraphs)
+library(dplyr)
+library(ggplot2)
+```
+
+```{r load data}
+data_dir <- "localData_2015-08-24" 
+load(paste0(data_dir, "/tempDataSync.RData"))
+```
+
+```{r select site}
+# find featureid with lots of data
+foo <- tempDataSync %>%
+  group_by(featureid) %>%
+  dplyr::summarise(count = n())
+  
+featureids <- foo[which(foo$count == max(foo$count)), ]$featureid
+df <- dplyr::filter(tempDataSync, featureid == featureids)
+```
+
+## Standard Plot
+
+```{r, echo=FALSE}
+plot(df$date, df$temp, type = "b", xlab = "Date", ylab = "Observed stream temperature (C)")
+```
+
+## ggplot
+
+```{r ggplot}
+ggplot(df, aes(date, temp)) + geom_point() + geom_line() + theme_bw() + xlab("Date") + ylab("Observed stream temperature (C)")
+```
+
+## interactive dygraph
+
+```{r interactive dygraph}
+temp_xts <- xts(df$temp, order.by=df$date, frequency=365)
+air_xts <- xts(df$airTemp, order.by=df$date, frequency=365)
+ 
+temps <- cbind(temp_xts, air_xts)
+ 
+dygraph(temps, ylab="Observed temperature (C)") %>%
+  dySeries("..1", label="Water") %>%
+  dySeries("..2", label="Air") %>%
+  dyOptions(colors = c("blue", "brown")) %>%
+  dyRangeSelector()
+```
+
