@@ -60,8 +60,8 @@ df.ar1 <- as.data.frame(as.matrix(M.ar1)) # massive
 
 test_jags_pred <- TRUE
 if(test_jags_pred) {
-  plot(M.ar1[ , 1])
-  str(df.ar1)
+  #plot(M.ar1[ , 1])
+  #str(df.ar1)
   # need to use regex to rename coefficients
   temp.predicted.mean <- df.ar1 %>%
     dplyr::select(starts_with("stream.mu")) %>%
@@ -83,44 +83,6 @@ str(mat2)
 cov.list
 
 #str(coef.list)
-
-  
-data <- tempDataSyncS
-df <- tempDataSyncS
-
-###### FROM JAGS ######
-# need to link these back to featureid
-
-
-
-
-
-
-
-
-sites <- as.factor(as.integer(as.character(data$site)))
-hucs <- as.factor(as.integer(as.character(data$HUC8)))
-years = as.factor(as.integer(as.character(data$year)))
-J <- length(unique(sites))
-M <- length(unique(hucs))
-Ti <- length(unique(data$year))
-
-df_ids <- data.frame(featureid = data$featureid, sitef = sites, hucf = hucs) %>%
-  dplyr::distinct() %>%
-  dplyr::mutate(huc = as.character(hucf))
-str(df_ids)
-
-df_years <- data.frame(year = data$year, yearf = years) %>%
-  dplyr::distinct()
-str(df_years)
-
-
-
-
-
-
-
-
 
 ########## Fixed Effects ##############
 # Extract fixed effects coefficients (all iterations as rows)
@@ -282,23 +244,61 @@ sigma.b.year$UCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.975, na.rm 
 
 ######## Random AR1 Effects #########
 # extract site effect coefficients
-B.ar1 <- df.ar1 %>%
+B.ar1.iter <- df.ar1 %>%
   dplyr::select(starts_with("B.ar1"))
-str(B.ar1)
-B.ar1 <- as.data.frame(t(B.ar1)) # site by row, iteration by column
-str(B.ar1)
-B.ar1$sitef <- B.site.list[[1]]$sitef
+str(B.ar1.iter)
+B.ar1.iter <- as.data.frame(t(B.ar1.iter)) # site by row, iteration by column
+str(B.ar1.iter)
+B.ar1.iter$sitef <- B.site.list[[1]]$sitef
+
+B.ar1 <- data.frame(sitef = B.ar1.iter$sitef)
+B.ar1 <- B.ar1 %>%
+  dplyr::left_join(rand_ids$df_site)
+B.ar1$mean <- apply(as.matrix(dplyr::select(B.ar1.iter, -sitef)), MARGIN = 1, mean, na.rm = TRUE)
+B.ar1$sd <- apply(as.matrix(dplyr::select(B.ar1.iter, -sitef)), MARGIN = 1, mean, na.rm = TRUE)
+B.ar1$LCRI <- apply(as.matrix(dplyr::select(B.ar1.iter, -sitef)), MARGIN = 1, quantile, probs = c(0.025), na.rm = TRUE)
+B.ar1$UCRI <- apply(as.matrix(dplyr::select(B.ar1.iter, -sitef)), MARGIN = 1, quantile, probs = c(0.975), na.rm = TRUE)
+
+mu.ar1.iter <- df.ar1 %>%
+  dplyr::select(starts_with("mu.ar1"))
+mu.ar1 <- data.frame(coef = "ar1", mean = mean(mu.ar1.iter$mu.ar1), sd = sd(mu.ar1.iter$mu.ar1), LCRI = quantile(mu.ar1.iter$mu.ar1, probs = c(0.025)), UCRI = quantile(mu.ar1.iter$mu.ar1, probs = c(0.975))) 
+
+sigma.ar1 <- df.ar1 %>%
+  dplyr::select(starts_with("sigma.ar1")) %>%
+  colMeans()
 
 
+# cor.huc
+# Make correlation matrix of random huc effects
+cor.huc <- df.ar1 %>%
+  dplyr::select(starts_with("rho.B.huc")) %>%
+  colMeans()
+cor.huc <- as.data.frame(matrix(cor.huc, length(cov.list$huc.ef), length(cov.list$huc.ef)))
+names(cor.huc) <- cov.list$huc.ef
+row.names(cor.huc) <- cov.list$huc.ef
+cor.huc <- round(cor.huc, digits=3)
+cor.huc[upper.tri(cor.huc, diag=TRUE)] <- ''
+cor.huc
+
+# Make correlation matrix of random year effects
+cor.year <- df.ar1 %>%
+  dplyr::select(starts_with("rho.B.year")) %>%
+  colMeans()
+cor.year <- as.data.frame(matrix(cor.year, length(cov.list$year.ef), length(cov.list$year.ef)))
+names(cor.year) <- cov.list$year.ef
+row.names(cor.year) <- cov.list$year.ef
+cor.year <- round(cor.year, digits=3)
+cor.year[upper.tri(cor.year, diag=TRUE)] <- ''
+cor.year
 
 
 
 ########### Make Coef List #########
 
-fix.ef <- rbind(B.fixed, select(mu.huc, -index), select(mu.year, -index), mu.ar1)
+fix.ef <- rbind(B.0.fixed, mu.huc, mu.year, mu.ar1)
 
 coef.list <- list(fix.ef = fix.ef
-                  ,B.fixed = B.fixed
+                  ,B.fixed = B.0.fixed
                   , mu.huc = mu.huc
                   , mu.year = mu.year
                   , mu.ar1 = mu.ar1
@@ -314,7 +314,22 @@ coef.list <- list(fix.ef = fix.ef
                   , B.ar1 = B.ar1
 )
 
+
+
+
+
+
+
+
+
+
+
+
 ########### Predictions ##########
+
+data <- tempDataSyncS
+df <- tempDataSyncS
+
 
 # by iteration
 data <- tempDataSyncValidS
@@ -456,7 +471,13 @@ rmse(valid_miss_all$temp - valid_miss_all$tempPredicted)
 
 
 ##################
-g <- ggplot(df, aes(temp, ((df$airTemp*df_stds[var.names == "airTemp", "stdevs"])+df_stds[var.names == "airTemp", "means"]))) + geom_point() + geom_point(aes(temp, trend), colour = "dark red") + geom_point(aes(temp, tempPredicted), colour = 'blue') + geom_abline(intercept = 0, slope = 1, colour = 'black') + theme_bw() + xlab("observered temperature (C)") + ylab("predicted temperature (C)")
+g <- ggplot(df, aes(temp, ((df$airTemp*df_stds[var.names == "airTemp", "stdevs"])+df_stds[var.names == "airTemp", "means"]))) + 
+  geom_point() + 
+  geom_point(aes(temp, trend), colour = "dark red", alpha = 0.5) + 
+  geom_point(aes(temp, tempPredicted), colour = 'blue', alpha = 0.5) + 
+  geom_abline(intercept = 0, slope = 1, colour = 'black') + 
+  theme_bw() + xlab("observered temperature (C)") + 
+  ylab("predicted temperature (C)")
 
 g
 
