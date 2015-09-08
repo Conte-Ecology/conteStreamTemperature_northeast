@@ -1,0 +1,106 @@
+---
+title: "Retreive Daymet Vignette"
+output: html_document
+---
+
+The `daymet` table in the `sheds` database on the `felek.cns.umass.edu` server is extremely large. For this reason, it doesn't generally work to use `dplyr` or even `RPostgreSQL` directly to query and fetch data. The problem is that the connection to the server times out and is lost. 
+
+The solution is to create an SQL query and run it directly on the server. Unfortunately, this suffers the same problem in that the connection to the server is timed out before the results of the query can be transferred to the local machine. One option is to log into felek, run the query there, save the data on felek, then transfer the data via ftp or scp. However, this is cumbersome and might not always work. It's likely that the ftp transfer would time out as well if the query results are large.
+
+The current working system is to 1) generate the query, 2) run the program `GNU Screen` on the command line, 3) run the query on the command line and save as a csv file, 4) import the csv into R.
+
+## 1. Generate the Query
+
+To get the daymet data for specific locations (i.e. unique `featureid`) on specific dates (or all dates for given years), it is handy to generate the SQL query in R. For example you can get a list of unique `featureid` and years from your data and collapse them into a comma separated listed for use in the query.
+
+```{r get ids}
+# create fake data
+df <- data.frame(featureid = c(1, 2, 3, 4, 5), site.name = c('a', 'b', 'c', 'd', 'e'), year = c(2000, 2000, 2001, 1999, 2004))
+
+# get unique featureid and years
+featureids <- unique(df$featureid)
+years <- unique(df$year)
+
+# collapse
+featureids_string <- paste(featureids, collapse=', ')
+years_string <- paste(years, collapse=', ')
+```
+
+From this you can generate an SQL query and save the query as a text file ending in `.sql`
+
+```{r save query, eval=FALSE}
+qry <- paste0("COPY(SELECT featureid, date_part('year', date) as year, date, tmax, tmin, prcp, dayl, srad, swe FROM daymet WHERE featureid IN (", featureids_string, ") AND date_part('year', date) IN (",years_string, ") ) TO STDOUT CSV HEADER;")
+
+if(!file.exists(file.path(getwd(), data_dir, "code"))) dir.create(file.path(getwd(), data_dir, "code"))
+cat(qry, file = paste0(data_dir, "/code/daymet_query.sql"))
+```
+
+## 2. Run `GNU Screen`
+
+To get a persistent session (`Terminal` on a Mac) that won't time out you can use the program `GNU Screen`. If you are running your analysis on a server such as `osensei`, first log into the server using ssh. Then whether on `osensei` or your local machine, just type on `screen` on the command line to start a screen session. 
+
+More information can be found at <https://www.linode.com/docs/networking/ssh/using-gnu-screen-to-manage-persistent-terminal-sessions>
+ 
+**Additional advice from Jeff Walker regarding using screen**
+
+Basically, screen is a program that lets you have multiple command prompts open simultaneously on one machine (whether thats on your local machine or a remote server). And it also stores those prompts, so you can close screen and return the same prompts later. So the reason screen is useful for maintaining long connections is that if your ssh connection drops out, screen will continue to run on the remote server, and so you can just ssh back in, open screen, and be back where you left off.
+
+So how to do that? It's fairly simple, I use this cheat sheet regularly: http://aperiodic.net/screen/quick_reference
+
+You can follow these steps:
+
+1. SSH into osensei (assuming thats where you're running the script from, otherwise skip to step 2)
+2. Run screen: 
+
+$ screen
+
+3. Run the script
+
+$ psql ....
+
+4. After getting disconnected, SSH back into osensei
+
+5. Open screen, but this time tell screen to reattach to any existing sessions
+
+$ screen -dRR
+
+6. You should then be back at the psql command
+
+Screen is also handy for having multiple command prompts through one SSH connection. You just have to learn a few hotkeys:
+
+CMD+a, c  -- opens a new command prompt  (so press CMD + a simultaneously, let go of the keys, then press 'c'. The CMD+a is how you access screen functions, so you always type that first, then type another letter to run a function)
+CMD+a, <space> -- switches between command prompts in screen
+
+You can always just type 'exit' at a command prompt to close it from screen (so if you have two command prompts, exiting one will put you back into the other).
+
+## 3. Run the SQL Query
+
+We are storing the data on `felek` in a `PostgreSQL` database. Now that you have a persistent screen session you can run the sql query script you saved previously to run and save the query.
+
+* if on the server hosting the database (if you ssh into felek this will work but the resulting .csv file will be stored on felek)
+```
+psql -d sheds -f code/daymet_query.sql > localData/daymet_results.csv
+```
+
+* if running from a remote location (osensei or your local machine):
+```
+psql -h felek.cns.umass.edu -U dan -d sheds -f localData_2015-06-09/code/daymet_query.sql > localData_2015-06-09/daymet_results.csv
+```
+
+This is telling the PostreSQL program `psql` to connect to the databse host (`felek` in this case) using the username `dan` and connect specifically to the databased named `sheds` and run the file named `daymet_query.sql` and save it to (`>`) the file called `daymet_results.csv` on your local machine (path relative to wherever you're logged into).
+
+It will prompt you for a password. This will be the database password associated with the username (`dan` in this example). The general way to run this is:
+
+```
+psql -h <host> -p <port> -u <database>
+```
+
+## 4. Import the results back into R
+
+Now you have a `csv` file like any other on your machine and you can load it into R the usual way.
+
+```{r load results, eval=FALSE}
+
+df_daymet <- read.csv("localData_2015-06-09/daymet_results.csv", header = TRUE)
+
+```
