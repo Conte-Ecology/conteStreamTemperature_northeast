@@ -109,7 +109,7 @@ if (!file.exists(paste0(data_dir, '/code'))) {
   dir.create(paste0(data_dir, '/code'))
 }
 
-system.time(M.ar1 <- modelRegionalTempAR1(tempDataSyncS, cov.list=cov.list, firstObsRows = firstObsRows, evalRows = evalRows, n.burn = 1000, n.it = 1000, n.thin = 1, nc = 3, coda = coda.tf, param.list = monitor.params)) # Slow with AR1: ~13 min per 100 iter for site AR = 13 hours for 6000 iterations
+system.time(M.ar1 <- modelRegionalTempAR1(tempDataSyncS, cov.list=cov.list, firstObsRows = firstObsRows, evalRows = evalRows, n.burn = 100, n.it = 100, n.thin = 1, nc = 3, coda = coda.tf, param.list = monitor.params)) # Slow with AR1: ~13 min per 100 iter for site AR = 13 hours for 6000 iterations
 
 # save to rdata
 saveRDS(M.ar1, file = output_file)

@@ -74,11 +74,9 @@ if(test_jags_pred) {
   rmse(temps$temp - temps$temp.predicted) # 0.645
 }
 
-
-mat2 <- dplyr::select(df.ar1, -starts_with("stream.mu"))
-dim(mat2)
-str(mat2)
-
+#mat2 <- dplyr::select(df.ar1, -starts_with("stream.mu"))
+#dim(mat2)
+#str(mat2)
 
 cov.list
 
@@ -104,7 +102,7 @@ str(B.site1)
 
 # organize: row = site, column = site covariate, list position = iteration
 B.site.list <- lapply(seq_len(nrow(B.site1)), function(j) B.site1[j, ])
-#sites <- unique(as.character(tempDataSyncS$site))
+sites <- unique(as.character(tempDataSyncS$site))
 B.site <- as.data.frame(matrix(NA, nrow = length(rand_ids$df_site$sitef), ncol = length(cov.list$site.ef) + 1))
 names(B.site) <- c("sitef", paste("B.site", cov.list$site.ef, sep = "_"))
 B.site$sitef <- rand_ids$df_site$sitef
@@ -153,7 +151,7 @@ str(B.huc1)
 
 # organize: row = huc, column = huc covariate, list position = iteration
 B.huc.list <- lapply(seq_len(nrow(B.huc1)), function(j) B.huc1[j, ])
-#hucs <- unique(as.character(tempDataSyncS$huc))
+hucs <- unique(as.character(tempDataSyncS$huc))
 B.huc <- as.data.frame(matrix(NA, nrow = length(rand_ids$df_huc$hucf), ncol = length(cov.list$huc.ef) + 1))
 names(B.huc) <- c("hucf", paste("B.huc", cov.list$huc.ef, sep = "_"))
 B.huc$hucf <- rand_ids$df_huc$hucf
@@ -201,7 +199,7 @@ str(B.year1)
 
 # organize: row = year, column = year covariate, list position = iteration
 B.year.list <- lapply(seq_len(nrow(B.year1)), function(j) B.year1[j, ])
-#years <- unique(as.character(tempDataSyncS$year))
+years <- unique(as.character(tempDataSyncS$year))
 B.year <- as.data.frame(matrix(NA, nrow = length(rand_ids$df_year$yearf), ncol = length(cov.list$year.ef) + 1))
 names(B.year) <- c("yearf", paste("B.year", cov.list$year.ef, sep = "_"))
 B.year$yearf <- rand_ids$df_year$yearf
@@ -314,9 +312,10 @@ coef.list <- list(fix.ef = fix.ef
                   , B.ar1 = B.ar1
 )
 
+saveRDS(coef.list, file = paste0(data_dir, "/coef.RData"))
 
-
-
+coef.list.iters <- list(B.0, B.site.list, B.huc.list, B.year.list, B.ar1.iter, mu.huc, mu.year, mu.ar1)
+saveRDS(coef.list.iters, paste0(data_dir, "/coef_iters.RData"))
 
 
 
@@ -402,6 +401,8 @@ for(i in 1:n.iter) {
   #df_preds <- dplyr::left_join(df_preds, df)
   #setTxtProgressBar(pb, i)
 }
+
+
 metrics.array <- array(unlist(metrics.list), dim = c(nrow(metrics.list[[1]]), ncol(metrics.list[[1]]), n.iter))
 metrics.mean <- apply(metrics.array, 1:2, mean, na.rm = T)
 metrics.sd <- apply(metrics.array, 1:2, sd, na.rm = T)
