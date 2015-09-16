@@ -565,20 +565,22 @@ derived.site.metrics <- foreach(i = 1:n.loops,
 
   
   # RMSE for each featureid (flag highest)
-#   foo <- byfeatureidYear %>%
-#     filter(!(is.na(temp))) %>%
-#     mutate(error = temp - tempPredicted)
-#   
-#   if(dim(foo)[1] > 0) {
-#     meanRMSE <- foo %>%
-#       dplyr::summarise(RMSE = rmse(error)) %>%
-#       dplyr::summarise(meanRMSE = mean(RMSE))
-#     derivedfeatureidMetrics <- left_join(derivedfeatureidMetrics, select(meanRMSE, featureid, meanRMSE), by = "featureid")
-#   } else {
+  bar <- byfeatureidYear %>%
+    filter(!(is.na(temp) & !is.na(tempPredicted))) %>%
+    mutate(error = temp - tempPredicted)
+  
+  if(dim(bar)[1] > 0) {
+    meanRMSE <- bar %>%
+      dplyr::summarise(RMSE = rmse(error)) %>%
+      dplyr::summarise(meanRMSE = mean(RMSE, na.rm = T))
+    derivedfeatureidMetrics <- left_join(derivedfeatureidMetrics, dplyr::select(meanRMSE, featureid, meanRMSE), by = "featureid")
+  } else {
+    derivedfeatureidMetrics$meanRMSE <- NA_real_
 #     derivedfeatureidMetrics <- derivedfeatureidMetrics %>%
 #       dplyr::mutate(meanRMSE = NA) %>%
 #       dplyr::mutate(meanRMSE = as.numeric(meanRMSE))
-#   }
+  }
+  rm(bar)
   
   #derived.site.metrics <- derivedfeatureidMetrics
   #rm(data)
