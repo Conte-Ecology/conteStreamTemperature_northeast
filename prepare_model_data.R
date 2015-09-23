@@ -215,7 +215,7 @@ for(i in 1:length(unique(foo$featureid))) {
 
 # Filter by Drainage area
 tempDataSync <- tempDataSync %>%
-  filter(AreaSqKM  < 200)
+  dplyr::filter(AreaSqKM >= 1 & AreaSqKM < 200 & allonnet < 70)
 
 var.names <- c("airTemp", 
                #"airTempLagged1", 
