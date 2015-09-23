@@ -142,7 +142,7 @@ save.image(file.path(getwd(), paste0(data_dir, "/db_pull_for_predictions.RData")
 dbClearResult(res = rs)
 dbDisconnect(con)
 dbUnloadDriver(drv)
-dbListConnections(drv)
+#dbListConnections(drv)
 
 gc()
 
@@ -156,17 +156,19 @@ library(doParallel)
 library(RPostgreSQL)
 
 # size of chunks
-chunk.size <- 5
+chunk.size <- 10
 n.loops <- ceiling(n.catches / chunk.size)
 
 # set up parallel backend & make database connection available to all workers
-nc <- min(c(detectCores()-1, 15)) # use the maximum number of cores minus 1 or up to 15 because max 16 database connections
-cl <- makeCluster(nc, type = "FORK")
+nc <- min(c(detectCores()-1, 12)) # use the maximum number of cores minus 1 or up to 15 because max 16 database connections - changed to 12 since Evan also often using osensei on multiple cores
+cl <- makeCluster(nc, type = "PSOCK") # try PSOCK instead of more memory efficient "FORK" to prevent hanging at end: http://www.stat.berkeley.edu/scf/paciorek-parallel-2014.pdf
 registerDoParallel(cl)
 
 # setup to write out to monitor progress
 logFile = paste0(data_dir, "/log_file.txt")
+logFile_Finish = paste0(data_dir, "/log_file_finish.txt")
 cat("Monitoring progress of prediction loop in parallel", file=logFile, append=FALSE, sep = "\n")
+cat("Monitoring the finish of each loop", file=logFile_Finish, append=FALSE, sep = "\n")
 
 ########## Run Parallel Loop ########## 
 # start loop
@@ -239,7 +241,16 @@ derived.site.metrics <- foreach(i = 1:n.loops,
                   airTemp = (tmax + tmin)/2) %>%
     left_join(dplyr::select(foo, -site), by = c('featureid', 'year')) %>%
     dplyr::mutate(dOY = yday(date)) %>%
-    dplyr::filter(AreaSqKM < 200)
+    dplyr::filter(AreaSqKM >= 1 & AreaSqKM < 200 & allonnet < 70) # changed so don't deal with problematically small drainage areas (somre were 0.00006 sq km)
+  
+  ################### PROBLEM ################
+  # if allonnet is very large (maybe > 75% of drainage area) the predictions are probably non-sense 
+  ##########################
+  
+  ################### PROBLEM #################
+  # 2-day precip as large as 210 - not sure if this is realistic and if so it might be outside the scope of our predictions
+  ##################################
+  
   
   rm(climateData)
   gc()
@@ -248,9 +259,9 @@ derived.site.metrics <- foreach(i = 1:n.loops,
   fullDataSync <- fullDataSync[order(fullDataSync$featureid, fullDataSync$year, fullDataSync$dOY),]
   
   # For checking the order of fullDataSync
-  fullDataSync$count <- 1:length(fullDataSync$year)
+  #fullDataSync$count <- 1:length(fullDataSync$year)
   
-  fullDataSync <- fullDataSync[order(fullDataSync$count),] # just to make sure fullDataSync is ordered for the slide function
+  #fullDataSync <- fullDataSync[order(fullDataSync$count),] # just to make sure fullDataSync is ordered for the slide function
   
   # moving means instead of lagged terms in the future
   fullDataSync <- fullDataSync %>%
@@ -275,6 +286,11 @@ derived.site.metrics <- foreach(i = 1:n.loops,
   
   # clip to synchronized period of the year
   #dplyr::mutate(huc = huc8) %>%
+  
+  ############ PROBLEM ############################
+  # not assigning breakpoints properly - mostly NA 
+  #############
+  
   fullDataSync <- fullDataSync %>%
     dplyr::filter(dOY >= finalSpringBP & dOY <= finalFallBP | is.na(finalSpringBP) | is.na(finalFallBP & finalSpringBP != "Inf" & finalFallBP != "Inf")) %>%
     dplyr::filter(dOY >= mean.spring.bp & dOY <= mean.fall.bp)
@@ -304,6 +320,12 @@ derived.site.metrics <- foreach(i = 1:n.loops,
            huc8 = as.character(HUC8),
            huc = as.character(HUC12),
            site = as.numeric(as.factor(featureid))) 
+  
+  ################# PROBLEM ###############################
+  # HUGE VALUES FOR STANDARDIZED COVARIATES 
+  # consider adjusting those for agriculture and herbaceous
+  # maybe also for precip
+  ###########
   
   fullDataSyncS <- stdCovs(x = fullDataSync, y = df_stds, var.names = var.names)
   
@@ -607,49 +629,26 @@ derived.site.metrics <- foreach(i = 1:n.loops,
 #   dbClearResult(rs)
 #   dbDisconnect(con)
 #   dbUnloadDriver(drv)
-  
+  end.time <- Sys.time()
+  cat(paste0(end.time, ": Finishing job ", i, "of ", n.loops, ".\n"), file = logFile_Finish, append = TRUE)
+      
   return(metrics)
 } # end dopar
 stopCluster(cl)
 
 
-low_july <- dplyr::filter(df_test, meanJulyTemp < 5)
+low_july <- dplyr::filter(derived.site.metrics, meanJulyTemp < 5)
 low_july
-
 
 
 metrics.lat.lon <- left_join(featureid_lat_lon, derived.site.metrics, by = c('featureid')) # reverse this join or full join so get NA for all missing catchments? - doesn't seem to be working correctly yet - check again
 
-
-gc()
-#--------------------
-
-
-#derived.site.metrics.clean <- na.omit(derived.site.metrics)
-
-# add flags once have all catchment RMSE
-# Flag based on RMSE > 95%
-# add an ifelse for whether data is present or not #######################
-#derivedfeatureidMetrics <- mutate(derivedfeatureidMetrics, flag = ifelse(meanRMSE > quantile(derivedfeatureidMetrics$meanRMSE, probs = c(0.95), na.rm=TRUE), "Flag", ""))
-
-metrics.lat.lon <- left_join(featureid_lat_lon, metrics, by = c('featureid')) # reverse this join or full join so get NA for all missing catchments? - doesn't seem to be working correctly yet - check again
-
 saveRDS(metrics.lat.lon, file = paste0(data_dir, "/derived_site_metrics.RData"))
 write.table(metrics.lat.lon, file = paste0(data_dir, "/derived_site_metrics.csv"), sep = ',', row.names = F)
 
-#}
 
-
-
-
-test1 <- derive_metrics_par(i=500, chunk.size=chunk.size, catchmentid=catchmentid, springFallBPs=springFallBPs, tempDataSync=tempDataSync, df_covariates_upstream=df_covariates_upstream, featureid_huc8=featureid_huc8, featureid_lat_lon=featureid_lat_lon, coef.list=coef.list, cov.list=cov.list, var.names=var.names)
-
-test2 <- derive_metrics_par(i=1, chunk.size=chunk.size, catchmentid=catchmentid, springFallBPs=springFallBPs, tempDataSync=tempDataSync, df_covariates_upstream=df_covariates_upstream, featureid_huc8=featureid_huc8, featureid_lat_lon=featureid_lat_lon, featureid_site=featureid_site, coef.list=coef.list, cov.list=cov.list, var.names=var.names)
-
-
-
-rm(list = ls())
 gc()
+#--------------------
 
 ################ TEST ###################
 
