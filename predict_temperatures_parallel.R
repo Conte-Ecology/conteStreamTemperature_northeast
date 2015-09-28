@@ -596,12 +596,18 @@ derived.site.metrics <- foreach(i = 1:n.loops,
     mutate(error = temp - tempPredicted)
   
   if(dim(bar)[1] > 0) {
-    meanRMSE <- bar %>%
-      dplyr::summarise(RMSE = rmse(error)) %>%
-      dplyr::summarise(meanRMSE = mean(RMSE, na.rm = T))
-    derivedfeatureidMetrics <- left_join(derivedfeatureidMetrics, dplyr::select(meanRMSE, featureid, meanRMSE), by = "featureid")
+    error_metrics <- bar %>%
+      dplyr::summarise(RMSE = rmse(error),
+                       MAE = mae(error),
+                       NSE = nse(temp, tempPredicted)) %>%
+      dplyr::summarise(meanRMSE = mean(RMSE, na.rm = T),
+                       meanMAE = mean(MAE, na.rm = T),
+                       meanNSE = mean(NSE, na.rm = T))
+    derivedfeatureidMetrics <- left_join(derivedfeatureidMetrics, dplyr::select(error_metrics, featureid, meanRMSE, meanMAE, meanNSE), by = "featureid")
   } else {
     derivedfeatureidMetrics$meanRMSE <- NA_real_
+    derivedfeatureidMetrics$meanMAE <- NA_real_
+    derivedfeatureidMetrics$meanNSE <- NA_real_
 #     derivedfeatureidMetrics <- derivedfeatureidMetrics %>%
 #       dplyr::mutate(meanRMSE = NA) %>%
 #       dplyr::mutate(meanRMSE = as.numeric(meanRMSE))
