@@ -109,7 +109,8 @@ tempData <- tempData[order(tempData$count),] # just to make sure tempDataSync is
 tempData <- tempData %>%
   group_by(site, year) %>%
   arrange(site, year, dOY) %>%
-  mutate(airTempLagged1 = lag(airTemp, n = 1, fill = NA),
+  mutate(impoundArea = AreaSqKM * allonnet,
+         airTempLagged1 = lag(airTemp, n = 1, fill = NA),
          #airTempLagged2 = lag(airTemp, n = 2, fill = NA),
          #prcpLagged1 = lag(prcp, n = 1, fill = NA),
          #prcpLagged2 = lag(prcp, n = 2, fill = NA),
@@ -237,6 +238,7 @@ var.names <- c("airTemp",
                "AreaSqKM",  
                "allonnet",
                "alloffnet",
+               "impoundArea",
                "surfcoarse", 
                "srad", 
                "dayl", 
@@ -300,6 +302,7 @@ keep_columns <- c("featureid"
                   , "allonnet"
                   , "alloffnet"
                   , "AreaSqKM"
+                  , "impoundArea"
                   , "developed"
                   , "devel_hi"
                   , "elevation"

@@ -56,10 +56,12 @@ fixed.ef <- c("intercept"
               , "prcp30"
               , "prcp30.da"
               , "airTemp.prcp30.da"
-             , "allonnet"
-             , "allonnet2"
-             , "airTemp.allonnet"
-             , "airTemp.allonnet2"
+             #, "allonnet"
+             #, "allonnet2" - only makes sense when a single impoundment but this can be the total of multiple impoundments
+             #, "airTemp.allonnet"
+            # , "airTemp.allonnet2"
+            , "impoundArea" # area makes more sense than percent area, especially when comparing small headwaters to 3rd order catchments with impoundments
+            , "airTemp.impoundArea"
              , "agriculture" # consider making random when extend to VA
              , "airTemp.agriculture" # try making random when extend to VA
 )
@@ -117,3 +119,32 @@ saveRDS(cov.list, file = output2_file)
 
 rm(list = ls())
 gc()
+
+
+data.cal <- prepDF(data, covars = cov.list)
+
+X.0 <- data.cal$data.fixed
+variables.fixed <- names(X.0)
+K.0 <- length(variables.fixed)
+
+
+# Random site effects
+X.site <- data.cal$data.random.sites
+variables.site <- names(X.site)
+sites <- data$sitef
+J <- length(unique(sites))
+K <- length(variables.site)
+n <- dim(data)[1]
+W.site <- diag(K)
+
+hucs <- data$hucf
+M <- length(unique(hucs))
+W.huc <- diag(K)
+
+# Random Year effects
+X.year <- data.cal$data.random.years
+variables.year <- names(X.year)
+years <- data$yearf
+Ti <- length(unique(years))
+L <- length(variables.year)
+W.year <- diag(L)

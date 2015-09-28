@@ -240,8 +240,11 @@ derived.site.metrics <- foreach(i = 1:n.loops,
     dplyr::mutate(year = as.numeric(format(date, "%Y")),
                   airTemp = (tmax + tmin)/2) %>%
     left_join(dplyr::select(foo, -site), by = c('featureid', 'year')) %>%
+    dplyr::mutate(finalSpringBP = ifelse(finalSpringBP == "Inf" | is.na(finalSpringBP), mean.spring.bp, finalSpringBP),
+                  finalFallBP = ifelse(finalFallBP == "Inf" | is.na(finalFallBP), mean.fall.bp, finalFallBP)) %>%
     dplyr::mutate(dOY = yday(date)) %>%
-    dplyr::filter(AreaSqKM >= 1 & AreaSqKM < 200 & allonnet < 70) # changed so don't deal with problematically small drainage areas (somre were 0.00006 sq km)
+    dplyr::filter(AreaSqKM < 200)
+   # dplyr::filter(AreaSqKM >= 1 & AreaSqKM < 200 & allonnet < 70) # changed so don't deal with problematically small drainage areas (somre were 0.00006 sq km) - for loop didn't like this!!!!!!!!!
   
   ################### PROBLEM ################
   # if allonnet is very large (maybe > 75% of drainage area) the predictions are probably non-sense 
@@ -267,7 +270,8 @@ derived.site.metrics <- foreach(i = 1:n.loops,
   fullDataSync <- fullDataSync %>%
     group_by(featureid, year) %>%
     arrange(featureid, year, dOY) %>%
-    mutate(airTempLagged1 = lag(airTemp, n = 1, fill = NA),
+    mutate(impoundArea = AreaSqKM * allonnet,
+           airTempLagged1 = lag(airTemp, n = 1, fill = NA),
            temp5p = rollapply(data = airTempLagged1, 
                               width = 5, 
                               FUN = mean, 
@@ -604,6 +608,10 @@ derived.site.metrics <- foreach(i = 1:n.loops,
   }
   rm(bar)
   
+  ############# ADD RMSE by Trend in addition to predicted with AR1 #########
+  
+  ########################
+  
   #derived.site.metrics <- derivedfeatureidMetrics
   #rm(data)
   #rm(derivedfeatureidMetrics)
@@ -630,7 +638,7 @@ derived.site.metrics <- foreach(i = 1:n.loops,
 #   dbDisconnect(con)
 #   dbUnloadDriver(drv)
   end.time <- Sys.time()
-  cat(paste0(end.time, ": Finishing job ", i, "of ", n.loops, ".\n"), file = logFile_Finish, append = TRUE)
+  cat(paste0(end.time, ": Finishing job ", i, " of ", n.loops, ".\n"), file = logFile_Finish, append = TRUE)
       
   return(metrics)
 } # end dopar
@@ -639,6 +647,9 @@ stopCluster(cl)
 
 low_july <- dplyr::filter(derived.site.metrics, meanJulyTemp < 5)
 low_july
+
+# can't remove catchments based on some featureid in the for loop - maybe because there are no catchments left in that loop causing an error in a function - therefore replace metrics with NA post hoc. Will need to get a list of featureid with these characteristics then replace the NA
+# dplyr::filter(AreaSqKM >= 1 & AreaSqKM < 200 & allonnet < 70) # changed so don't deal with problematically small drainage areas (somre were 0.00006 sq km) - for loop didn't like this!!!!!!!!!
 
 
 metrics.lat.lon <- left_join(featureid_lat_lon, derived.site.metrics, by = c('featureid')) # reverse this join or full join so get NA for all missing catchments? - doesn't seem to be working correctly yet - check again
