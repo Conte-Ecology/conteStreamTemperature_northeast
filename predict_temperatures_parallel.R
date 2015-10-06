@@ -18,7 +18,7 @@ library(devtools)
 #install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 
-data_dir <- "localData_2015-08-24" 
+data_dir <- "localData_2015-09-28" 
 
 args <- commandArgs(TRUE)
 
@@ -543,6 +543,16 @@ derived.site.metrics <- foreach(i = 1:n.loops,
     dplyr::mutate(yearsMaxTemp.22 = ifelse(!is.na(meanMaxTemp) & is.na(yearsMaxTemp.22), 0, yearsMaxTemp.22),
                   freqMaxTemp.22 = ifelse(!is.na(meanMaxTemp) & is.na(freqMaxTemp.22), 0, freqMaxTemp.22))
   
+  derivedfeatureidMetrics <- calcYearsMaxTemp(grouped.df = byfeatureidYear, derived.df = derivedfeatureidMetrics, temp.threshold = 23.5) %>%
+    mutate(yearsMaxTemp = ifelse(is.na(yearsMaxTemp), 0, as.numeric(yearsMaxTemp))) %>%
+    rename(yearsMaxTemp.23.5 = yearsMaxTemp) %>%
+    dplyr::mutate(freqMaxTemp.23.5 = yearsMaxTemp.23.5 / length(unique(byfeatureidYear$year)))
+  derivedfeatureidMetrics[which(is.na(derivedfeatureidMetrics$meanMaxTemp)), "yearsMaxTemp.23.5"] <- NA
+  derivedfeatureidMetrics[which(is.na(derivedfeatureidMetrics$meanMaxTemp)), "freqMaxTemp.23.5"] <- NA
+  derivedfeatureidMetrics <- derivedfeatureidMetrics %>%
+    dplyr::mutate(yearsAcute.MADEP = ifelse(!is.na(meanMaxTemp) & is.na(yearsMaxTemp.23.5), 0, yearsMaxTemp.23.5),
+                  freqAcute.MADEP = ifelse(!is.na(meanMaxTemp) & is.na(freqMaxTemp.23.5), 0, freqMaxTemp.23.5))
+  
   # Resistance to peak air temperature
   ## This probably makes the most sense during minimum flow periods but we don't have a sufficient flow model
   ## 60 or 90 days max air temp?
@@ -656,9 +666,14 @@ low_july
 
 # can't remove catchments based on some featureid in the for loop - maybe because there are no catchments left in that loop causing an error in a function - therefore replace metrics with NA post hoc. Will need to get a list of featureid with these characteristics then replace the NA
 # dplyr::filter(AreaSqKM >= 1 & AreaSqKM < 200 & allonnet < 70) # changed so don't deal with problematically small drainage areas (somre were 0.00006 sq km) - for loop didn't like this!!!!!!!!!
+featureid_bad <- df_covariates_upstream %>%
+  dplyr::filter(AreaSqKM < 1 | AreaSqKM >= 200 | allonnet >= 70)
 
+derived.site.metrics <- derived.site.metrics %>%
+  dplyr::filter(!(featureid %in% featureid_bad$featureid))
 
-metrics.lat.lon <- left_join(featureid_lat_lon, derived.site.metrics, by = c('featureid')) # reverse this join or full join so get NA for all missing catchments? - doesn't seem to be working correctly yet - check again
+metrics.lat.lon <- featureid_lat_lon %>%
+  left_join(derived.site.metrics, by = c('featureid')) # reverse this join or full join so get NA for all missing catchments? - doesn't seem to be working correctly yet - check again
 
 saveRDS(metrics.lat.lon, file = paste0(data_dir, "/derived_site_metrics.RData"))
 write.table(metrics.lat.lon, file = paste0(data_dir, "/derived_site_metrics.csv"), sep = ',', row.names = F)
