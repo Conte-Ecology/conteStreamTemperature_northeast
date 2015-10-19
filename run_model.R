@@ -7,6 +7,7 @@
 
 # NOTE: this has not actually been run, and is mostly just copy and pasted from the analysis vignette
 
+rm(list = ls())
 gc()
 
 library(dplyr)
@@ -14,7 +15,7 @@ library(devtools)
 install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 
-data_dir <- "localData_2015-08-24"
+data_dir <- "localData_2015-09-28"
 
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
@@ -99,6 +100,10 @@ monitor.params <- c(#"residuals",
   "rho.B.huc",
   "mu.huc",
   "sigma.b.huc",
+  "xi.huc",
+  "xi.year",
+  "tau.B.year.raw",
+  "tau.B.huc.raw",
   "B.year",
   "rho.B.year",
   "mu.year",
@@ -111,14 +116,29 @@ if (!file.exists(paste0(data_dir, '/code'))) {
   dir.create(paste0(data_dir, '/code'))
 }
 
-system.time(M.ar1 <- modelRegionalTempAR1(tempDataSyncS, cov.list=cov.list, firstObsRows = firstObsRows, evalRows = evalRows, n.burn = 3000, n.it = 1000, n.thin = 1, nc = 3, coda = coda.tf, param.list = monitor.params)) # Slow with AR1: ~13 min per 100 iter for site AR = 13 hours for 6000 iterations
+# system.time(M.ar1 <- modelRegionalTempAR1(tempDataSyncS, cov.list=cov.list, firstObsRows = firstObsRows, evalRows = evalRows, n.burn = 10000, n.it = 3000, n.thin = 3, nc = 3, coda = coda.tf, param.list = monitor.params, cluster_type = "PSOCK")) # Slow with AR1: ~13 min per 100 iter for site AR = 13 hours for 6000 iterations
+# 
+
+#save.image("testing.RData")
+
+system.time(M.ar1.s <- modelRegionalTempAR1Scaled(tempDataSyncS, cov.list=cov.list, firstObsRows = firstObsRows, evalRows = evalRows, n.burn = 30000, n.it = 9000, n.thin = 9, nc = 3, coda = coda.tf, param.list = monitor.params, cluster_type = "PSOCK")) # Slow with AR1: ~13 min per 100 iter for site AR = 13 hours for 6000 iterations
 
 # save to rdata
-saveRDS(M.ar1, file = output_file)
+saveRDS(M.ar1.s, file = output_file)
 saveRDS(cov.list, file = output2_file)
 
-rm(list = ls())
-gc()
+
+
+
+plot(M.ar1.s[ , c("xi.huc[1]", "xi.huc[2]", "xi.huc[3]")])
+plot(M.ar1.s[ , c("xi.year[1]", "xi.year[2]", "xi.year[3]", "xi.year[4]")])
+
+plot(M.ar1.s[ , c("B.0[1]", "sigma.b.huc[2]", "sigma.b.huc[3]")])
+plot(M.ar1.s[ , c("sigma.b.year[2]", "sigma.b.year[3]", "sigma.b.year[4]")])
+plot(M.ar1.s[ , c("sigma.ar1", "sigma")])
+
+plot(M.ar1.s[ , c("tau.B.year.raw[1,1]", "tau.B.year.raw[2,2]", "tau.B.year.raw[3,3]", "tau.B.year.raw[4,4]")])
+
 
 
 data.cal <- prepDF(data, covars = cov.list)

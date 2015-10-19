@@ -8,6 +8,9 @@
 # NOTE: this has not actually been run, and is mostly just copy and pasted from the analysis vignette
 
 # parse command line arguments
+rm(list = ls())
+gc()
+
 
 library(ggplot2)
 library(ggmcmc)
@@ -17,7 +20,7 @@ library(devtools)
 library(conteStreamTemperature)
 library(rjags)
 
-data_dir <- "localData_2015-08-24" 
+data_dir <- "localData_2015-09-28" 
 
 args <- commandArgs(trailingOnly = TRUE)
 
@@ -57,7 +60,7 @@ if (!file.exists(paste0(data_dir, "/figures/"))) {
 
 test_jags_pred <- TRUE
 if(test_jags_pred) {
-  plot(M.ar1[ , 1])
+  #plot(M.ar1[ , 1])
   mat.ar1 <- as.matrix(M.ar1) # massive
   str(mat.ar1)
   # need to use regex to rename coefficients
@@ -178,8 +181,4 @@ coef.list <- list(fix.ef = fix.ef
 
 # save(modSummary, file=paste0(dataOutDir, 'modSummary.RData'))
 #output_file <- "localData/coef.RData"
-saveRDS(coef.list, file=output_file)
-
-
-rm(list = ls())
-gc()
+#saveRDS(coef.list, file=output_file)

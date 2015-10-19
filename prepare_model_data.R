@@ -27,7 +27,7 @@ config <- fromJSON('model_config.json')
 
 # validate = TRUE # get rid of this once model_config.json is ready
 
-data_dir <- "localData_2015-08-24" 
+data_dir <- "localData_2015-09-28" 
 
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
@@ -109,8 +109,7 @@ tempData <- tempData[order(tempData$count),] # just to make sure tempDataSync is
 tempData <- tempData %>%
   group_by(site, year) %>%
   arrange(site, year, dOY) %>%
-  mutate(impoundArea = AreaSqKM * allonnet,
-         airTempLagged1 = lag(airTemp, n = 1, fill = NA),
+  mutate(airTempLagged1 = lag(airTemp, n = 1, fill = NA),
          #airTempLagged2 = lag(airTemp, n = 2, fill = NA),
          #prcpLagged1 = lag(prcp, n = 1, fill = NA),
          #prcpLagged2 = lag(prcp, n = 2, fill = NA),
@@ -144,7 +143,8 @@ tempDataBP <- temperatureData %>%
   dplyr::filter(!is.na(featureid)) %>%
   left_join(dplyr::mutate(data.frame(unclass(tempData)), date = as.Date(date))) %>%
   left_join(covariateData, by = c("featureid")) %>%
-  dplyr::mutate(site = as.character(featureid))
+  dplyr::mutate(site = as.character(featureid),
+                impoundArea = AreaSqKM * allonnet)
 
 springFallBPs$site <- as.character(springFallBPs$site)
 
@@ -216,7 +216,8 @@ for(i in 1:length(unique(foo$featureid))) {
 
 # Filter by Drainage area
 tempDataSync <- tempDataSync %>%
-  dplyr::filter(AreaSqKM >= 1 & AreaSqKM < 200 & allonnet < 70)
+  dplyr::filter(AreaSqKM >= 1 & AreaSqKM < 200 & allonnet < 70) %>%
+  dplyr::filter(!is.na(impoundArea))
 
 var.names <- c("airTemp", 
                #"airTempLagged1", 
@@ -467,6 +468,3 @@ if (config[['validate']]) {
   
   save(tempDataSync, tempDataSyncS, firstObsRows, evalRows, var.names, df_stds, rand_ids, file = output_file)
 }
-
-rm(list = ls())
-gc()

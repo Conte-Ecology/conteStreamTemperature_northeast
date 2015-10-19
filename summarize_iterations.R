@@ -17,7 +17,7 @@ library(devtools)
 library(conteStreamTemperature)
 library(rjags)
 
-data_dir <- "localData_2015-08-24" 
+data_dir <- "localData_2015-09-28" 
 
 args <- commandArgs(trailingOnly = TRUE)
 
