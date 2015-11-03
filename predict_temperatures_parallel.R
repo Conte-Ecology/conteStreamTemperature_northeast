@@ -156,7 +156,7 @@ library(doParallel)
 library(RPostgreSQL)
 
 # size of chunks
-chunk.size <- 10
+chunk.size <- 4
 n.loops <- ceiling(n.catches / chunk.size)
 
 # set up parallel backend & make database connection available to all workers
@@ -189,10 +189,12 @@ derived.site.metrics <- foreach(i = 1:n.loops,
 ) %dopar% {
   
   #for(i in 1:n.loops) {
-  
+  dbClearResult(rs)
+  dbDisconnect(con)
+  dbUnloadDriver(drv)
   ########## Set up database connection ##########
-  drv <- dbDriver("PostgreSQL")
-  con <- dbConnect(drv, dbname='sheds', host='felek.cns.umass.edu', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+#   drv <- dbDriver("PostgreSQL")
+#   con <- dbConnect(drv, dbname='sheds', host='felek.cns.umass.edu', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
   
   # write start of each iteration
   start.time <- Sys.time()
@@ -207,452 +209,18 @@ derived.site.metrics <- foreach(i = 1:n.loops,
   }
   catches_string <- paste(catches, collapse = ', ')
   
-  # reconnect to database if lost
-     if(isPostgresqlIdCurrent(con) == FALSE) {
-       drv <- dbDriver("PostgreSQL")
-       con <- dbConnect(drv, dbname='sheds', host='felek.cns.umass.edu', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
-     }
+  fullDataSyncS <- predictTemp(catches_string=catches_string, springFallBPs=springFallBPs, df_covariates_upstream=df_covariates_upstream, tempDataSync=tempDataSync, featureid_lat_lon=featureid_lat_lon, featureid_huc8=featureid_huc8)
   
-  ########## pull daymet records ##########
-  qry_daymet <- paste0("SELECT featureid, date, tmax, tmin, prcp, dayl, srad, vp, swe, (tmax + tmin) / 2.0 AS airTemp FROM daymet WHERE featureid IN (", catches_string, ") ;")
-  rs <- dbSendQuery(con, statement = qry_daymet)
-  climateData <- dbFetch(rs, n=-1)
   dbClearResult(rs)
   dbDisconnect(con)
   dbUnloadDriver(drv)
   
-  ########## Assign synchronized period ##########
-  mean.spring.bp <- mean(dplyr::filter(springFallBPs, finalSpringBP != "Inf")$finalSpringBP, na.rm = T)
-  mean.fall.bp <- mean(dplyr::filter(springFallBPs, finalFallBP != "Inf")$finalFallBP, na.rm = T)
+  fullDataSync <- data.frame(unclass(fullDataSync))
   
-  foo <- springFallBPs %>%
-    dplyr::mutate(site = as.character(site),
-                  featureid = as.integer(site),
-                  finalSpringBP = ifelse(finalSpringBP == "Inf" | is.na(finalSpringBP), mean.spring.bp, finalSpringBP),
-                  finalFallBP = ifelse(finalFallBP == "Inf" | is.na(finalFallBP), mean.fall.bp, finalFallBP))
+  fullDataSync2 <- left_join(fullDataSync, select(fullDataSyncS, featureid, date, trend, tempPredicted))
   
-  ########## Combine Datat ##########
-  fullDataSync <- climateData %>%
-    left_join(df_covariates_upstream, by=c('featureid')) %>%
-    left_join(dplyr::select(tempDataSync, date, featureid, site, temp), by = c('date', 'featureid')) %>%
-    left_join(featureid_huc8, by = c('featureid')) %>%
-    left_join(featureid_lat_lon, by = c('featureid')) %>%
-    dplyr::mutate(year = as.numeric(format(date, "%Y")),
-                  airTemp = (tmax + tmin)/2) %>%
-    left_join(dplyr::select(foo, -site), by = c('featureid', 'year')) %>%
-    dplyr::mutate(finalSpringBP = ifelse(finalSpringBP == "Inf" | is.na(finalSpringBP), mean.spring.bp, finalSpringBP),
-                  finalFallBP = ifelse(finalFallBP == "Inf" | is.na(finalFallBP), mean.fall.bp, finalFallBP)) %>%
-    dplyr::mutate(dOY = yday(date)) %>%
-    dplyr::filter(AreaSqKM < 200)
-   # dplyr::filter(AreaSqKM >= 1 & AreaSqKM < 200 & allonnet < 70) # changed so don't deal with problematically small drainage areas (somre were 0.00006 sq km) - for loop didn't like this!!!!!!!!!
+  metrics <- deriveMetrics(fullDataSync = fullDataSync2)
   
-  ################### PROBLEM ################
-  # if allonnet is very large (maybe > 75% of drainage area) the predictions are probably non-sense 
-  ##########################
-  
-  ################### PROBLEM #################
-  # 2-day precip as large as 210 - not sure if this is realistic and if so it might be outside the scope of our predictions
-  ##################################
-  
-  
-  rm(climateData)
-  gc()
-  
-  # Order by group and date
-  fullDataSync <- fullDataSync[order(fullDataSync$featureid, fullDataSync$year, fullDataSync$dOY),]
-  
-  # For checking the order of fullDataSync
-  #fullDataSync$count <- 1:length(fullDataSync$year)
-  
-  #fullDataSync <- fullDataSync[order(fullDataSync$count),] # just to make sure fullDataSync is ordered for the slide function
-  
-  # moving means instead of lagged terms in the future
-  fullDataSync <- fullDataSync %>%
-    group_by(featureid, year) %>%
-    arrange(featureid, year, dOY) %>%
-    mutate(impoundArea = AreaSqKM * allonnet,
-           airTempLagged1 = lag(airTemp, n = 1, fill = NA),
-           temp5p = rollapply(data = airTempLagged1, 
-                              width = 5, 
-                              FUN = mean, 
-                              align = "right", 
-                              fill = NA, 
-                              na.rm = T),
-           temp7p = rollapply(data = airTempLagged1, 
-                              width = 7, 
-                              FUN = mean, 
-                              align = "right", 
-                              fill = NA, 
-                              na.rm = T),
-           prcp2 = rollsum(x = prcp, 2, align = "right", fill = NA),
-           prcp7 = rollsum(x = prcp, 7, align = "right", fill = NA),
-           prcp30 = rollsum(x = prcp, 30, align = "right", fill = NA))
-  
-  # clip to synchronized period of the year
-  #dplyr::mutate(huc = huc8) %>%
-  
-  ############ PROBLEM ############################
-  # not assigning breakpoints properly - mostly NA 
-  #############
-  
-  fullDataSync <- fullDataSync %>%
-    dplyr::filter(dOY >= finalSpringBP & dOY <= finalFallBP | is.na(finalSpringBP) | is.na(finalFallBP & finalSpringBP != "Inf" & finalFallBP != "Inf")) %>%
-    dplyr::filter(dOY >= mean.spring.bp & dOY <= mean.fall.bp)
-  
-  var.names <- c("airTemp", 
-                 "temp7p",
-                 "prcp", 
-                 "prcp2",
-                 "prcp7",
-                 "prcp30",
-                 "dOY", 
-                 "forest", 
-                 "herbaceous", 
-                 "agriculture", 
-                 "devel_hi", 
-                 "developed",
-                 "AreaSqKM",  
-                 "allonnet",
-                 "alloffnet",
-                 "surfcoarse", 
-                 "srad", 
-                 "dayl", 
-                 "swe")
-  
-  fullDataSync <- fullDataSync %>%
-    mutate(HUC8 = as.character(HUC8),
-           huc8 = as.character(HUC8),
-           huc = as.character(HUC12),
-           site = as.numeric(as.factor(featureid))) 
-  
-  ################# PROBLEM ###############################
-  # HUGE VALUES FOR STANDARDIZED COVARIATES 
-  # consider adjusting those for agriculture and herbaceous
-  # maybe also for precip
-  ###########
-  
-  fullDataSyncS <- stdCovs(x = fullDataSync, y = df_stds, var.names = var.names)
-  
-  fullDataSyncS <- addInteractions(fullDataSyncS)
-  
-  fullDataSyncS <- dplyr::arrange(fullDataSyncS, featureid, date)
-  
-  fullDataSyncS$site <- as.character(fullDataSyncS$featureid)
-  
-  if(exists("fullDataSyncS$sitef")) {
-    fullDataSyncS <- dplyr::select(fullDataSyncS, -sitef)
-  }
-  
-  fullDataSyncS <- fullDataSyncS %>%
-    left_join(rand_ids$df_site) %>%
-    left_join(rand_ids$df_huc) %>%
-    left_join(rand_ids$df_year)
-  
-  fullDataSyncS <- indexDeployments(fullDataSyncS, regional = TRUE)
-
-  ############# Predictions ##############
-  #fullDataSyncS <- predictTemp(data = fullDataSyncS, coef.list = coef.list, cov.list = cov.list, featureid_site = featureid_site)
-  
-  fixed.ef <- as.numeric(coef.list$B.fixed$mean) # separate out the iteration or do for mean/median
-  
-  # add specific random effects to the dataframe
-  fullDataSyncS <- left_join(fullDataSyncS, coef.list$B.site, by = "sitef")
-  fullDataSyncS <- left_join(fullDataSyncS, coef.list$B.huc, by = "hucf") # problem with validation data, need to use the mean when huc don't match
-  fullDataSyncS <- left_join(fullDataSyncS, coef.list$B.year, by = "yearf")
-  
-  
-  for (j in 2:length(names(coef.list$B.site))) {
-    fullDataSyncS[, names(coef.list$B.site[j])][is.na(fullDataSyncS[, names(coef.list$B.site[j])])] <- colMeans(coef.list$B.site[j])
-  }
-  for (j in 2:length(names(coef.list$B.huc))) {
-    fullDataSyncS[, names(coef.list$B.huc[j])][is.na(fullDataSyncS[, names(coef.list$B.huc[j])])] <- colMeans(coef.list$B.huc[j])
-  }
-  for (j in 2:length(names(coef.list$B.year))) {
-    fullDataSyncS[, names(coef.list$B.year[j])][is.na(fullDataSyncS[, names(coef.list$B.year[j])])] <- colMeans(coef.list$B.year[j])
-  }
-  
-  fullDataSyncS$fixed.ef <- as.vector(fixed.ef %*% t(as.matrix(as.data.frame(unclass(select(ungroup(fullDataSyncS), one_of(cov.list$fixed.ef)))))))
-  fullDataSyncS$site.ef <- rowSums(as.matrix(select(fullDataSyncS, one_of(cov.list$site.ef))) * as.matrix(select(fullDataSyncS, starts_with("B.site"))))
-  fullDataSyncS$huc.ef <- rowSums(as.matrix(select(fullDataSyncS, one_of(cov.list$huc.ef))) * as.matrix(select(fullDataSyncS, starts_with("B.huc"))))
-  fullDataSyncS$year.ef <- rowSums(as.matrix(select(fullDataSyncS, one_of(cov.list$year.ef))) * as.matrix(select(fullDataSyncS, starts_with("B.year"))))
-  
-  # fullDataSyncS$trend <- rowSums(as.matrix(dplyr::select(fullDataSyncS, one_of(c("fixed.ef", "site.ef", "huc.ef", "year.ef")))))
-  # FAILS
-  
-  #fullDataSyncS <- fullDataSyncS %>%
-  # dplyr::mutate(trend = fixed.ef + site.ef + huc.ef + year.ef) # works fine outside foreach
-  
-  fullDataSyncS$trend <- fullDataSyncS$fixed.ef + fullDataSyncS$site.ef + fullDataSyncS$huc.ef + fullDataSyncS$year.ef # WORKS!!!
-  
-  # Add B.ar1 to predictions
-  #fullDataSyncS <- group_by(fullDataSyncS, sitef)
-  fullDataSyncS <- mutate(fullDataSyncS, prev.temp = c(NA, fullDataSyncS$temp[(2:(nrow(fullDataSyncS))) -1]),
-                          prev.trend = c(NA, fullDataSyncS$trend[(2:nrow(fullDataSyncS)) - 1]),
-                          prev.err = prev.temp - prev.trend,
-                          tempPredicted = trend,
-                          prev.temp = ifelse(newDeploy == 1, NA, prev.temp),
-                          prev.err = ifelse(newDeploy == 1, NA, prev.err))
-  #B.ar1.sub <- data.frame(sitef = rand_ids$df_site$sitef)
-  B.ar1.sub <- coef.list$B.ar1 %>%
-    dplyr::select(sitef, mean) %>%
-    dplyr::rename(B.ar1 = mean)
-  fullDataSyncS <- left_join(fullDataSyncS, B.ar1.sub, by = c("sitef"))
-  fullDataSyncS <- fullDataSyncS %>%
-    dplyr::mutate(B.ar1 = ifelse(is.na(B.ar1), mean(B.ar1.sub$B.ar1, na.rm = T), B.ar1)) %>%
-    dplyr::arrange(featureid, date)
-  
-  fullDataSyncS[which(!is.na(fullDataSyncS$prev.err)), ]$tempPredicted <- fullDataSyncS[which(!is.na(fullDataSyncS$prev.err)), ]$trend + fullDataSyncS[which(!is.na(fullDataSyncS$prev.err)), ]$B.ar1 * fullDataSyncS[which(!is.na(fullDataSyncS$prev.err)), ]$prev.err
-
-  # for testing and visual inspection
-  if(FALSE) {
-    ggplot(fullDataSyncS, aes(temp, tempPredicted)) + geom_point()
-    ggplot(fullDataSyncS, aes(date, tempPredicted)) + geom_point()
-    ggplot(fullDataSyncS, aes(dOY, tempPredicted)) + geom_point() + facet_wrap(~year)
-  }
-  
-  fullDataSync <- left_join(fullDataSync, select(fullDataSyncS, featureid, date, trend, tempPredicted), by = c("featureid", "date"))
-  
-  # unofficial warning message
-  mean.pred <- mean(fullDataSync$tempPredicted, na.rm = T)
-  if(mean.pred == "NaN") {
-    cat(paste0(i, " of ", n.loops, " loops has no predicted temperatures"))
-  } 
-  
-  ######################## DERIVE METRICS ##################################
-#   library(dplyr)
-#   library(zoo)
-  
-  byfeatureid <- group_by(fullDataSync, featureid)
-  byfeatureidYear <- group_by(byfeatureid, year, add = TRUE)
-  #(maxTempfeatureid <- dplyr::dplyr::summarise(byfeatureid, max(tempPredicted, na.rm = T)))
-  
-  derivedfeatureidMetrics <- dplyr::select(byfeatureid, featureid) %>%
-    distinct
-  
-  # Mean maximum daily mean temperature by featureid (over years) - this must be calculated before totalObs to work with NA and left join if all fullDataSync missing
-  meanMaxTemp <- byfeatureidYear %>%
-    dplyr::summarise(maxTempPredicted = max(tempPredicted, na.rm = T)) %>%
-    dplyr::summarise(meanMaxTemp = mean(maxTempPredicted))
-  derivedfeatureidMetrics <- left_join(derivedfeatureidMetrics, meanMaxTemp, by = "featureid")
-  rm(meanMaxTemp)
-  
-  # total observations (days with fullDataSync) per featureid
-  totalObs <- byfeatureidYear %>%
-    dplyr::filter(!is.na(temp)) %>%
-    dplyr::summarise(Obs = n()) %>%
-    dplyr::summarise(totalObs = sum(Obs)) %>%
-    dplyr::select(featureid, totalObs)
-  derivedfeatureidMetrics <- dplyr::left_join(derivedfeatureidMetrics, totalObs, by = "featureid") %>%
-    dplyr::mutate(totalObs = ifelse(is.na(totalObs), 0, as.numeric(totalObs)))
-  derivedfeatureidMetrics <- dplyr::select(derivedfeatureidMetrics, featureid, totalObs, meanMaxTemp)
-  
-  # Maximum max daily mean temperature
-  maxMaxTemp <- byfeatureidYear %>%
-    dplyr::summarise(maxTemp = max(tempPredicted, na.rm = T)) %>%
-    dplyr::summarise(maxMaxTemp = max(maxTemp))
-  derivedfeatureidMetrics <- left_join(derivedfeatureidMetrics, maxMaxTemp, by = "featureid")
-  rm(maxMaxTemp)
-  
-  # Mean July Summer Temp
-  meanJulyTemp <- byfeatureidYear %>%
-    dplyr::mutate(month = as.numeric(format(date, "%m"))) %>%
-    dplyr::filter(month == 7) %>%
-    dplyr::summarise(JulyTemp = mean(tempPredicted, na.rm = T)) %>%
-    dplyr::summarise(meanJulyTemp = mean(JulyTemp))
-  derivedfeatureidMetrics <- left_join(derivedfeatureidMetrics, meanJulyTemp, by = "featureid")
-  rm(meanJulyTemp)
-  
-  # Mean Aug Temp
-  meanAugTemp <- byfeatureidYear %>%
-    dplyr::mutate(month = as.numeric(format(date, "%m"))) %>%
-    dplyr::filter(month == 8) %>%
-    dplyr::summarise(AugTemp = mean(tempPredicted, na.rm = T)) %>%
-    dplyr::summarise(meanAugTemp = mean(AugTemp))
-  derivedfeatureidMetrics <- left_join(derivedfeatureidMetrics, meanAugTemp, by = "featureid")
-  rm(meanAugTemp)
-  
-  # Mean Summer Temp
-  meanSummerTemp <- byfeatureidYear %>%
-    dplyr::mutate(month = as.numeric(format(date, "%m"))) %>%
-    dplyr::filter(month >= 6 & month <= 8) %>%
-    dplyr::summarise(SummerTemp = mean(tempPredicted, na.rm = T)) %>%
-    dplyr::summarise(meanSummerTemp = mean(SummerTemp))
-  derivedfeatureidMetrics <- left_join(derivedfeatureidMetrics, meanSummerTemp, by = "featureid")
-  rm(meanSummerTemp)
-  
-  # Annual mean 30-day maximum mean daily temperature
-  mean30Day <- byfeatureidYear %>%
-    arrange(featureid, year, dOY) %>%
-    mutate(mm30Day = rollapply(data = tempPredicted, 
-                              width = 30, 
-                              FUN = mean, 
-                              align = "right", 
-                              fill = NA, 
-                              na.rm = T)) %>%
-    dplyr::summarise(max30DayYear = max(mm30Day, na.rm = T)) %>%
-    dplyr::summarise(mean30DayMax = mean(max30DayYear, na.rm = T))
-  derivedfeatureidMetrics <- left_join(derivedfeatureidMetrics, mean30Day, by = "featureid")
-  rm(mean30Day)
-  
-  # Number of days with stream temp > threshold
-  derivedfeatureidMetrics <- calcThresholdDays(byfeatureidYear, derivedfeatureidMetrics, 18) %>%
-    dplyr::rename(meanDays.18 = meanDays) %>%
-    dplyr::mutate(meanDays.18 = as.numeric(meanDays.18)) %>%
-  dplyr::mutate(meanDays.18 = ifelse(!is.na(meanMaxTemp) & is.na(meanDays.18), 0, meanDays.18))
-  derivedfeatureidMetrics <- calcThresholdDays(byfeatureidYear, derivedfeatureidMetrics, 20) %>%
-    dplyr::rename(meanDays.20 = meanDays) %>%
-    dplyr::mutate(meanDays.20 = as.numeric(meanDays.20)) %>%
-  dplyr::mutate(meanDays.20 = ifelse(!is.na(meanMaxTemp) & is.na(meanDays.20), 0, meanDays.20))
-  derivedfeatureidMetrics <- calcThresholdDays(byfeatureidYear, derivedfeatureidMetrics, 22) %>%
-    dplyr::rename(meanDays.22 = meanDays) %>%
-    dplyr::mutate(meanDays.22 = as.numeric(meanDays.22)) %>%
-  dplyr::mutate(meanDays.22 = ifelse(!is.na(meanMaxTemp) & is.na(meanDays.22), 0, meanDays.22))
-  #if(class(threshold) == "numeric") derivedfeatureidMetrics <- calcThresholdDays(byfeatureidYear, derivedfeatureidMetrics, threshold)
-  
-  # CT DEEP Thresholds
-  #derivedfeatureidMetrics <- calcYearsCold(byfeatureidYear, derivedfeatureidMetrics, states = c("CT"))
-  
-  # Number and frequency of years with mean max over threshold
-  derivedfeatureidMetrics <- calcYearsMaxTemp(grouped.df = byfeatureidYear, derived.df = derivedfeatureidMetrics, temp.threshold = 18) %>%
-    dplyr::mutate(yearsMaxTemp = ifelse(is.na(yearsMaxTemp), 0, as.numeric(yearsMaxTemp))) %>%
-    dplyr::rename(yearsMaxTemp.18 = yearsMaxTemp) %>%
-    dplyr::mutate(freqMaxTemp.18 = yearsMaxTemp.18 / length(unique(byfeatureidYear$year)))
-  derivedfeatureidMetrics[which(is.na(derivedfeatureidMetrics$meanMaxTemp)), "yearsMaxTemp.18"] <- NA
-  derivedfeatureidMetrics[which(is.na(derivedfeatureidMetrics$meanMaxTemp)), "freqMaxTemp.18"] <- NA
-  derivedfeatureidMetrics <- derivedfeatureidMetrics %>%
-    dplyr::mutate(yearsMaxTemp.18 = ifelse(!is.na(meanMaxTemp) & is.na(yearsMaxTemp.18), 0, yearsMaxTemp.18),
-                  yearsMaxTemp.18 = ifelse(!is.na(meanMaxTemp) & is.na(yearsMaxTemp.18), 0, yearsMaxTemp.18))
-  
-  derivedfeatureidMetrics <- calcYearsMaxTemp(grouped.df = byfeatureidYear, derived.df = derivedfeatureidMetrics, temp.threshold = 20) %>%
-    dplyr::mutate(yearsMaxTemp = ifelse(is.na(yearsMaxTemp), 0, as.numeric(yearsMaxTemp))) %>%
-    dplyr::rename(yearsMaxTemp.20 = yearsMaxTemp) %>%
-    dplyr::mutate(freqMaxTemp.20 = yearsMaxTemp.20 / length(unique(byfeatureidYear$year)))
-  derivedfeatureidMetrics[which(is.na(derivedfeatureidMetrics$meanMaxTemp)), "yearsMaxTemp.20"] <- NA
-  derivedfeatureidMetrics[which(is.na(derivedfeatureidMetrics$meanMaxTemp)), "freqMaxTemp.20"] <- NA
-  derivedfeatureidMetrics <- derivedfeatureidMetrics %>%
-    dplyr::mutate(yearsMaxTemp.20 = ifelse(!is.na(meanMaxTemp) & is.na(yearsMaxTemp.20), 0, yearsMaxTemp.20),
-                  freqMaxTemp.20 = ifelse(!is.na(meanMaxTemp) & is.na(freqMaxTemp.20), 0, freqMaxTemp.20))
-  
-  derivedfeatureidMetrics <- calcYearsMaxTemp(grouped.df = byfeatureidYear, derived.df = derivedfeatureidMetrics, temp.threshold = 22) %>%
-    mutate(yearsMaxTemp = ifelse(is.na(yearsMaxTemp), 0, as.numeric(yearsMaxTemp))) %>%
-    rename(yearsMaxTemp.22 = yearsMaxTemp) %>%
-    dplyr::mutate(freqMaxTemp.22 = yearsMaxTemp.22 / length(unique(byfeatureidYear$year)))
-  derivedfeatureidMetrics[which(is.na(derivedfeatureidMetrics$meanMaxTemp)), "yearsMaxTemp.22"] <- NA
-  derivedfeatureidMetrics[which(is.na(derivedfeatureidMetrics$meanMaxTemp)), "freqMaxTemp.22"] <- NA
-  derivedfeatureidMetrics <- derivedfeatureidMetrics %>%
-    dplyr::mutate(yearsMaxTemp.22 = ifelse(!is.na(meanMaxTemp) & is.na(yearsMaxTemp.22), 0, yearsMaxTemp.22),
-                  freqMaxTemp.22 = ifelse(!is.na(meanMaxTemp) & is.na(freqMaxTemp.22), 0, freqMaxTemp.22))
-  
-  derivedfeatureidMetrics <- calcYearsMaxTemp(grouped.df = byfeatureidYear, derived.df = derivedfeatureidMetrics, temp.threshold = 23.5) %>%
-    mutate(yearsMaxTemp = ifelse(is.na(yearsMaxTemp), 0, as.numeric(yearsMaxTemp))) %>%
-    rename(yearsMaxTemp.23.5 = yearsMaxTemp) %>%
-    dplyr::mutate(freqMaxTemp.23.5 = yearsMaxTemp.23.5 / length(unique(byfeatureidYear$year)))
-  derivedfeatureidMetrics[which(is.na(derivedfeatureidMetrics$meanMaxTemp)), "yearsMaxTemp.23.5"] <- NA
-  derivedfeatureidMetrics[which(is.na(derivedfeatureidMetrics$meanMaxTemp)), "freqMaxTemp.23.5"] <- NA
-  derivedfeatureidMetrics <- derivedfeatureidMetrics %>%
-    dplyr::mutate(yearsAcute.MADEP = ifelse(!is.na(meanMaxTemp) & is.na(yearsMaxTemp.23.5), 0, yearsMaxTemp.23.5),
-                  freqAcute.MADEP = ifelse(!is.na(meanMaxTemp) & is.na(freqMaxTemp.23.5), 0, freqMaxTemp.23.5))
-  
-  # Resistance to peak air temperature
-  ## This probably makes the most sense during minimum flow periods but we don't have a sufficient flow model
-  ## 60 or 90 days max air temp?
-  # error if use standardized values rather than original scale
-  # dOY.max.warm <- byfeatureidYear %>%
-  #    mutate(warm.90 = rollsum(x = airTemp, 90, align = "right", fill = NA))
-  #  dOY.max.warm <- dOY.max.warm %>%
-  #   group_by(featureid, year, add = TRUE) %>%
-  #  filter(warm.90 == max(warm.90, na.rm = T)) %>%
-  # select(dOY)
-  meanResist <- byfeatureidYear %>%
-    #filter(dOY > dOY.max.warm$dOY - 90 & dOY <= dOY.max.warm$dOY) %>%
-    dplyr::filter(dOY >= 152 & dOY < 244) %>% # clip to summer
-    dplyr::mutate(absResid = abs(airTemp - tempPredicted)) %>%
-    dplyr::summarise(resistance = sum(absResid)) %>%
-    dplyr::summarise(meanResist = mean(resistance))
-  derivedfeatureidMetrics <- left_join(derivedfeatureidMetrics, meanResist, by = "featureid")
-  rm(meanResist)
-  
-  
-  # User broom and dplyr to get TS for each feature id but make sure it handles NA for entire featureid or entire fullDataSyncsets
-  # Orange %>% group_by(Tree) %>% do(tidy(lm(age ~ circumference, fullDataSync=.)))
-  
-  # Thermal Sensitivity
-  byfeatureid_complete <- byfeatureid %>%
-    dplyr::filter(!is.na(tempPredicted) & !is.na(airTemp))
-  
-  group_count <- byfeatureid_complete %>%
-    dplyr::summarise(count = n())
-  
-  if(nrow(byfeatureid_complete) >= 5) { # actually want to check for 5 obs within any group
-    byfeatureid_complete <- left_join(byfeatureid_complete, group_count) %>%
-      dplyr::filter(count >= 5)
-    if(nrow(byfeatureid_complete) >= 5 & length(unique(byfeatureid_complete$featureid)) > 1) {
-    TS <- byfeatureid_complete %>% do(broom::tidy(lm(tempPredicted ~ airTemp, data = .))) %>%
-      dplyr::filter(term == "airTemp") %>%
-      dplyr::select(featureid, TS = estimate)
-    derivedfeatureidMetrics <- left_join(derivedfeatureidMetrics, TS, by = "featureid")
-    rm(TS)
-    } else {
-      derivedfeatureidMetrics$TS <- NA_real_
-    }
-  } else {
-    derivedfeatureidMetrics$TS <- NA_real_
-  }
-
-  
-  # RMSE for each featureid (flag highest)
-  bar <- byfeatureidYear %>%
-    filter(!(is.na(temp) & !is.na(tempPredicted))) %>%
-    mutate(error = temp - tempPredicted)
-  
-  if(dim(bar)[1] > 0) {
-    error_metrics <- bar %>%
-      dplyr::summarise(RMSE = rmse(error),
-                       MAE = mae(error),
-                       NSE = nse(temp, tempPredicted)) %>%
-      dplyr::summarise(meanRMSE = mean(RMSE, na.rm = T),
-                       meanMAE = mean(MAE, na.rm = T),
-                       meanNSE = mean(NSE, na.rm = T))
-    derivedfeatureidMetrics <- left_join(derivedfeatureidMetrics, dplyr::select(error_metrics, featureid, meanRMSE, meanMAE, meanNSE), by = "featureid")
-  } else {
-    derivedfeatureidMetrics$meanRMSE <- NA_real_
-    derivedfeatureidMetrics$meanMAE <- NA_real_
-    derivedfeatureidMetrics$meanNSE <- NA_real_
-#     derivedfeatureidMetrics <- derivedfeatureidMetrics %>%
-#       dplyr::mutate(meanRMSE = NA) %>%
-#       dplyr::mutate(meanRMSE = as.numeric(meanRMSE))
-  }
-  rm(bar)
-  
-  ############# ADD RMSE by Trend in addition to predicted with AR1 #########
-  
-  ########################
-  
-  #derived.site.metrics <- derivedfeatureidMetrics
-  #rm(data)
-  #rm(derivedfeatureidMetrics)
-  #rm(foo)
-  #gc()
-  ################################
-  
-  # derived.site.metrics <- deriveMetrics(fullDataSync)
-  
-  #derived_metrics
-#   if(exists("metrics") == FALSE) {
-#     metrics <- derivedfeatureidMetrics
-#     #print("no")
-#   } else {
-#     metrics <- rbind(metrics, derivedfeatureidMetrics)
-#   }
-  
-  #saveRDS(metrics.lat.lon, file = paste0(data_dir, "/derived_site_metrics.RData"))
-  #write.table(metrics.lat.lon, file = paste0(data_dir, "/derived_site_metrics.csv"), sep = ',', row.names = F, append = TRUE)
-  
-  metrics <- as.data.frame(derivedfeatureidMetrics)
-  
-#   dbClearResult(rs)
-#   dbDisconnect(con)
-#   dbUnloadDriver(drv)
   end.time <- Sys.time()
   cat(paste0(end.time, ": Finishing job ", i, " of ", n.loops, ".\n"), file = logFile_Finish, append = TRUE)
       
@@ -660,9 +228,37 @@ derived.site.metrics <- foreach(i = 1:n.loops,
 } # end dopar
 stopCluster(cl)
 
+# filter
+derived.site.metrics <- left_join(derived.site.metrics, df_covariates_upstream) %>%
+  dplyr::filter(AreaSqKM >= 1 & AreaSqKM < 200 & allonnet < 70) # changed so don't deal with problematically small drainage areas (somre were 0.00006 sq km) - for loop didn't like this!!!!!!!!!
 
+# look for errors
 low_july <- dplyr::filter(derived.site.metrics, meanJulyTemp < 5)
 low_july
+
+hi_july <- dplyr::filter(derived.site.metrics, meanJulyTemp > 45)
+dim(hi_july)
+summary(hi_july)
+
+absurd_july <- dplyr::filter(derived.site.metrics, meanJulyTemp > 500)
+summary(absurd_july) # there is no obvious landscape characteristic that causes unrealistic predictions. Therefore it must be something either about missing covariates or weather covariates (likely when in complex interactions). I can't output all predictions but I should be able to look through at least a subset based on featureid. It would be easiest if I made the above code into a function now that it's "working".
+
+sites_pred <- dplyr::filter(derived.site.metrics, !is.na(meanJulyTemp))
+dim(sites_pred)
+
+# add mean min and max air temp and precip to derived metrics just for comparison and error checking
+
+
+################### PROBLEM ################
+# if allonnet is very large (maybe > 75% of drainage area) the predictions are probably non-sense 
+##########################
+
+################### PROBLEM #################
+# 2-day precip as large as 210 - not sure if this is realistic and if so it might be outside the scope of our predictions
+##################################
+
+# need to check for errors during prediction stage and flag and/or throw out those time series
+
 
 # can't remove catchments based on some featureid in the for loop - maybe because there are no catchments left in that loop causing an error in a function - therefore replace metrics with NA post hoc. Will need to get a list of featureid with these characteristics then replace the NA
 # dplyr::filter(AreaSqKM >= 1 & AreaSqKM < 200 & allonnet < 70) # changed so don't deal with problematically small drainage areas (somre were 0.00006 sq km) - for loop didn't like this!!!!!!!!!
