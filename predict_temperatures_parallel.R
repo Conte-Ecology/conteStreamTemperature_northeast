@@ -156,11 +156,11 @@ library(doParallel)
 library(RPostgreSQL)
 
 # size of chunks
-chunk.size <- 4
+chunk.size <- 20
 n.loops <- ceiling(n.catches / chunk.size)
 
 # set up parallel backend & make database connection available to all workers
-nc <- min(c(detectCores()-1, 12)) # use the maximum number of cores minus 1 or up to 15 because max 16 database connections - changed to 12 since Evan also often using osensei on multiple cores
+nc <- min(c(detectCores()-1, 16)) # use the maximum number of cores minus 1 or up to 15 because max 16 database connections - changed to 12 since Evan also often using osensei on multiple cores
 cl <- makeCluster(nc, type = "PSOCK") # try PSOCK instead of more memory efficient "FORK" to prevent hanging at end: http://www.stat.berkeley.edu/scf/paciorek-parallel-2014.pdf
 registerDoParallel(cl)
 
@@ -185,7 +185,8 @@ derived.site.metrics <- foreach(i = 1:n.loops,
                                "conteStreamTemperature"),
                    .export = c("indexDeployments") # shouldn't be needed after update package
                    #.export = c("derive_metrics_par")#,
-                  # .export=ls(envir=globalenv())
+                   #.export=ls(envir=globalenv(),
+                    #          "indexDeployments")# shouldn't be needed after update package
 ) %dopar% {
   
   #for(i in 1:n.loops) {
@@ -209,17 +210,17 @@ derived.site.metrics <- foreach(i = 1:n.loops,
   }
   catches_string <- paste(catches, collapse = ', ')
   
-  fullDataSyncS <- predictTemp(catches_string=catches_string, springFallBPs=springFallBPs, df_covariates_upstream=df_covariates_upstream, tempDataSync=tempDataSync, featureid_lat_lon=featureid_lat_lon, featureid_huc8=featureid_huc8)
+  fullDataSync <- predictTemp(catches_string=catches_string, springFallBPs=springFallBPs, df_covariates_upstream=df_covariates_upstream, tempDataSync=tempDataSync, featureid_lat_lon=featureid_lat_lon, featureid_huc8=featureid_huc8)
   
   dbClearResult(rs)
   dbDisconnect(con)
   dbUnloadDriver(drv)
   
-  fullDataSync <- data.frame(unclass(fullDataSync))
+  #fullDataSync <- data.frame(unclass(fullDataSync), stringsAsFactors = FALSE)
   
-  fullDataSync2 <- left_join(fullDataSync, select(fullDataSyncS, featureid, date, trend, tempPredicted))
+  #fullDataSync2 <- left_join(fullDataSync, dplyr::select(fullDataSyncS, featureid, date, trend, tempPredicted))
   
-  metrics <- deriveMetrics(fullDataSync = fullDataSync2)
+  metrics <- deriveMetrics(fullDataSync = fullDataSync)
   
   end.time <- Sys.time()
   cat(paste0(end.time, ": Finishing job ", i, " of ", n.loops, ".\n"), file = logFile_Finish, append = TRUE)
@@ -227,6 +228,10 @@ derived.site.metrics <- foreach(i = 1:n.loops,
   return(metrics)
 } # end dopar
 stopCluster(cl)
+
+saveRDS(derived.site.metrics, file = paste0(data_dir, "/derived_site_metrics.RData"))
+write.table(derived.site.metrics, file = paste0(data_dir, "/derived_site_metrics.csv"), sep = ',', row.names = F)
+
 
 # filter
 derived.site.metrics <- left_join(derived.site.metrics, df_covariates_upstream) %>%
@@ -271,8 +276,8 @@ derived.site.metrics <- derived.site.metrics %>%
 metrics.lat.lon <- featureid_lat_lon %>%
   left_join(derived.site.metrics, by = c('featureid')) # reverse this join or full join so get NA for all missing catchments? - doesn't seem to be working correctly yet - check again
 
-saveRDS(metrics.lat.lon, file = paste0(data_dir, "/derived_site_metrics.RData"))
-write.table(metrics.lat.lon, file = paste0(data_dir, "/derived_site_metrics.csv"), sep = ',', row.names = F)
+saveRDS(metrics.lat.lon, file = paste0(data_dir, "/derived_site_metrics2.RData"))
+write.table(metrics.lat.lon, file = paste0(data_dir, "/derived_site_metrics2.csv"), sep = ',', row.names = F)
 
 
 gc()

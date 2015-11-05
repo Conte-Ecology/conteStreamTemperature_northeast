@@ -4,7 +4,7 @@ predictTemp <- function(catches_string, springFallBPs, df_covariates_upstream, t
   drv <- dbDriver("PostgreSQL")
   con <- dbConnect(drv, dbname='sheds', host='felek.cns.umass.edu', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
   
-  qry_daymet <- paste0("SELECT featureid, date, tmax, tmin, prcp, dayl, srad, vp, swe, (tmax + tmin) / 2.0 AS airTemp FROM daymet WHERE featureid IN (", catches_string, ") ;")
+  qry_daymet <- paste0("SELECT featureid, date, tmax, tmin, prcp, dayl, srad, vp, swe, (tmax + tmin) / 2.0 AS airtemp FROM daymet WHERE featureid IN (", catches_string, ") ;")
   rs <- dbSendQuery(con, statement = qry_daymet)
   climateData <- dbFetch(rs, n=-1)
   
@@ -201,32 +201,10 @@ predictTemp <- function(catches_string, springFallBPs, df_covariates_upstream, t
 #     warning(paste0(i, " of ", n.loops, " loops has no predicted temperatures"))
 #   } 
   
-  return(fullDataSyncS)
+  fullDataSyncS <- data.frame(unclass(fullDataSyncS), stringsAsFactors = FALSE)
   
-}
-
-
-
-
-absurd_july <- dplyr::filter(derived.site.metrics, meanJulyTemp > 2000)
-dim(absurd_july)
-summary(absurd_july)
-catches <- unique(absurd_july$featureid)
-
-saveRDS(catches, "localData_2015-09-28/test_catches.RData")
-catches <- readRDS("localData_2015-09-28/test_catches.RData")
-
-catches_string <- paste(catches, collapse = ', ') # move this inside the function and have a stop if number of featureid > 50 (or include years or dates so not automatically predicting over all years and days and pulling massive daymet file)
-
-fullDataSyncS <- predictTemp(catches_string=catches_string, springFallBPs=springFallBPs, df_covariates_upstream=df_covariates_upstream, tempDataSync=tempDataSync, featureid_lat_lon=featureid_lat_lon, featureid_huc8=featureid_huc8)
-
-fullDataSync <- left_join(fullDataSync, select(fullDataSyncS, featureid, date, trend, tempPredicted), by = c("featureid", "date"))
-
-derived.metrics <- deriveMetrics(fullDataSync = fullDataSync)
-
-# for testing and visual inspection
-if(FALSE) {
-  ggplot(fullDataSyncS, aes(temp, tempPredicted)) + geom_point()
-  ggplot(fullDataSyncS, aes(date, tempPredicted)) + geom_point()
-  ggplot(fullDataSyncS, aes(dOY, tempPredicted)) + geom_point() + facet_wrap(~year)
+  fullDataSync <- left_join(fullDataSync, dplyr::select(fullDataSyncS, featureid, date, trend, tempPredicted))
+  
+  return(fullDataSync)
+  
 }
