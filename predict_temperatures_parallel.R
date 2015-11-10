@@ -210,11 +210,15 @@ derived.site.metrics <- foreach(i = 1:n.loops,
   }
   catches_string <- paste(catches, collapse = ', ')
   
-  fullDataSync <- predictTemp(catches_string=catches_string, springFallBPs=springFallBPs, df_covariates_upstream=df_covariates_upstream, tempDataSync=tempDataSync, featureid_lat_lon=featureid_lat_lon, featureid_huc8=featureid_huc8)
+ data_list <- prepData(catches_string=catches_string, springFallBPs=springFallBPs, df_covariates_upstream=df_covariates_upstream, tempDataSync=tempDataSync, featureid_lat_lon=featureid_lat_lon, featureid_huc8=featureid_huc8, rand_ids=rand_ids)
+  
+  fullDataSyncS <- predictTemp(fullDataSyncS = data_list$fullDataSyncS, coef.list= coef.list, rand_ids=rand_ids)
   
   dbClearResult(rs)
   dbDisconnect(con)
-  dbUnloadDriver(drv)
+  #dbUnloadDriver(drv)
+  
+  fullDataSync <- left_join(data_list$fullDataSync, dplyr::select(fullDataSyncS, featureid, date, trend, tempPredicted))
   
   #fullDataSync <- data.frame(unclass(fullDataSync), stringsAsFactors = FALSE)
   
@@ -235,21 +239,11 @@ write.table(derived.site.metrics, file = paste0(data_dir, "/derived_site_metrics
 
 # filter
 derived.site.metrics <- left_join(derived.site.metrics, df_covariates_upstream) %>%
-  dplyr::filter(AreaSqKM >= 1 & AreaSqKM < 200 & allonnet < 70) # changed so don't deal with problematically small drainage areas (somre were 0.00006 sq km) - for loop didn't like this!!!!!!!!!
+  dplyr::filter(AreaSqKM >= 0.5 & AreaSqKM < 200 & allonnet < 70) # changed so don't deal with problematically small drainage areas (somre were 0.00006 sq km) - for loop didn't like this!!!!!!!!!
 
 # look for errors
 low_july <- dplyr::filter(derived.site.metrics, meanJulyTemp < 5)
 low_july
-
-hi_july <- dplyr::filter(derived.site.metrics, meanJulyTemp > 45)
-dim(hi_july)
-summary(hi_july)
-
-absurd_july <- dplyr::filter(derived.site.metrics, meanJulyTemp > 500)
-summary(absurd_july) # there is no obvious landscape characteristic that causes unrealistic predictions. Therefore it must be something either about missing covariates or weather covariates (likely when in complex interactions). I can't output all predictions but I should be able to look through at least a subset based on featureid. It would be easiest if I made the above code into a function now that it's "working".
-
-sites_pred <- dplyr::filter(derived.site.metrics, !is.na(meanJulyTemp))
-dim(sites_pred)
 
 # add mean min and max air temp and precip to derived metrics just for comparison and error checking
 
@@ -258,26 +252,11 @@ dim(sites_pred)
 # if allonnet is very large (maybe > 75% of drainage area) the predictions are probably non-sense 
 ##########################
 
-################### PROBLEM #################
-# 2-day precip as large as 210 - not sure if this is realistic and if so it might be outside the scope of our predictions
-##################################
-
-# need to check for errors during prediction stage and flag and/or throw out those time series
-
-
-# can't remove catchments based on some featureid in the for loop - maybe because there are no catchments left in that loop causing an error in a function - therefore replace metrics with NA post hoc. Will need to get a list of featureid with these characteristics then replace the NA
-# dplyr::filter(AreaSqKM >= 1 & AreaSqKM < 200 & allonnet < 70) # changed so don't deal with problematically small drainage areas (somre were 0.00006 sq km) - for loop didn't like this!!!!!!!!!
-featureid_bad <- df_covariates_upstream %>%
-  dplyr::filter(AreaSqKM < 1 | AreaSqKM >= 200 | allonnet >= 70)
-
-derived.site.metrics <- derived.site.metrics %>%
-  dplyr::filter(!(featureid %in% featureid_bad$featureid))
-
 metrics.lat.lon <- featureid_lat_lon %>%
-  left_join(derived.site.metrics, by = c('featureid')) # reverse this join or full join so get NA for all missing catchments? - doesn't seem to be working correctly yet - check again
+  left_join(derived.site.metrics) # reverse this join or full join so get NA for all missing catchments? - doesn't seem to be working correctly yet - check again
 
-saveRDS(metrics.lat.lon, file = paste0(data_dir, "/derived_site_metrics2.RData"))
-write.table(metrics.lat.lon, file = paste0(data_dir, "/derived_site_metrics2.csv"), sep = ',', row.names = F)
+saveRDS(metrics.lat.lon, file = paste0(data_dir, "/derived_site_metrics.RData"))
+write.table(metrics.lat.lon, file = paste0(data_dir, "/derived_site_metrics.csv"), sep = ',', row.names = F)
 
 
 gc()

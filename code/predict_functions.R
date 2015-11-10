@@ -1,4 +1,4 @@
-predictTemp <- function(catches_string, springFallBPs, df_covariates_upstream, tempDataSync, featureid_lat_lon, featureid_huc8) {
+prepData <- function(catches_string, springFallBPs, df_covariates_upstream, tempDataSync, featureid_lat_lon, featureid_huc8, rand_ids) {
   
   ########## pull daymet records ##########
   drv <- dbDriver("PostgreSQL")
@@ -10,7 +10,7 @@ predictTemp <- function(catches_string, springFallBPs, df_covariates_upstream, t
   
   dbClearResult(rs)
   dbDisconnect(con)
-  dbUnloadDriver(drv)
+  #dbUnloadDriver(drv)
   
   ########## Assign synchronized period ##########
   mean.spring.bp <- mean(dplyr::filter(springFallBPs, finalSpringBP != "Inf")$finalSpringBP, na.rm = T)
@@ -142,6 +142,33 @@ predictTemp <- function(catches_string, springFallBPs, df_covariates_upstream, t
   
   fullDataSyncS <- indexDeployments(fullDataSyncS, regional = TRUE)
   
+  return(list(fullDataSync = fullDataSync, fullDataSyncS = fullDataSyncS))
+}
+
+
+
+
+
+
+
+
+
+predictTemp <- function(fullDataSyncS, coef.list, rand_ids) {
+  
+  
+  if(!exists("fullDataSyncS$sitef")) {
+    fullDataSyncS <- fullDataSyncS %>%
+      left_join(rand_ids$df_site)
+  }
+  if(!exists("fullDataSyncS$hucf")) {
+    fullDataSyncS <- fullDataSyncS %>%
+      left_join(rand_ids$df_huc)
+  }
+  if(!exists("fullDataSyncS$yearf")) {
+    fullDataSyncS <- fullDataSyncS %>%
+      left_join(rand_ids$df_year)
+  }
+  
   ############# Predictions ##############
   #fullDataSyncS <- predictTemp(data = fullDataSyncS, coef.list = coef.list, cov.list = cov.list, featureid_site = featureid_site)
   
@@ -203,8 +230,6 @@ predictTemp <- function(catches_string, springFallBPs, df_covariates_upstream, t
   
   fullDataSyncS <- data.frame(unclass(fullDataSyncS), stringsAsFactors = FALSE)
   
-  fullDataSync <- left_join(fullDataSync, dplyr::select(fullDataSyncS, featureid, date, trend, tempPredicted))
-  
-  return(fullDataSync)
+  return(fullDataSyncS)
   
 }

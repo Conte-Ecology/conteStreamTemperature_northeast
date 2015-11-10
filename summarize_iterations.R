@@ -326,10 +326,109 @@ saveRDS(coef.list.iters, paste0(data_dir, "/coef_iters.RData"))
 
 ########### Predictions ##########
 
+pred <- predictTemp(fullDataSyncS = tempDataSyncS, coef.list = coef.list, rand_ids = rand_ids)
+rmse(pred$temp - pred$tempPredicted)
+rmse(pred$temp - pred$trend)
+
+pred_valid <- predictTemp(fullDataSyncS = tempDataSyncValidS, coef.list = coef.list, rand_ids = rand_ids)
+rmse(pred_valid$temp - pred_valid$tempPredicted)
+rmse(pred_valid$temp - pred_valid$trend)
+
 data <- tempDataSyncS
 df <- tempDataSyncS
 
+######## Validation ##########
 
+df <- tempDataSyncValid %>%
+  left_join(dplyr::select(pred_valid, featureid, date, fixed.ef, site.ef, huc.ef, year.ef, trend, tempPredicted))
+
+df <- df %>%
+  dplyr::mutate(site_day = paste0(df$featureid, "_", df$date))
+site_days <- unique(tempDataSync$site_day)
+sites <- unique(tempDataSync$featureid)
+hucs <- unique(tempDataSync$huc)
+years <- unique(tempDataSync$year)
+
+# overall validation
+
+rmse(df$temp - df$trend)
+rmse(df$temp - df$tempPredicted)
+
+# missing days but sites, hucs, years with data
+valid_miss_days <- df %>%
+  dplyr::filter(!(site_day %in% site_days))
+
+rmse(valid_miss_days$temp - valid_miss_days$trend)
+rmse(valid_miss_days$temp - valid_miss_days$tempPredicted)
+
+# missing sites but hucs and years with data
+
+valid_miss_sites <- df %>%
+  dplyr::filter(!(featureid %in% sites) & huc %in% hucs & year %in% years)
+
+rmse(valid_miss_sites$temp - valid_miss_sites$trend)
+rmse(valid_miss_sites$temp - valid_miss_sites$tempPredicted)
+
+# sites and huc data but missing years
+
+valid_miss_years <- df %>%
+  dplyr::filter(!(year %in% years) & site %in% sites & huc %in% hucs)
+
+rmse(valid_miss_years$temp - valid_miss_years$trend)
+rmse(valid_miss_years$temp - valid_miss_years$tempPredicted)
+
+# no data
+
+valid_miss_all <- df %>%
+  dplyr::filter(!(year %in% years) & !(site %in% sites) & !(huc %in% hucs))
+
+rmse(valid_miss_all$temp - valid_miss_all$trend)
+rmse(valid_miss_all$temp - valid_miss_all$tempPredicted)
+
+
+##################
+g <- ggplot(df, aes(temp, airTemp)) + 
+  geom_point() + 
+  geom_point(aes(temp, trend), colour = "dark red", alpha = 0.5) + 
+  geom_point(aes(temp, tempPredicted), colour = 'blue', alpha = 0.5) + 
+  geom_abline(intercept = 0, slope = 1, colour = 'black') + 
+  theme_bw() + xlab("observered temperature (C)") + 
+  ylab("predicted temperature (C)")
+
+g
+
+#--------- characteristics of sites with good vs. poor predictions ---------
+
+df_poor <- derived.site.metrics %>%
+  dplyr::filter(meanRMSE > quantile(derived.site.metrics$meanRMSE, probs = c(0.9), na.rm = TRUE))
+summary(df_poor)
+
+
+
+# can be off by quite a bit (2C) on any given day but see how bad RMSE is for derived metrics like meanJulyTemp
+
+
+# add observed derived metrics to function and maybe airTemp derived metrics - observed metrics only work for years with data so should only be compared to derived metrics for those years - would have to change the functions for this
+# hack
+valid_obs_pred <- tempDataSyncValid %>%
+  left_join(dplyr::select(pred_valid, featureid, date, fixed.ef, site.ef, huc.ef, year.ef, trend, tempPredicted)) %>%
+  dplyr::mutate(temp_obs = temp,
+                tempPredicted = trend)
+
+# test
+all(valid_obs_pred$trend == valid_obs_pred$tempPredicted)
+
+
+# doesn't work because don't have 30 days of continuous predictions for the rollapply function unless it's gone through the data prep function. - would have to do by year as well since 
+obs_metrics_valid <- deriveMetrics(valid_obs_pred)
+
+foo <- deriveMetrics(fullDataSync = fullDataSync)
+foo <- deriveMetrics(fullDataSync = group_by(df, featureid, year))
+
+bar <- left_join(coef.list$B.site, rand_ids$df_site)
+dplyr::filter(bar, site == "853196")
+
+#------------------- predictions by iteration--------------
 # by iteration
 data <- tempDataSyncValidS
 

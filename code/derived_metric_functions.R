@@ -30,6 +30,15 @@ maxMaxTemp <- byfeatureidYear %>%
 derivedfeatureidMetrics <- left_join(derivedfeatureidMetrics, maxMaxTemp, by = "featureid")
 rm(maxMaxTemp)
 
+# Mean July Air Temp
+meanJulyAir <- byfeatureidYear %>%
+  dplyr::mutate(month = as.numeric(format(date, "%m"))) %>%
+  dplyr::filter(month == 7) %>%
+  dplyr::summarise(JulyTemp = mean(airTemp, na.rm = T)) %>%
+  dplyr::summarise(meanJulyAir = mean(JulyTemp))
+derivedfeatureidMetrics <- left_join(derivedfeatureidMetrics, meanJulyAir, by = "featureid")
+rm(meanJulyAir)
+
 # Mean July Summer Temp
 meanJulyTemp <- byfeatureidYear %>%
   dplyr::mutate(month = as.numeric(format(date, "%m"))) %>%
@@ -38,6 +47,28 @@ meanJulyTemp <- byfeatureidYear %>%
   dplyr::summarise(meanJulyTemp = mean(JulyTemp))
 derivedfeatureidMetrics <- left_join(derivedfeatureidMetrics, meanJulyTemp, by = "featureid")
 rm(meanJulyTemp)
+
+# Mean July Obs Temp
+meanJulyObs <- byfeatureidYear %>%
+  dplyr::mutate(month = as.numeric(format(date, "%m"))) %>%
+  dplyr::filter(month == 7)
+
+nJulyObs <- meanJulyObs %>%
+  dplyr::filter(!is.na(temp)) %>%
+  dplyr::summarise(nJulyObs = n())
+
+nJulyObsYears <- nJulyObs %>%
+  dplyr::filter(nJulyObs >= 25) %>% # at least 25 days with observed data
+  dplyr::summarise(nYearsJulyObs = n())
+
+meanJulyObs <- nJulyObs %>%
+  left_join(meanJulyObs) %>%
+  dplyr::filter(nJulyObs >= 25) %>%
+  summarise(meanJulyObs = mean(temp, na.rm = T)) %>%
+  left_join(nJulyObsYears)
+
+derivedfeatureidMetrics <- left_join(derivedfeatureidMetrics, meanJulyObs, by = "featureid")
+rm(meanJulyObs)
 
 # Mean Aug Temp
 meanAugTemp <- byfeatureidYear %>%
@@ -59,8 +90,8 @@ rm(meanSummerTemp)
 
 # Annual mean 30-day maximum mean daily temperature
 mean30Day <- byfeatureidYear %>%
-  arrange(featureid, year, dOY) %>%
-  mutate(mm30Day = rollapply(data = tempPredicted, 
+  dplyr::arrange(featureid, year, dOY) %>%
+  dplyr::mutate(mm30Day = rollapply(data = tempPredicted, 
                              width = 30, 
                              FUN = mean, 
                              align = "right", 
@@ -202,6 +233,30 @@ if(dim(bar)[1] > 0) {
 rm(bar)
 
 ############# ADD RMSE by Trend in addition to predicted with AR1 #########
+
+# RMSE for each featureid (flag highest)
+bar <- byfeatureidYear %>%
+  filter(!(is.na(temp) & !is.na(trend))) %>%
+  mutate(error = temp - trend)
+
+if(dim(bar)[1] > 0) {
+  error_metrics <- bar %>%
+    dplyr::summarise(RMSE_trend = rmse(error),
+                     MAE_trend = mae(error),
+                     NSE_trend = nse(temp, tempPredicted)) %>%
+    dplyr::summarise(meanRMSE_trend = mean(RMSE_trend, na.rm = T),
+                     meanMAE_trend = mean(MAE_trend, na.rm = T),
+                     meanNSE_trend = mean(NSE_trend, na.rm = T))
+  derivedfeatureidMetrics <- left_join(derivedfeatureidMetrics, dplyr::select(error_metrics, featureid, meanRMSE_trend, meanMAE_trend, meanNSE_trend), by = "featureid")
+} else {
+  derivedfeatureidMetrics$meanRMSE_trend <- NA_real_
+  derivedfeatureidMetrics$meanMAE_trend <- NA_real_
+  derivedfeatureidMetrics$meanNSE_trend <- NA_real_
+  #     derivedfeatureidMetrics <- derivedfeatureidMetrics %>%
+  #       dplyr::mutate(meanRMSE = NA) %>%
+  #       dplyr::mutate(meanRMSE = as.numeric(meanRMSE))
+}
+rm(bar)
 
 ########################
 

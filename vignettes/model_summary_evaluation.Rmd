@@ -1,0 +1,296 @@
+---
+title: "Model Summary and Validation"
+author: "Daniel J Hocking"
+date: "11/9/2015"
+output: html_document
+---
+
+
+Load packages
+
+```{r}
+library(dplyr)
+library(conteStreamTemperature)
+```
+
+load data
+
+```{r}
+data_dir <- "localData_2015-09-28" 
+
+load(paste0(data_dir, "/tempDataSync.RData"))
+
+M.ar1 <- readRDS(paste0(data_dir, "/jags.RData"))
+
+cov.list <- readRDS(paste0(data_dir, "/covariate_list.RData"))
+
+coef.list <- readRDS(paste0(data_dir, "/coef.RData"))
+
+derived.metrics <- readRDS(paste0(data_dir, "/derived_site_metrics.RData"))
+
+breakpoints <- readRDS(paste0(data_dir, "/springFallBPs.RData"))
+
+derived.metrics.obs <- readRDS(paste0(data_dir, "/derived_site_metrics_observed.RData"))
+
+```
+
+
+### Coefficients
+
+Summarize coefficients and make sure they're reasonable
+
+```{r}
+format(coef.list$fix.ef, digits = 2)
+
+format(coef.list$mu.huc, digits = 2)
+
+format(coef.list$sigma.site, digits = 2)
+
+format(coef.list$sigma.huc, digits = 2)
+
+format(coef.list$sigma.year, digits = 2)
+
+format(coef.list$sigma.ar1, digits = 2)
+
+format(coef.list$cor.huc, digits = 2)
+
+format(coef.list$cor.year, digits = 2)
+
+```
+
+Surprisingly no effect of forest cover, but it might get sucked up by the previous 7-day air temperature. It's also possible that there just isn't sufficient power to have forest, agriculture, and hi-development plus interactions and all the random effects in the model.
+
+There is large variablity amoung sites and hucs. Little variation of AR1 among sites.
+
+
+### Check RMSE predictions in R
+
+```{r}
+# Predictions in R
+tempDataSyncS <- predictTemp(fullDataSyncS = tempDataSyncS, coef.list = coef.list, rand_ids = rand_ids)
+
+rmse(tempDataSyncS$temp - tempDataSyncS$tempPredicted) # 0.6398
+  
+```
+
+### Check predictions in JAGS
+
+```{r}
+df.ar1 <- as.data.frame(as.matrix(M.ar1)) # massive
+
+# predictions from JAGS
+temp.predicted.mean <- df.ar1 %>%
+  dplyr::select(starts_with("stream.mu")) %>%
+  colMeans()
+tempDataSyncS$tempPredictedJags <- as.numeric(temp.predicted.mean)
+
+ggplot(tempDataSyncS, aes(temp, tempPredictedJags)) + geom_point() + geom_abline(intercept = 0, slope = 1, colour = "blue")
+
+rmse(tempDataSyncS$temp - tempDataSyncS$tempPredictedJags) # 0.633 - slightly diff than R predictions
+
+```
+
+### Check That Prediction Function Matches JAGS Predictions
+
+```{r}
+ggplot(tempDataSyncS, aes(tempPredictedJags, tempPredicted)) + geom_point() + geom_abline(intercept = 0, slope = 1, colour = "blue")
+
+rmse(tempDataSyncS$tempPredictedJags - tempDataSyncS$tempPredicted)
+```
+
+The predictions are slightly different when calculated in JAGS vs. in R. I think the difference is in calculating them for each iteration then taking the mean (in JAGS) compared with taking the mean coefficients then doing the predictions. 
+
+
+### Test Predictions and RMSE for observed and validation data
+
+```{r}
+rmse(tempDataSyncS$temp - tempDataSyncS$tempPredicted) # 0.63
+rmse(tempDataSyncS$temp - tempDataSyncS$tempPredictedJags)
+rmse(tempDataSyncS$temp - tempDataSyncS$trend) # 1.6
+
+tempDataSyncValidS <- predictTemp(fullDataSyncS = tempDataSyncValidS, coef.list = coef.list, rand_ids = rand_ids)
+rmse(tempDataSyncValidS$temp - tempDataSyncValidS$tempPredicted) # 0.88
+rmse(tempDataSyncValidS$temp - tempDataSyncValidS$trend) # 2.44
+```
+
+Very disappointing validation. Potential problems:
+
+* difficult validation holding out sites, hucs, and years
+* Correlation of airTemp and 7-day air temp with the cubic day of the year
+* don't adequately address things like groundwater, dams, and tidal influence
+* problem with one or more of the functions
+* Imprecise covariates
+* Not adequate QAQC on temperature data
+* model is overfitted, especially with all the random site, huc, and year effects. Overfitted models do well with fitting the data but poorly at predicting new data.
+
+
+### Is there a trade-off with AR1 term by site and other random site effects?
+
+```{r, echo=FALSE}
+df_site_effects <- coef.list$B.site %>%
+  dplyr::left_join(dplyr::select(coef.list$B.ar1, sitef, site, B.ar1 = mean)) %>%
+  dplyr::rename(B.site_intercept = B.site_intercept.site)
+
+ggplot(df_site_effects, aes(B.ar1, B.site_intercept)) + geom_point() + geom_smooth()
+ggplot(df_site_effects, aes(B.ar1, B.site_airTemp)) + geom_point() +geom_smooth()
+ggplot(df_site_effects, aes(B.ar1, B.site_temp7p)) + geom_point() + geom_smooth()
+
+ggplot(df_site_effects, aes(B.site_airTemp, B.site_temp7p)) + geom_point() + geom_smooth()
+```
+
+No obvious trend. It's still possible, but unlikely, that AR1 term is sucking up error that would be better for predictions if included in the other random site effect coefficients.
+
+
+### Additional Validation Details
+
+```{r}
+######## Validation ##########
+
+tempDataSyncValid <- tempDataSyncValid %>%
+  left_join(dplyr::select(tempDataSyncValidS, featureid, date, site.ef, huc.ef, year.ef, trend, tempPredicted))
+
+tempDataSyncValid <- tempDataSyncValid %>%
+  dplyr::mutate(site_day = paste0(tempDataSyncValid$featureid, "_", tempDataSyncValid$date))
+site_days <- unique(tempDataSync$site_day)
+sites <- unique(tempDataSync$featureid)
+hucs <- unique(tempDataSync$huc)
+years <- unique(tempDataSync$year)
+
+# overall validation
+rmse(tempDataSyncValid$temp - tempDataSyncValid$trend)
+rmse(tempDataSyncValid$temp - tempDataSyncValid$tempPredicted)
+
+# missing days but sites, hucs, years with data
+valid_miss_days <- tempDataSyncValid %>%
+  dplyr::filter(!(site_day %in% site_days))
+
+rmse(valid_miss_days$temp - valid_miss_days$trend)
+rmse(valid_miss_days$temp - valid_miss_days$tempPredicted)
+
+# missing sites but hucs and years with data
+valid_miss_sites <- tempDataSyncValid %>%
+  dplyr::filter(!(featureid %in% sites) & huc %in% hucs & year %in% years)
+
+rmse(valid_miss_sites$temp - valid_miss_sites$trend)
+rmse(valid_miss_sites$temp - valid_miss_sites$tempPredicted)
+
+# sites and huc data but missing years
+valid_miss_years <- tempDataSyncValid %>%
+  dplyr::filter(!(year %in% years) & site %in% sites & huc %in% hucs)
+
+rmse(valid_miss_years$temp - valid_miss_years$trend)
+rmse(valid_miss_years$temp - valid_miss_years$tempPredicted)
+
+# no data
+valid_miss_all <- tempDataSyncValid %>%
+  dplyr::filter(!(year %in% years) & !(site %in% sites) & !(huc %in% hucs))
+
+rmse(valid_miss_all$temp - valid_miss_all$trend)
+rmse(valid_miss_all$temp - valid_miss_all$tempPredicted)
+```
+
+Could also look site by site depending how much huc or year data there is but there doesn't seem to be huge variation in the predictive ability with site, huc, or year data missing.
+
+
+### Evaluation of breakpoints
+
+```{r}
+
+
+```
+
+
+### Derived metrics
+
+```{r}
+summary(derived.metrics) # includes VA to ME
+
+derived.metrics <- derived.metrics %>%
+  dplyr::filter(!is.na(AreaSqKM))
+
+summary(derived.metrics)
+```
+
+
+
+### ERROR summary by site and year
+
+```{r}
+tempDataSyncS_resids <- tempDataSyncS %>%
+  group_by(featureid, year) %>%
+  filter(!(is.na(temp) & !is.na(trend))) %>%
+  mutate(error = temp - trend)
+
+if(dim(tempDataSyncS_resids)[1] > 0) {
+  error_metrics_year <- tempDataSyncS_resids %>%
+    dplyr::summarise(RMSE_trend = rmse(error),
+                     MAE_trend = mae(error),
+                     NSE_trend = nse(temp, tempPredicted)) 
+  error_metrics <- error_metrics_year %>%
+    dplyr::summarise(meanRMSE_trend = mean(RMSE_trend, na.rm = T),
+                     meanMAE_trend = mean(MAE_trend, na.rm = T),
+                     meanNSE_trend = mean(NSE_trend, na.rm = T))
+
+  error_metrics_year <- error_metrics_year %>%
+    left_join(df_covariates_upstream) %>%
+    dplyr::mutate(impoundArea = AreaSqKM * allonnet / 100)
+}
+
+summary(error_metrics_year)
+
+```
+
+### characteristics of sites correlated with predictive ability?
+
+```{r}
+ggplot(error_metrics_year, aes(AreaSqKM, RMSE_trend)) + geom_point() + geom_smooth()
+
+ggplot(error_metrics_year, aes(impoundArea, RMSE_trend)) + geom_point() + geom_smooth()
+
+ggplot(error_metrics_year, aes(forest, RMSE_trend)) + geom_point() + geom_smooth()
+
+ggplot(error_metrics_year, aes(year, RMSE_trend)) + geom_point() + geom_smooth()
+
+```
+
+
+### characteristics of sites with good vs. poor predictions
+
+RMSE and other metrics currently include AR1 adjustment - redo with both trend and adjusted
+
+```{r}
+df_poor <- error_metrics_year %>%
+  dplyr::filter(RMSE_trend > quantile(error_metrics_year$RMSE_trend, probs = c(0.9), na.rm = TRUE))
+summary(df_poor)
+```
+
+No obvious landscape characteristics causing poor predictions
+
+
+### Derived Metrics of Observations
+
+Predictions can be off by quite a bit (2+ C) on any given day but how bad is RMSE for derived metrics like meanJulyTemp?
+
+```{r}
+summary(derived.metrics.obs)
+
+rmse(derived.metrics.obs$meanJulyObs - derived.metrics.obs$meanJulyTemp)
+
+ggplot(derived.metrics.obs, aes(meanJulyObs, meanJulyTemp)) + geom_point() + geom_abline(intercept = 0, slope = 1)
+```
+
+Just as bad in July as across all predictions or even worse.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
