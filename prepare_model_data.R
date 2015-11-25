@@ -19,7 +19,7 @@ library(zoo) # for rollapply function
 library(lubridate)
 library(stringr)
 library(devtools)
-install_github("Conte-Ecology/conteStreamTemperature")
+#install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 library(jsonlite)
 
@@ -27,7 +27,7 @@ config <- fromJSON('model_config.json')
 
 # validate = TRUE # get rid of this once model_config.json is ready
 
-data_dir <- "localData_2015-09-28" 
+data_dir <- "localData_2015-11-20" 
 
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
@@ -144,12 +144,18 @@ tempDataBP <- temperatureData %>%
   left_join(dplyr::mutate(data.frame(unclass(tempData)), date = as.Date(date))) %>%
   left_join(covariateData, by = c("featureid")) %>%
   dplyr::mutate(site = as.character(featureid),
-                impoundArea = AreaSqKM * allonnet)
+                impoundArea = AreaSqKM * allonnet / 100)
+
 
 springFallBPs$site <- as.character(springFallBPs$site)
 
 # Join with break points
 tempDataBP <- left_join(tempDataBP, springFallBPs)
+
+# highly buffered sites (springs) and highly variable sites have trouble with the breakpoints. Make day 90 the earliest possible and 330 the latest possible
+tempDataBP <- tempDataBP %>%
+  dplyr::mutate(finalSpringBP = ifelse(finalSpringBP < 90, 90, finalSpringBP),
+                finalFallBP = ifelse(finalFallBP > 330, 330, finalFallBP))
 
 #------------ evaluate break points ---------------
 bp_test <- TRUE
@@ -216,7 +222,7 @@ for(i in 1:length(unique(foo$featureid))) {
 
 # Filter by Drainage area
 tempDataSync <- tempDataSync %>%
-  dplyr::filter(AreaSqKM >= 1 & AreaSqKM < 200 & allonnet < 70) %>%
+  dplyr::filter(AreaSqKM >= 0.5 & AreaSqKM < 200 & allonnet < 50) %>%
   dplyr::filter(!is.na(impoundArea))
 
 var.names <- c("airTemp", 
@@ -258,7 +264,7 @@ df_huc <- tbl_huc12 %>%
   dplyr::mutate(HUC4=as.character(str_sub(huc12, 1, 4)),
                 HUC8=as.character(str_sub(huc12, 1, 8)),
                 HUC10=as.character(str_sub(huc12, 1, 10)),
-                huc = as.character(huc12)) %>%
+                huc = as.character(HUC8)) %>%
   dplyr::rename(HUC12 = huc12)
 
 tempDataSync <- tempDataSync %>%
@@ -272,6 +278,38 @@ tempDataSync <- tempDataSync %>%
                 !is.na(alloffnet),
                 !is.na(surfcoarse))
 #dplyr::select()
+
+#------ Temporarily on use sites vetted by hand outside database ----------- --------#
+
+bad_id <- read.csv("bad_featuireid_year.csv", header = TRUE, stringsAsFactors = FALSE)
+bad_id$id_year <- paste0(bad_id$featureid, "_", bad_id$year)
+
+tempDataSync$id_year <- paste0(tempDataSync$featureid, "_", tempDataSync$year)
+tempDataSync <- tempDataSync %>%
+  dplyr::filter(!(id_year %in% bad_id$id_year))
+
+#-------------------------------------------------------------------------------------
+
+#------------- cut first and last day of each time series ----------------------
+
+tempDataSync <- indexDeployments(tempDataSync, regional = TRUE)
+firstObsRows <- createFirstRows(tempDataSync)
+lastObsRows <- tempDataSync %>% 
+  group_by(deployID) %>% 
+  filter(date == max(date) | is.na(temp)) %>% 
+  select(rowNum)
+
+tempDataSync <- tempDataSync %>%
+  dplyr::filter(!(rowNum %in% firstObsRows),
+                !(rowNum %in% lastObsRows))
+
+# second filter to reduce second and second to last day in each time series
+tempDataSync <- tempDataSync %>% 
+  group_by(deployID) %>% 
+  filter(date != max(date),
+         date != min(date))
+
+#-------------------------------------------------------------------------------
 
 
 keep_columns <- c("featureid"
