@@ -16,7 +16,7 @@ library(conteStreamTemperature)
 load data
 
 ```{r}
-data_dir <- "localData_2015-09-28" 
+data_dir <- "localData_2015-11-20" 
 
 load(paste0(data_dir, "/tempDataSync.RData"))
 
@@ -60,14 +60,14 @@ format(coef.list$cor.year, digits = 2)
 
 Surprisingly no effect of forest cover, but it might get sucked up by the previous 7-day air temperature. It's also possible that there just isn't sufficient power to have forest, agriculture, and hi-development plus interactions and all the random effects in the model.
 
-There is large variablity amoung sites and hucs. Little variation of AR1 among sites.
+There is large variablity among sites and hucs. Little variation of AR1 among sites.
 
 
 ### Check RMSE predictions in R
 
 ```{r}
 # Predictions in R
-tempDataSyncS <- predictTemp(fullDataSyncS = tempDataSyncS, coef.list = coef.list, rand_ids = rand_ids)
+tempDataSyncS <- predictTemp(fullDataSyncS = tempDataSyncS, coef.list = coef.list, rand_ids = rand_ids, Random_AR1 = FALSE)
 
 rmse(tempDataSyncS$temp - tempDataSyncS$tempPredicted) # 0.6398
   
@@ -90,6 +90,24 @@ rmse(tempDataSyncS$temp - tempDataSyncS$tempPredictedJags) # 0.633 - slightly di
 
 ```
 
+
+### JAGS trend predictions
+
+```{r}
+# predictions from JAGS
+temp.trend.mean <- df.ar1 %>%
+  dplyr::select(starts_with("trend")) %>%
+  colMeans()
+tempDataSyncS$tempTrendJags <- NA_real_
+tempDataSyncS[1:length(temp.trend.mean), ]$tempTrendJags <- as.numeric(temp.trend.mean)
+
+ggplot(tempDataSyncS, aes(temp, tempTrendJags)) + geom_point() + geom_abline(intercept = 0, slope = 1, colour = "blue")
+
+rmse(tempDataSyncS$temp - tempDataSyncS$tempTrendJags) # 1.15
+rmse(tempDataSyncS$temp - tempDataSyncS$trend) # 1.19
+
+```
+
 ### Check That Prediction Function Matches JAGS Predictions
 
 ```{r}
@@ -104,13 +122,13 @@ The predictions are slightly different when calculated in JAGS vs. in R. I think
 ### Test Predictions and RMSE for observed and validation data
 
 ```{r}
-rmse(tempDataSyncS$temp - tempDataSyncS$tempPredicted) # 0.63
+rmse(tempDataSyncS$temp - tempDataSyncS$tempPredicted)
 rmse(tempDataSyncS$temp - tempDataSyncS$tempPredictedJags)
-rmse(tempDataSyncS$temp - tempDataSyncS$trend) # 1.6
+rmse(tempDataSyncS$temp - tempDataSyncS$trend) 
 
-tempDataSyncValidS <- predictTemp(fullDataSyncS = tempDataSyncValidS, coef.list = coef.list, rand_ids = rand_ids)
-rmse(tempDataSyncValidS$temp - tempDataSyncValidS$tempPredicted) # 0.88
-rmse(tempDataSyncValidS$temp - tempDataSyncValidS$trend) # 2.44
+tempDataSyncValidS <- predictTemp(fullDataSyncS = tempDataSyncValidS, coef.list = coef.list, rand_ids = rand_ids, Random_AR1 = FALSE)
+rmse(tempDataSyncValidS$temp - tempDataSyncValidS$tempPredicted) 
+rmse(tempDataSyncValidS$temp - tempDataSyncValidS$trend) 
 ```
 
 Very disappointing validation. Potential problems:
@@ -124,12 +142,86 @@ Very disappointing validation. Potential problems:
 * model is overfitted, especially with all the random site, huc, and year effects. Overfitted models do well with fitting the data but poorly at predicting new data.
 
 
+### Plot observed, predicted, and air temperatures
+
+```{r}
+foo <- dplyr::select(tempDataSyncS, featureid, date, fixed.ef, site.ef, huc.ef, year.ef, trend, tempPredicted, tempPredictedJags, tempTrendJags)
+tempDataSync <- tempDataSync %>%
+  dplyr::left_join(foo)
+
+foo <- dplyr::select(tempDataSyncValidS, featureid, date, fixed.ef, site.ef, huc.ef, year.ef, trend, tempPredicted)
+tempDataSyncValid <- tempDataSyncValid %>%
+  dplyr::left_join(foo)
+
+master_data <- dplyr::rbind_list(tempDataSync, tempDataSyncValid)
+
+master_data <- master_data %>%
+  flag_daily_rise(.)
+
+# Median Absolute Deviations for spike detection
+master_data <- master_data %>%
+  dplyr::group_by(featureid, year) %>%
+  dplyr::mutate(MAD_normalized = MAD.roller(temp, 6),
+                MAD_normalized = MAD.roller(temp, 10),
+                MAD_normalized_30 = MAD.roller(temp, 30),
+                flag_MAD = ifelse(MAD_normalized > 10, TRUE, FALSE)) # 10 day moving window
+
+master_data$id_year <- paste0(master_data$featureid, "_", master_data$year)
+
+series <- unique(master_data$id_year)
+n <- length(series)
+for(i in 1:n) {
+  data_1 <- dplyr::filter(master_data, id_year == series[i])
+  g <- ggplot(data_1, aes(date, temp)) + ylim(c(0, 35)) + ggtitle(paste0("featureid: ", data_1$featureid[1], "  year: ", data_1$year[1])) #+ facet_wrap(~year)
+#   if(nrow(bad_MAD_30) > 0) {
+#     g <- g + geom_point(data = bad_MAD_30, aes(datetime, temp), colour = "yellow", size = 5, alpha = 0.5)
+#   }
+  g <- g + geom_point(aes(colour = MAD_normalized)) + geom_line(aes(colour = MAD_normalized)) + 
+    scale_colour_gradient(high = "yellow", low = "blue", limits = c(0, 6)) 
+  
+  # add agency name
+  g <- g +
+    geom_line(aes(date, airTemp), colour = "black") +
+    #geom_line(aes(date, tmax), colour = "gray") +
+    #geom_line(aes(date, tmin), colour = "gray") +
+    geom_line(aes(date, trend), colour = "red") + 
+    xlab("Date") + 
+    ylab("Temperature (C)") +
+    theme_bw()
+  ggsave(paste0(data_dir, "/diagnostics/obs_pred_ts_", series[i], ".png"), plot = g)
+}
+
+
+
+# output daily flags
+d_flags <- df_values3 %>%
+  dplyr::filter(flag_daily_rise == TRUE |
+                  flag_cold_days == TRUE |
+                  flag_hot_days == TRUE |
+                  flag_extreme_days == TRUE) %>%
+  dplyr::select(-row, -temp_prev, -series_prev, -series_start, -median_freq, -min_n90)
+
+# Median Absolute Deviations for spike detection
+
+
+
+```
+
+
+
+
 ### Is there a trade-off with AR1 term by site and other random site effects?
 
 ```{r, echo=FALSE}
+if(Random_AR1) {
 df_site_effects <- coef.list$B.site %>%
   dplyr::left_join(dplyr::select(coef.list$B.ar1, sitef, site, B.ar1 = mean)) %>%
   dplyr::rename(B.site_intercept = B.site_intercept.site)
+} else {
+  df_site_effects <- coef.list$B.site %>%
+  dplyr::left_join(dplyr::select(coef.list$B.ar1, sitef, site, B.ar1 = mean)) %>%
+  dplyr::rename(B.site_intercept = B.site_intercept.site)
+}
 
 ggplot(df_site_effects, aes(B.ar1, B.site_intercept)) + geom_point() + geom_smooth()
 ggplot(df_site_effects, aes(B.ar1, B.site_airTemp)) + geom_point() +geom_smooth()
@@ -139,6 +231,125 @@ ggplot(df_site_effects, aes(B.site_airTemp, B.site_temp7p)) + geom_point() + geo
 ```
 
 No obvious trend. It's still possible, but unlikely, that AR1 term is sucking up error that would be better for predictions if included in the other random site effect coefficients.
+
+Reran the model with AR1 fixed and no change in RMSEs
+
+### RMSE vs. Amount of Observed Data using Trend
+
+```{r}
+obs_errors <- tempDataSyncS %>%
+  group_by(featureid) %>%
+  dplyr::mutate(resids = temp - trend) %>%
+  dplyr::summarise(num_obs = n(),
+                   RMSE = rmse(resids))
+  
+ggplot(obs_errors, aes(num_obs, RMSE)) + geom_point() + geom_smooth()
+
+quantile(obs_errors$RMSE)
+
+bad_sites <- obs_errors %>%
+  dplyr::filter(RMSE >= quantile(obs_errors$RMSE, probs = c(0.99)))
+
+bad_featureid <- bad_sites$featureid
+
+tempDataSync <- tempDataSync %>%
+  left_join(dplyr::select(tempDataSyncS, featureid, date, fixed.ef, site.ef, huc.ef, year.ef, trend, tempPredicted, tempTrendJags))
+
+# plot each time series
+foo <- list()
+bar <- list()
+g <- list()
+for(i in 1:length(bad_featureid)) {
+  foo[[i]] <- dplyr::filter(tempDataSync, featureid == bad_featureid[i])
+  bar[[i]] <- dplyr::filter(tempDataSyncS, featureid == bad_featureid[i])
+  g[[i]] <- ggplot(foo[[i]], aes(date, trend)) + geom_point(colour = "red") + geom_line(colour = "red") + geom_point(aes(date, airTemp), colour = "black") + geom_line(aes(date, temp), colour = "blue") + geom_point(aes(date, temp), colour = "blue") + ggtitle(bad_featureid[i])
+  print(g[[i]])
+}
+
+# check each predictor variable to see why these sites go wrong
+summary(foo[[1]])
+summary(bar[[1]])
+
+# site dragging prediction down. 
+dplyr::filter(df_site_effects, site == bad_featureid[1]) # no idea why site intercept would be estimated to be so low. No reason based on the data
+
+summary(df_site_effects)
+
+# check site & huc specific coefs for problem sites
+tempDataSyncS %>% 
+  group_by(featureid, huc) %>%
+  dplyr::filter(featureid %in% bad_featureid) %>%
+  dplyr::select(starts_with("B.site"), starts_with("B.huc")) %>%
+  dplyr::summarise_each(funs(mean))
+
+# compare to global means
+tempDataSyncS %>%
+  dplyr::select(starts_with("B.site"), starts_with("B.huc")) %>%
+  colMeans()
+
+```
+
+
+### Check if the same featureid have the same problems using the JAGS trend predictions
+
+```{r}
+obs_errors_jags <- tempDataSyncS %>%
+  group_by(featureid) %>%
+  dplyr::mutate(resids = temp - trend) %>%
+  dplyr::summarise(num_obs = n(),
+                   RMSE = rmse(resids))
+  
+ggplot(obs_errors_jags, aes(num_obs, RMSE)) + geom_point() + geom_smooth()
+
+mean(obs_errors_jags$RMSE)
+
+bad_sites_jags <- obs_errors_jags %>%
+  dplyr::filter(RMSE >= quantile(obs_errors_jags$RMSE, probs = c(0.99)))
+
+bad_featureid_jags <- bad_sites_jags$featureid
+
+# same bad sites as in R trend predictions?
+bad_featureid %in% bad_featureid_jags
+cbind(bad_featureid_jags, bad_featureid)
+
+# plot each time series
+foo <- list()
+bar <- list()
+g <- list()
+for(i in 1:length(bad_featureid)) {
+  foo[[i]] <- dplyr::filter(tempDataSync, featureid == bad_featureid_jags[i])
+  bar[[i]] <- dplyr::filter(tempDataSyncS, featureid == bad_featureid_jags[i])
+  g[[i]] <- ggplot(foo[[i]], aes(dOY, trend)) + geom_point(colour = "red") + geom_line(colour = "red") + geom_point(aes(dOY, airTemp), colour = "black") + geom_line(aes(dOY, temp), colour = "blue") + geom_point(aes(dOY, temp), colour = "blue") + ggtitle(bad_featureid_jags[i]) + facet_wrap(~year)
+  print(g[[i]])
+}
+
+# check site & huc specific coefs for problem sites
+tempDataSyncS %>% 
+  group_by(featureid, huc) %>%
+  dplyr::filter(featureid %in% bad_featureid_jags) %>%
+  dplyr::select(starts_with("B.site"), starts_with("B.huc")) %>%
+  dplyr::summarise_each(funs(mean))
+
+# compare to global means
+tempDataSyncS %>%
+  dplyr::select(starts_with("B.site"), starts_with("B.huc")) %>%
+  colMeans()
+
+```
+
+
+### Check if JAGS trend = Predicted trend
+
+```{r}
+ggplot(tempDataSyncS, aes(tempTrendJags, trend)) + geom_point() + geom_abline(intercept = 0, slope = 1, colour = "blue")
+
+rmse(tempDataSyncS$tempTrendJags - tempDataSyncS$trend) # 0.3 seems larger than just using the mean trend from JAGS vs the predictions from the mean coefficients
+
+tempDataSyncS$trend_diff <- tempDataSyncS$tempTrendJags - tempDataSyncS$trend
+
+quantile(tempDataSyncS$trend_diff)
+
+```
 
 
 ### Additional Validation Details
@@ -265,6 +476,9 @@ summary(df_poor)
 ```
 
 No obvious landscape characteristics causing poor predictions
+
+
+## map rmse
 
 
 ### Derived Metrics of Observations
