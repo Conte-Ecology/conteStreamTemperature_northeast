@@ -126,6 +126,8 @@ To estimate all the parameters and their uncertainties, we used a Bayesian analy
 
 To validate our model, we held out 10% of subbasins (HUC8s) at random. We also held out 10% of remaining stream reaches with observed temperature data at random. Additionally, we excluded all 2010 data because it was an especially warm summer across the northeastern U.S. Therefore, we will be able to evaluate how well our model predicts across space and time. This included reaches with no data located within subbasins with and without data and how well the model predicts in warm years without data, which will be important if using this model with future climate predictions. The most challenging validation scenario was at reaches within HUC8s without any data in a year without any data. In total, **XX%** of observations and **XX%** of reaches were held out for validation.
 
+To validate the model and assess its predictive ability, we randomly excluding 10% of site-year combinations, 10% of sites across all years. We also excluded all data from 2010, which was a particularly warm year across the region based on the mean summer daymet air temperatures. This approach was also used by [@DeWeber2014a] and helps to indicate the models predictive ability under future warming conditions. In total, we held out 28% of the data for validation.
+
 ### Derived metrics
 
 We use the meteorological data from daymet to predict daily temperatures for all stream reaches (<400 km$^2$) in the region for the synchronized period of the year from 1980-2013. The predictions are conditional on the specific random effects where available and receive the mean effect for reaches, HUC8s, and years when no data was collected. From these daily predictions, we derive a variety of metrics to characterize the stream thermal regime. These include mean (over the 34 years) July temperature, mean summer temperature, mean number of days per year above a thermal threshold (18, 20, 22 C used by default),frequency of years that the mean daily temperature exceeds each of these thresholds, and the maximum 7-day and 30-day moving means for each year and across all years. We also provide predictions of cold, cool, and warm waters specific to states with regulations related to these classifications.
@@ -167,92 +169,77 @@ Thanks to A. Rosner for thoughtful discussions related to the analysis and infer
 Groups who provided data
 
 
-
-
 Tables
 ------
 
-Table 1: Example Markdown table
+Table 1. Regression summary table with coefficient estimates including the mean, standard deviation (SD), and 95% credible intervals (LCRI = 0.025%, UCRI = 0.975%). 
 
-+--------------+-------+-----+---------+--------+------------+
-|Name          |col2   |col3 |col4     |col5    |Comments    |
-+==============+=======+=====+=========+========+============+
-|Brook Trout   |1      |big  |few      |2.2     |Ecology &   |
-|              |       |     |         |        |life history|
-|              |       |     |         |        |data        |
-|              |       |     |         |        |associated  |
-|              |       |     |         |        |with trout  |
-+--------------+-------+-----+---------+--------+------------+
-|*Desmognathus*|100    |small|many     |0.3     |Widespread  |
-|*fuscus*      |       |     |         |        |salamander  |
-|              |       |     |         |        |species     |
-+--------------+-------+-----+---------+--------+------------+
+----------------------------------------------------------
+                     parameter   Mean    SD   LCRI    UCRI
+------------------------------ ------ ----- ------ -------
+                     Intercept 16.683 0.119 16.444 16.9142
 
-| Name | Phone |
-| ---- | ----- |
-|      |       |
+                          AirT  1.946 0.024  1.899  1.9920
 
-**example created with pander**
+                    7-day AirT  1.377 0.030  1.318  1.4359
 
----------------------------------------
-    parameter       mean     sd    sig 
------------------- ------- ------ -----
-    Intercept      17.7035 0.2486   *  
+                  2-day Precip  0.052 0.002  0.047  0.0559
 
-       AirT        2.1721  0.1472   *  
+                 30-day Precip  0.015 0.006  0.002  0.0271
 
-    7-day AirT     1.5792  0.1362   *  
+                 Drainage Area  0.025 0.097 -0.167  0.2150
 
-   Development     0.1709  0.0559   *  
+                  Forest Cover -0.156 0.047 -0.248 -0.0636
 
-   Agriculture     -0.0583 0.0665      
+                Impounded Area  0.545 0.099  0.356  0.7379
 
- Impoundment Area  0.3678  0.0660   *  
+       2-day Precip x Drainage -0.041 0.002 -0.045 -0.0364
 
-AirT x Impoundment -0.0288 0.0229      
+      30-day Precip x Drainage -0.059 0.006 -0.071 -0.0472
 
-  AirT x Forest    -0.0176 0.0265      
+                 AirT x Forest -0.005 0.016 -0.036  0.0269
 
-AirT x Prcp2 x DA  -0.0036 0.0016   *  
+         AirT x Impounded Area -0.030 0.016 -0.061  0.0003
 
-AirT x prcp30 x DA -0.0020 0.1666      
+AirT x 2-day Precip x Drainage -0.008 0.002 -0.013 -0.0043
 
-       Day         0.0506  0.1070      
+        AirT x 30-day Precip x -0.014 0.004 -0.022 -0.0060
+                      Drainage                            
 
-     Day$^2$       -0.5141 0.0887   *  
+                           AR1  0.768 0.002  0.764  0.7719
+----------------------------------------------------------
+**Random effects:**
 
-      Day^3        -0.0834 0.0778      
+----------------------------------
+  Group       Coef   SD   Variance
+------- ---------- ---- ----------
+   Site  Intercept 1.02      1.037
 
-       AR1         0.7696  0.0073   *  
----------------------------------------
+              AirT 0.30      0.090
 
-**example created with stargazer**
+        7-day AirT 0.35      0.123
 
-\begin{table}[!htbp] \centering 
-  \caption{} 
-  \label{} 
-\begin{tabular}{@{\extracolsep{5pt}} cccc} 
-\\[-1.8ex]\hline 
-\hline \\[-1.8ex] 
-parameter & mean & sd & sig \\ 
-\hline \\[-1.8ex] 
-Intercept & 17.7035 & 0.2486 & \textasteriskcentered  \\ 
-AirT &  2.1721 & 0.1472 & \textasteriskcentered  \\ 
-7-day AirT &  1.5792 & 0.1362 & \textasteriskcentered  \\ 
-Development &  0.1709 & 0.0559 & \textasteriskcentered  \\ 
-Agriculture & -0.0583 & 0.0665 &  \\ 
-Impoundment Area &  0.3678 & 0.0660 & \textasteriskcentered  \\ 
-AirT x Impoundment & -0.0288 & 0.0229 &  \\ 
-AirT x Forest & -0.0176 & 0.0265 &  \\ 
-AirT x Prcp2 x DA & -0.0036 & 0.0016 & \textasteriskcentered  \\ 
-AirT x prcp30 x DA & -0.0020 & 0.1666 &  \\ 
-Day &  0.0506 & 0.1070 &  \\ 
-Day$\hat{\mkern6mu}$2 & -0.5141 & 0.0887 & \textasteriskcentered  \\ 
-Day$^3$ & -0.0834 & 0.0778 &  \\ 
-AR1 &  0.7696 & 0.0073 & \textasteriskcentered  \\ 
-\hline \\[-1.8ex] 
-\end{tabular} 
-\end{table} 
+   HUC8  Intercept 0.48      0.229
+
+              AirT 0.26      0.070
+
+        7-day AirT 0.27      0.071
+
+   Year  Intercept 0.11      0.011
+----------------------------------
+**HUC8 coefficient correlation:**
+
+------------------------------------------------
+          &nbsp;   Intercept   AirT   7-day AirT
+---------------- ----------- ------ ------------
+   Intercept                                
+
+        AirT       0.556                    
+
+  7-day AirT       0.275  0.202             
+------------------------------------------------
+
+
 
 Figures
 -------
