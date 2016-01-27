@@ -19,7 +19,7 @@ library(zoo) # for rollapply function
 library(lubridate)
 library(stringr)
 library(devtools)
-install_github("Conte-Ecology/conteStreamTemperature")
+#install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 library(jsonlite)
 
@@ -27,7 +27,7 @@ config <- fromJSON('model_config.json')
 
 # validate = TRUE # get rid of this once model_config.json is ready
 
-data_dir <- "localData_2015-09-28" 
+data_dir <- "localData_2016-01-19" 
 
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
@@ -85,6 +85,7 @@ tempData <- climateData %>%
 exclude_ids <- as.numeric(gsub(",", "", unique(exclude_sites$catchment_id)))
 tempData <- tempData %>%
   dplyr::filter(!(featureid %in% exclude_ids))
+
 
 #-------------------------------------------------------------------------------------
 
@@ -144,15 +145,22 @@ tempDataBP <- temperatureData %>%
   left_join(dplyr::mutate(data.frame(unclass(tempData)), date = as.Date(date))) %>%
   left_join(covariateData, by = c("featureid")) %>%
   dplyr::mutate(site = as.character(featureid),
-                impoundArea = AreaSqKM * allonnet)
+                impoundArea = AreaSqKM * allonnet / 100)
+
+#-------------Breakpoints ----------------------------
 
 springFallBPs$site <- as.character(springFallBPs$site)
 
 # Join with break points
 tempDataBP <- left_join(tempDataBP, springFallBPs)
 
+# highly buffered sites (springs) and highly variable sites have trouble with the breakpoints. Make day 90 the earliest possible and 330 the latest possible
+tempDataBP <- tempDataBP %>%
+  dplyr::mutate(finalSpringBP = ifelse(finalSpringBP < 90.0 & !is.na(finalSpringBP), 90.0, finalSpringBP),
+                finalFallBP = ifelse(finalFallBP > 330.0 & !is.na(finalFallBP), 330.0, finalFallBP))
+
 #------------ evaluate break points ---------------
-bp_test <- TRUE
+bp_test <- FALSE
 if(bp_test) {
   #str(tempDataBP)
   #str(tempDataSync)
@@ -163,12 +171,10 @@ if(bp_test) {
   ggplot(df, aes(finalFallBP)) + geom_histogram()
   
   foo <- df %>%
-    dplyr::filter(finalSpringBP < 50)
+    dplyr::filter(finalSpringBP < 90 | finalFallBP >= 340)
   
   str(foo)
   unique(foo$featureid)
-  
-  ggplot(foo, aes(dOY, temp)) + geom_point(colour = "blue") + geom_line(colour = "blue") + geom_point(aes(dOY, airTemp)) + geom_vline(aes(finalSpringBP), colour = "red") + geom_vline(aes(finalFallBP), colour = "red") + facet_wrap(facets = ~ featureid + year)
   
   # manually assign springBP to those with clear errors in assignment
   tempDataBP[which(tempDataBP$featureid == "752852" & tempDataBP$year == 2012), "finalSpringBP"] <- mean(tempDataBP[which(tempDataBP$featureid == "752852" & tempDataBP$year != 2012), "finalSpringBP"]$finalSpringBP, na.rm = TRUE)
@@ -180,16 +186,9 @@ if(bp_test) {
   tempDataBP[which(tempDataBP$featureid == "834122" & tempDataBP$year == 2000), "finalSpringBP"] <- mean(tempDataBP[which(tempDataBP$featureid == "834122" & tempDataBP$year != 2000), "finalSpringBP"]$finalSpringBP, na.rm = TRUE)
   tempDataBP[which(tempDataBP$featureid == "834122" & tempDataBP$year == 2000), "sourceSpringBP"] <- "site mean"
   
-  # visually inspect fall BP at edge of year
-  foo <- df %>%
-    dplyr::filter(finalFallBP >= 340)
-  
-  str(foo)
-  unique(foo$featureid)
-  
   for(i in 1:length(unique(foo$featureid))) {
     bar <- dplyr::filter(foo, featureid == unique(foo$featureid)[i])
-  g <- ggplot(bar, aes(dOY, temp)) + geom_point(colour = "blue") + geom_line(colour = "blue") + geom_point(aes(dOY, airTemp))  + geom_vline(aes(xintercept = bar$finalFallBP[1]), colour = "red")
+  g <- ggplot(bar, aes(dOY, temp)) + geom_point(colour = "blue") + geom_line(colour = "blue") + geom_point(aes(dOY, airTemp))  + geom_vline(aes(xintercept = bar$finalFallBP[1]), colour = "red") + geom_vline(aes(xintercept = bar$finalSpringBP[1]), colour = "red")
   print(g)
 } # all look reasonable
   
@@ -200,24 +199,28 @@ if(bp_test) {
 tempDataSync <- dplyr::filter(tempDataBP, dOY >= finalSpringBP & dOY <= finalFallBP)
 
 # check very low temperatures
-foo <- tempDataSync %>%
-  dplyr::filter(temp <= 1) %>%
-  dplyr::select(featureid, year, date, dOY, temp, airTemp, finalSpringBP, finalFallBP, sourceSpringBP, sourceFallBP) 
-
-str(foo)
-unique(foo$featureid)
-
-for(i in 1:length(unique(foo$featureid))) {
-  bar <- dplyr::filter(foo, featureid == unique(foo$featureid)[i])
-  g <- ggplot(bar, aes(dOY, temp)) + geom_point(colour = "blue") + geom_line(colour = "blue") + geom_point(aes(dOY, airTemp))  + geom_vline(aes(xintercept = bar$finalSpringBP[1]), colour = "red")
-  print(g)
-} # all look reasonable
+# foo <- tempDataSync %>%
+#   dplyr::filter(temp <= 1) %>%
+#   dplyr::select(featureid, year, date, dOY, temp, airTemp, finalSpringBP, finalFallBP, sourceSpringBP, sourceFallBP) 
+# 
+# str(foo)
+# unique(foo$featureid)
+# 
+# for(i in 1:length(unique(foo$featureid))) {
+#   bar <- dplyr::filter(foo, featureid == unique(foo$featureid)[i])
+#   g <- ggplot(bar, aes(dOY, temp)) + geom_point(colour = "blue") + geom_line(colour = "blue") + geom_point(aes(dOY, airTemp))  + geom_vline(aes(xintercept = bar$finalSpringBP[1]), colour = "red")
+#   print(g)
+# } # all look reasonable
 
 
 # Filter by Drainage area
 tempDataSync <- tempDataSync %>%
-  dplyr::filter(AreaSqKM >= 1 & AreaSqKM < 200 & allonnet < 70) %>%
-  dplyr::filter(!is.na(impoundArea))
+  dplyr::filter(AreaSqKM >= 0.5 & AreaSqKM < 200 & allonnet < 50) %>%
+  dplyr::filter(!is.na(impoundArea)) %>%
+  dplyr::mutate(featureid_year = paste0(featureid, "_", year)) %>%
+  dplyr::filter(!(featureid %in% exclude_ids))
+
+#---------------------------------------------------------------------------------------
 
 var.names <- c("airTemp", 
                #"airTempLagged1", 
@@ -258,7 +261,7 @@ df_huc <- tbl_huc12 %>%
   dplyr::mutate(HUC4=as.character(str_sub(huc12, 1, 4)),
                 HUC8=as.character(str_sub(huc12, 1, 8)),
                 HUC10=as.character(str_sub(huc12, 1, 10)),
-                huc = as.character(huc12)) %>%
+                huc = as.character(HUC8)) %>%
   dplyr::rename(HUC12 = huc12)
 
 tempDataSync <- tempDataSync %>%
@@ -273,8 +276,92 @@ tempDataSync <- tempDataSync %>%
                 !is.na(surfcoarse))
 #dplyr::select()
 
+#------ Temporarily only use sites vetted by hand outside database ----------- --------#
+
+bad_id <- read.csv("bad_featuireid_year.csv", header = TRUE, stringsAsFactors = FALSE)
+bad_id$id_year <- paste0(bad_id$featureid, "_", bad_id$year)
+
+tempDataSync$id_year <- paste0(tempDataSync$featureid, "_", tempDataSync$year)
+tempDataSync <- tempDataSync %>%
+  dplyr::filter(!(id_year %in% bad_id$id_year))
+
+#-------------------------------------------------------------------------------------
+
+#------------- cut first and last day of each time series ----------------------
+
+tempDataSync <- indexDeployments(tempDataSync, regional = TRUE)
+firstObsRows <- createFirstRows(tempDataSync)
+lastObsRows <- tempDataSync %>% 
+  group_by(deployID) %>% 
+  filter(date == max(date) | is.na(temp)) %>% 
+  select(rowNum)
+
+tempDataSync <- tempDataSync %>%
+  dplyr::filter(!(rowNum %in% firstObsRows),
+                !(rowNum %in% lastObsRows))
+
+# second filter to reduce second and second to last day in each time series
+tempDataSync <- tempDataSync %>% 
+  group_by(deployID) %>% 
+  filter(date != max(date),
+         date != min(date))
+
+#-------------------------------------------------------------------------------
+
+
+#----------- exclude unnaturally warm sites ------------------
+# sites may be warm due to impoundments, effluent, or loggers in the sun (frequently warmer than the air temp)
+# exclude excessively warm sites (due to impoundments, effluent, sun, etc.)
+df_warm <- flag_warm_influence(data = dplyr::group_by(tempDataSync, featureid_year), vals = "temp", refs = "airTemp", threshold = 0.75)
+
+tempDataSync <- tempDataSync %>%
+  dplyr::group_by(featureid_year) %>%
+  dplyr::mutate(MAD_normalized = MAD.roller(temp, 6),
+                MAD_normalized_10 = MAD.roller(temp, 10),
+                MAD_normalized_30 = MAD.roller(temp, 30),
+                flag_MAD = ifelse(MAD_normalized > 10, TRUE, FALSE))
+
+series <- unique(df_warm[which(df_warm$prop_warm >0.5 & df_warm$prop_warm < 0.75), ]$featureid_year)
+n <- length(series)
+dir.create(path = file.path(data_dir, "warm_sites"))
+for(i in 1:n) {
+  data_1 <- dplyr::filter(tempDataSync, featureid_year == series[i])
+  g <- ggplot(data_1, aes(date, temp)) + ylim(c(0, 35)) + ggtitle(paste0("featureid: ", data_1$featureid[1], " | year: ", data_1$year[1], " | prop_warm: ", round(df_warm[which(df_warm$featureid_year == series[i]), ]$prop_warm, digits = 2))) #+ facet_wrap(~year)
+  #   if(nrow(bad_MAD_30) > 0) {
+  #     g <- g + geom_point(data = bad_MAD_30, aes(datetime, temp), colour = "yellow", size = 5, alpha = 0.5)
+  #   }
+  g <- g + geom_point(aes(colour = MAD_normalized_10)) + geom_line(aes(colour = MAD_normalized_10)) + 
+    scale_colour_gradient(high = "yellow", low = "blue", limits = c(0, 6)) 
+  
+  # add agency name
+  g <- g +
+    geom_line(aes(date, airTemp), colour = "black") +
+    #geom_line(aes(date, tmax), colour = "gray") +
+    #geom_line(aes(date, tmin), colour = "gray") +
+    #geom_line(aes(date, trend), colour = "red") + 
+    xlab("Date") + 
+    ylab("Temperature (C)") +
+    theme_bw()
+  ggsave(paste0(data_dir, "/warm_sites/", series[i], ".png"), plot = g)
+}
+
+bad_featureid_year <- c("738125_2012", "750893_2010", "750978_2008", "750978_2010", "777209_2013", "757508_2005", "467429_2005", "738115_2012", "870984_2011", "870984_2011")
+tempDataSync <- tempDataSync %>%
+  dplyr::left_join(df_warm) %>%
+  dplyr::filter(flag_warm == FALSE,
+                !(featureid_year %in% bad_featureid_year)) %>%
+  dplyr::select(-flag_warm, -featureid_year) 
+
+length(unique(temperatureData$featureid))
+length(unique(tempDataSync$featureid))
+#length(unique(tempDataBP2$featureid))
+
+#--------------------------------------------------------------
+
+#-------------- remove site-year combos with fewer than 4 data points remaining --------
 
 keep_columns <- c("featureid"
+                  , "featureid_year"
                   , "date"
                   , "year"
                   , "airTemp"
@@ -328,12 +415,14 @@ tempDataSync <- as.data.frame(unclass(tempDataSync), stringsAsFactors = FALSE)
 ### Separate data for fitting (training) and validation
 #If validating:
 if (config[['validate']]) {
-  validate.frac.sites <- 0.15
-  validate.frac.huc <- 0.10
+  validate.frac.site.years <- 0.10
+  validate.frac.sites <- 0.10
+  #validate.frac.huc <- 0.05
   
   # leave out sites and hucs at random
+  n.fit.site.years <- floor(length(unique(tempDataSync$featureid_year)) * (1 - validate.frac.site.years))
   n.fit.sites <- floor(length(unique(tempDataSync$site)) * (1 - validate.frac.sites))
-  n.fit.hucs <- floor(length(unique(tempDataSync$huc)) * (1 - validate.frac.huc))
+  # n.fit.hucs <- floor(length(unique(tempDataSync$huc)) * (1 - validate.frac.huc))
   
   # leave out especially warm year (summer) across the regional
   foo <- tempData %>%
@@ -356,19 +445,23 @@ if (config[['validate']]) {
   
   
   # random TO KEEP
-  set.seed(2346)
+  
+  ##### add site_year combos for sites with multiple years and maybe part timeseries (half a time series or month randomly left out)
+  
+  set.seed(23461346)
+  site.year.fit <- sample(unique(tempDataSync$featureid_year), n.fit.site.years, replace = FALSE)
   site.fit <- sample(unique(tempDataSync$site), n.fit.sites, replace = FALSE) # select sites to hold back for testing 
-  huc.fit <- sample(unique(tempDataSync$huc), n.fit.hucs, replace = FALSE) # select hucs to hold back for testing 
+ # huc.fit <- sample(unique(tempDataSync$huc), n.fit.hucs, replace = FALSE) # select hucs to hold back for testing 
   year.valid <- "2010"
   
   tempDataSyncValid <- tempDataSync %>%
-    dplyr::filter(!(site %in% site.fit) | !(huc %in% huc.fit) | year == year.valid) # data for validation
+    dplyr::filter(!(featureid_year %in% site.year.fit) | !(site %in% site.fit) | year == year.valid) # data for validation # | !(huc %in% huc.fit)
   
   #featureid_date <- paste0(tempDataSync$featureid, "_", tempDataSync$date)
   #valid_set <- unique(tempDataSyncValid$featureid)
   
   tempDataSync <- tempDataSync %>%
-    dplyr::filter(site %in% site.fit & huc %in% huc.fit & year != year.valid)   # data for model fitting (calibration)
+    dplyr::filter(featureid_year %in% site.year.fit & site %in% site.fit & year != year.valid)   # data for model fitting (calibration) & huc %in% huc.fit
   
   print(paste0(round(nrow(tempDataSyncValid)/(nrow(tempDataSync) + nrow(tempDataSyncValid))*100, digits = 1), "% of data points held out for validation"))
   

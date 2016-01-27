@@ -10,14 +10,13 @@
 # parse command line arguments
 
 library(ggplot2)
-library(ggmcmc)
 library(dplyr)
 library(devtools)
 #install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 library(rjags)
 
-data_dir <- "localData_2015-09-28" 
+data_dir <- "localData_2016-01-19" 
 
 args <- commandArgs(trailingOnly = TRUE)
 
@@ -69,8 +68,8 @@ if(test_jags_pred) {
   temps <- data.frame(tempDataSyncS$temp, temp.predicted.mean)
   names(temps) <- c("temp", "temp.predicted")
   
-  ggplot(temps, aes(temp, temp.predicted)) + geom_point() + geom_abline(intercept = 0, slope = 1, colour = "blue")
-  
+  g <- ggplot(temps, aes(temp, temp.predicted)) + geom_point() + geom_abline(intercept = 0, slope = 1, colour = "blue")
+  print(g)
   rmse(temps$temp - temps$temp.predicted) # 0.645
 }
 
@@ -81,6 +80,38 @@ if(test_jags_pred) {
 cov.list
 
 #str(coef.list)
+
+########## raw tau and xi ##########
+
+tau.b.year.raw <- df.ar1 %>%
+  dplyr::select(starts_with("tau.B.year.raw")) %>%
+  colMeans()
+tau.b.year.raw <- as.data.frame(matrix(tau.b.year.raw, sqrt(length(tau.b.year.raw)), sqrt(length(tau.b.year.raw))))
+names(tau.b.year.raw) <- cov.list$year.ef
+row.names(tau.b.year.raw) <- cov.list$year.ef
+tau.b.year.raw <- round(tau.b.year.raw, digits=3)
+tau.b.year.raw
+
+tau.b.huc.raw <- df.ar1 %>%
+  dplyr::select(starts_with("tau.B.huc.raw")) %>%
+  colMeans()
+tau.b.huc.raw <- as.data.frame(matrix(tau.b.huc.raw, sqrt(length(tau.b.huc.raw)), sqrt(length(tau.b.huc.raw))))
+names(tau.b.huc.raw) <- cov.list$huc.ef
+row.names(tau.b.huc.raw) <- cov.list$huc.ef
+tau.b.huc.raw <- round(tau.b.huc.raw, digits=3)
+tau.b.huc.raw
+
+xi.huc <- df.ar1 %>%
+  dplyr::select(starts_with("xi.huc")) %>%
+  colMeans()
+xi.huc
+
+xi.year <- df.ar1 %>%
+  dplyr::select(starts_with("xi.year")) %>%
+  colMeans()
+xi.year
+
+saveRDS(list(tau.b.huc.raw=tau.b.huc.raw, tau.b.year.raw=tau.b.year.raw, xi.huc=xi.huc, xi.year=xi.year), file = paste0(data_dir, "/raw_scale_est.RData"))
 
 ########## Fixed Effects ##############
 # Extract fixed effects coefficients (all iterations as rows)
@@ -192,6 +223,55 @@ sigma.b.huc$LCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.025, na.rm =
 sigma.b.huc$UCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.975, na.rm = T))
 
 ######## Random year Effects #########
+if(length(cov.list$year.ef) == 1) {
+  # extract year effect coefficients
+  B.year1 <- df.ar1 %>%
+    dplyr::select(starts_with("B.year"))
+  str(B.year1)
+  
+  # organize: row = year, column = year covariate, list position = iteration
+  B.year.list <- lapply(seq_len(nrow(B.year1)), function(j) B.year1[j, ])
+  years <- unique(as.character(tempDataSyncS$year))
+  B.year <- as.data.frame(matrix(NA, nrow = length(rand_ids$df_year$yearf), ncol = length(cov.list$year.ef) + 1))
+  names(B.year) <- c("yearf", paste("B.year", cov.list$year.ef, sep = "_"))
+  B.year$yearf <- rand_ids$df_year$yearf
+  for(j in 1:length(B.year.list)) {
+    for(i in 1:length(cov.list$year.ef)) { #loop through coefficients
+      B.year[ , i+1] <- as.numeric(unname(t(dplyr::select(B.year.list[[j]], ends_with(paste0(i, "]"))))))
+    }
+    B.year.list[[j]] <- B.year
+  }
+  
+  # convert to array then get summary of each year
+  n.iter <- length(B.year.list)
+  n.year.params <- ncol(B.year.list[[1]])
+  n.years <- length(unique(years))
+  
+  foo <- array(unlist(B.year.list), dim = c(n.years, n.year.params, n.iter))
+  B.year.means.year <- apply(foo, 1:2, mean, na.rm = TRUE) # not sure if I will use this but will be what's used for web app predictions
+  #B.year.means.test <- colMeans(B.year.means.year[ , -1]) # same as B.year.means
+  
+  # get means for each coef within each iteration
+  B.year.list.means <- lapply(B.year.list, colMeans, na.rm = T)
+  foo <- as.data.frame(matrix(unlist(B.year.list.means), ncol = length(B.year.list.means[[1]]), byrow = TRUE)[ , -1])
+  colnames(foo) <- names(B.year.list[[1]])[-1]
+  B.year.means <- data.frame(coef = names(B.year.list[[1]])[-1])
+  B.year.means$mean <- colMeans(foo, na.rm = T) # should be ~0
+  B.year.means$sd <- apply(foo, 2, sd, na.rm = T)
+  B.year.means$LCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.025, na.rm = T))
+  B.year.means$UCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.975, na.rm = T))
+  
+  # standard deviations
+  B.year.list.sd <- lapply(B.year.list, FUN = function(x) apply(x, 2, sd, na.rm = T))
+  foo <- as.data.frame(matrix(unlist(B.year.list.sd), ncol = length(B.year.list.sd[[1]]), byrow = TRUE)[ , -1])
+  colnames(foo) <- names(B.year.list[[1]])[-1]
+  sigma.b.year <- data.frame(coef = names(B.year.list[[1]])[-1])
+  sigma.b.year$mean.sd <- colMeans(foo, na.rm = T)
+  sigma.b.year$sd <- apply(foo, 2, sd, na.rm = T)
+  sigma.b.year$LCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.025, na.rm = T))
+  sigma.b.year$UCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.975, na.rm = T))
+  
+} else {
 # extract year effect coefficients
 B.year1 <- df.ar1 %>%
   dplyr::select(starts_with("B.year"))
@@ -238,7 +318,7 @@ sigma.b.year$mean.sd <- colMeans(foo, na.rm = T)
 sigma.b.year$sd <- apply(foo, 2, sd, na.rm = T)
 sigma.b.year$LCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.025, na.rm = T))
 sigma.b.year$UCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.975, na.rm = T))
-
+}
 
 ######## Random AR1 Effects #########
 # extract site effect coefficients
@@ -265,6 +345,12 @@ sigma.ar1 <- df.ar1 %>%
   dplyr::select(starts_with("sigma.ar1")) %>%
   colMeans()
 
+############### if AR1 not random by site ###########
+B.ar1 <- data.frame(coef = "ar1", mean = rowMeans(B.ar1.iter[1,]), sd = sd(B.ar1.iter[1, ]), LCRI = quantile(as.numeric(B.ar1.iter[1,]), probs = c(0.025)), UCRI = quantile(as.numeric(B.ar1.iter[1,]), probs = c(0.975))) 
+
+mu.ar1 <- B.ar1
+
+#####################
 
 # cor.huc
 # Make correlation matrix of random huc effects
@@ -292,7 +378,7 @@ cor.year
 
 
 ########### Make Coef List #########
-
+mu.year <- B.year.means
 fix.ef <- rbind(B.0.fixed, mu.huc, mu.year, mu.ar1)
 
 coef.list <- list(fix.ef = fix.ef
@@ -314,8 +400,13 @@ coef.list <- list(fix.ef = fix.ef
 
 saveRDS(coef.list, file = paste0(data_dir, "/coef.RData"))
 
-coef.list.iters <- list(B.0, B.site.list, B.huc.list, B.year.list, B.ar1.iter, mu.huc, mu.year, mu.ar1)
+coef.list.iters <- list(B.0=B.0, B.site.list=B.site.list, B.huc.list=B.huc.list, B.year.list=B.year.list, B.ar1.iter=B.ar1.iter, mu.huc=mu.huc, mu.year=mu.year) # mu.ar1
 saveRDS(coef.list.iters, paste0(data_dir, "/coef_iters.RData"))
+
+
+
+
+
 
 
 

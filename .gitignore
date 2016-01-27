@@ -7,13 +7,6 @@ modelPredictionTimeseries/
 .Rapp.history
 *.RData
 *.csv
-*.txt
-*.jpg
-*.jpeg
-*.tiff
-*.tif
-*.eps
-*.png
 *.doc
 *.docx
 *.ppt
@@ -39,5 +32,7 @@ maps/
 UMassWork/
 rawDataWork/
 Derived_Metric_Summary.html
-localData*
 Data_Raw/
+*localData*
+DFW*
+

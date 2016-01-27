@@ -2,7 +2,7 @@ prepData <- function(catches_string, springFallBPs, df_covariates_upstream, temp
   
   ########## pull daymet records ##########
   drv <- dbDriver("PostgreSQL")
-  con <- dbConnect(drv, dbname='sheds', host='felek.cns.umass.edu', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+  con <- dbConnect(drv, dbname='sheds', host='osensei.cns.umass.edu', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
   
   qry_daymet <- paste0("SELECT featureid, date, tmax, tmin, prcp, dayl, srad, vp, swe, (tmax + tmin) / 2.0 AS airtemp FROM daymet WHERE featureid IN (", catches_string, ") ;")
   rs <- dbSendQuery(con, statement = qry_daymet)
@@ -153,7 +153,7 @@ prepData <- function(catches_string, springFallBPs, df_covariates_upstream, temp
 
 
 
-predictTemp <- function(fullDataSyncS, coef.list, rand_ids) {
+predictTemp <- function(fullDataSyncS, coef.list, rand_ids, Random_AR1 = FALSE) {
   
   
   if(!exists("fullDataSyncS$sitef")) {
@@ -175,9 +175,9 @@ predictTemp <- function(fullDataSyncS, coef.list, rand_ids) {
   fixed.ef <- as.numeric(coef.list$B.fixed$mean) # separate out the iteration or do for mean/median
   
   # add specific random effects to the dataframe
-  fullDataSyncS <- left_join(fullDataSyncS, coef.list$B.site, by = "sitef")
-  fullDataSyncS <- left_join(fullDataSyncS, coef.list$B.huc, by = "hucf") # problem with validation data, need to use the mean when huc don't match
-  fullDataSyncS <- left_join(fullDataSyncS, coef.list$B.year, by = "yearf")
+  fullDataSyncS <- left_join(fullDataSyncS, coef.list$B.site)
+  fullDataSyncS <- left_join(fullDataSyncS, coef.list$B.huc) # problem with validation data, need to use the mean when huc don't match
+  fullDataSyncS <- left_join(fullDataSyncS, coef.list$B.year)
   
   
   for (j in 2:length(names(coef.list$B.site))) {
@@ -211,14 +211,21 @@ predictTemp <- function(fullDataSyncS, coef.list, rand_ids) {
                           tempPredicted = trend,
                           prev.temp = ifelse(newDeploy == 1, NA, prev.temp),
                           prev.err = ifelse(newDeploy == 1, NA, prev.err))
-  #B.ar1.sub <- data.frame(sitef = rand_ids$df_site$sitef)
-  B.ar1.sub <- coef.list$B.ar1 %>%
-    dplyr::select(sitef, mean) %>%
-    dplyr::rename(B.ar1 = mean)
-  fullDataSyncS <- left_join(fullDataSyncS, B.ar1.sub, by = c("sitef"))
-  fullDataSyncS <- fullDataSyncS %>%
-    dplyr::mutate(B.ar1 = ifelse(is.na(B.ar1), mean(B.ar1.sub$B.ar1, na.rm = T), B.ar1)) %>%
-    dplyr::arrange(featureid, date)
+  
+  if(Random_AR1) {
+    #B.ar1.sub <- data.frame(sitef = rand_ids$df_site$sitef)
+    B.ar1.sub <- coef.list$B.ar1 %>%
+      dplyr::select(sitef, mean) %>%
+      dplyr::rename(B.ar1 = mean)
+    fullDataSyncS <- left_join(fullDataSyncS, B.ar1.sub, by = c("sitef"))
+    fullDataSyncS <- fullDataSyncS %>%
+      dplyr::mutate(B.ar1 = ifelse(is.na(B.ar1), mean(B.ar1.sub$B.ar1, na.rm = T), B.ar1)) %>%
+      dplyr::arrange(featureid, date) 
+  } else {
+    fullDataSyncS$B.ar1 <- coef.list$B.ar1$mean
+    fullDataSyncS <- fullDataSyncS %>% dplyr::arrange(featureid, date) 
+  }
+
   
   fullDataSyncS[which(!is.na(fullDataSyncS$prev.err)), ]$tempPredicted <- fullDataSyncS[which(!is.na(fullDataSyncS$prev.err)), ]$trend + fullDataSyncS[which(!is.na(fullDataSyncS$prev.err)), ]$B.ar1 * fullDataSyncS[which(!is.na(fullDataSyncS$prev.err)), ]$prev.err
   
@@ -227,6 +234,8 @@ predictTemp <- function(fullDataSyncS, coef.list, rand_ids) {
 #   if(mean.pred == "NaN") {
 #     warning(paste0(i, " of ", n.loops, " loops has no predicted temperatures"))
 #   } 
+  
+  fullDataSyncS <- dplyr::arrange(fullDataSyncS, rowNum)
   
   fullDataSyncS <- data.frame(unclass(fullDataSyncS), stringsAsFactors = FALSE)
   

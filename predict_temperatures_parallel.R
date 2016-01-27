@@ -2,6 +2,9 @@
 
 # usage: RScript test_1.R <working directory> <inputs.json> <outputs.json>
 
+rm(list=ls())
+gc()
+
 # jsonlite is much better than rjson
 # library(rjson)
 library(jsonlite)
@@ -15,10 +18,10 @@ library(lubridate)
 #library(DataCombine) # for the slide function
 library(RPostgreSQL)
 library(devtools)
-#install_github("Conte-Ecology/conteStreamTemperature")
+install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 
-data_dir <- "localData_2015-09-28" 
+data_dir <- "localData_2016-01-19" 
 
 args <- commandArgs(TRUE)
 
@@ -53,30 +56,17 @@ springFallBPs <- readRDS(input_file)
 
 ########## connect to database ##########
 drv <- dbDriver("PostgreSQL")
-con <- dbConnect(drv, dbname="sheds", host='ecosheds.org', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+con <- dbConnect(drv, dbname="sheds", host='osensei.cns.umass.edu', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
 
 ########## Get List of featureid to predict ##########
 # Get list of unique catchments with daymet data
 qry <- "SELECT DISTINCT featureid FROM daymet;" # add join with drainage area and filter to those < 400
 result <- dbSendQuery(con, qry)
 catchments <- fetch(result, n=-1)
-catchments <- as.character(catchments$featureid)
-
-catchmentid = catchments # until make into a function
-
-#retreiveDaymet <- function(catchmentid) { # make into a function
-n.catches <- length(catchmentid)
-#if(n.catches == 1) {
-#  tbl_daymet <- tbl(db, 'daymet') %>%
-#    dplyr::filter(featureid == catchmentid) %>%
-#    dplyr::mutate(airTemp = (tmax + tmin)/2) %>%
-#} else {
-#  tbl_daymet <- tbl(db, 'daymet') %>%
-#    dplyr::filter(featureid %in% catchmentid) %>%
-#    dplyr::mutate(airTemp = (tmax + tmin)/2) %>%
-#}
+daymet_catchments <- as.character(catchments$featureid)
 
 ########## Get HUC Info ##########
+
 qry_huc <- paste0("SELECT featureid, huc12 FROM catchment_huc12;")
 
 rs <- dbSendQuery(con, statement = qry_huc)
@@ -135,6 +125,18 @@ featureid_site <- tempDataSyncS %>%
   dplyr::distinct() %>%
   dplyr::mutate(site = as.character(site))
 
+
+# reduce number of catchments to loop through to only interpolation
+catchmentid <- df_covariates_upstream %>%
+  dplyr::mutate(impoundArea = allonnet * AreaSqKM) %>%
+  dplyr::filter(featureid %in% daymet_catchments,
+                #AreaSqKM > 0.001,
+                AreaSqKM <= 400,
+                allonnet < 70)
+
+catchmentid <- unique(catchmentid$featureid)
+n.catches <- length(catchmentid)
+
 ########## Temporary save for testing ########## 
 # temporary save entire environment so don't have to pull from dataframe for testing
 save.image(file.path(getwd(), paste0(data_dir, "/db_pull_for_predictions.RData")))
@@ -156,7 +158,7 @@ library(doParallel)
 library(RPostgreSQL)
 
 # size of chunks
-chunk.size <- 20
+chunk.size <- 25
 n.loops <- ceiling(n.catches / chunk.size)
 
 # set up parallel backend & make database connection available to all workers
@@ -183,7 +185,7 @@ derived.site.metrics <- foreach(i = 1:n.loops,
                                "zoo",
                                "lubridate",
                                "conteStreamTemperature"),
-                   .export = c("indexDeployments") # shouldn't be needed after update package
+                   .export = c("indexDeployments", "deriveMetrics") # shouldn't be needed after update package
                    #.export = c("derive_metrics_par")#,
                    #.export=ls(envir=globalenv(),
                     #          "indexDeployments")# shouldn't be needed after update package
@@ -192,10 +194,10 @@ derived.site.metrics <- foreach(i = 1:n.loops,
   #for(i in 1:n.loops) {
   dbClearResult(rs)
   dbDisconnect(con)
-  dbUnloadDriver(drv)
+  #dbUnloadDriver(drv)
   ########## Set up database connection ##########
 #   drv <- dbDriver("PostgreSQL")
-#   con <- dbConnect(drv, dbname='sheds', host='felek.cns.umass.edu', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+#   con <- dbConnect(drv, dbname='sheds', host='osensei.cns.umass.edu', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
   
   # write start of each iteration
   start.time <- Sys.time()
@@ -210,9 +212,9 @@ derived.site.metrics <- foreach(i = 1:n.loops,
   }
   catches_string <- paste(catches, collapse = ', ')
   
- data_list <- prepData(catches_string=catches_string, springFallBPs=springFallBPs, df_covariates_upstream=df_covariates_upstream, tempDataSync=tempDataSync, featureid_lat_lon=featureid_lat_lon, featureid_huc8=featureid_huc8, rand_ids=rand_ids)
+ data_list <- prepData(catches_string=catches_string, springFallBPs=springFallBPs, df_covariates_upstream=df_covariates_upstream, tempDataSync=tempDataSync, featureid_lat_lon=featureid_lat_lon, featureid_huc8=featureid_huc8, rand_ids=rand_ids, df_stds = df_stds)
   
-  fullDataSyncS <- predictTemp(fullDataSyncS = data_list$fullDataSyncS, coef.list= coef.list, rand_ids=rand_ids)
+  fullDataSyncS <- predictTemp(data = data_list$fullDataSyncS, coef.list= coef.list, cov.list = cov.list, rand_ids=rand_ids)
   
   dbClearResult(rs)
   dbDisconnect(con)
@@ -224,22 +226,20 @@ derived.site.metrics <- foreach(i = 1:n.loops,
   
   #fullDataSync2 <- left_join(fullDataSync, dplyr::select(fullDataSyncS, featureid, date, trend, tempPredicted))
   
-  metrics <- deriveMetrics(fullDataSync = fullDataSync)
+  metrics <- deriveMetrics(data = fullDataSync)
   
   end.time <- Sys.time()
-  cat(paste0(end.time, ": Finishing job ", i, " of ", n.loops, ".\n"), file = logFile_Finish, append = TRUE)
+  cat(paste0(end.time, ": Finishing job ", i, " of ", n.loops, "\n"), file = logFile_Finish, append = TRUE)
       
   return(metrics)
 } # end dopar
 stopCluster(cl)
 
-saveRDS(derived.site.metrics, file = paste0(data_dir, "/derived_site_metrics.RData"))
-write.table(derived.site.metrics, file = paste0(data_dir, "/derived_site_metrics.csv"), sep = ',', row.names = F)
+saveRDS(derived.site.metrics, file = paste0(data_dir, "/derived_site_metrics_full.RData"))
+write.table(derived.site.metrics, file = paste0(data_dir, "/derived_site_metrics_full.csv"), sep = ',', row.names = F)
 
-
-# filter
-derived.site.metrics <- left_join(derived.site.metrics, df_covariates_upstream) %>%
-  dplyr::filter(AreaSqKM >= 0.5 & AreaSqKM < 200 & allonnet < 70) # changed so don't deal with problematically small drainage areas (somre were 0.00006 sq km) - for loop didn't like this!!!!!!!!!
+# add covariates
+derived.site.metrics <- left_join(derived.site.metrics, df_covariates_upstream)
 
 # look for errors
 low_july <- dplyr::filter(derived.site.metrics, meanJulyTemp < 5)
@@ -254,6 +254,22 @@ low_july
 
 metrics.lat.lon <- featureid_lat_lon %>%
   left_join(derived.site.metrics) # reverse this join or full join so get NA for all missing catchments? - doesn't seem to be working correctly yet - check again
+
+# for Maps in ArcGIS
+metrics_arc <- as.data.frame(dplyr::select(metrics.lat.lon, featureid, mean30DayMax, meanDays.18, meanResist))
+metrics_arc[is.na(metrics_arc)] <- -9999.99
+write.table(metrics_arc, file = paste0(data_dir, "/derived_site_metrics_arc.csv"), sep = ',', row.names = F)
+
+
+# filter
+# reduce number of catchments to loop through to only interpolation
+metrics.lat.lon <- metrics.lat.lon %>%
+  dplyr::left_join(df_covariates_upstream) %>%
+  dplyr::mutate(impoundArea = allonnet * AreaSqKM) %>%
+  dplyr::filter(AreaSqKM > 0.01,
+                AreaSqKM <= 200,
+                allonnet < 50,
+                impoundArea < 100)
 
 saveRDS(metrics.lat.lon, file = paste0(data_dir, "/derived_site_metrics.RData"))
 write.table(metrics.lat.lon, file = paste0(data_dir, "/derived_site_metrics.csv"), sep = ',', row.names = F)
