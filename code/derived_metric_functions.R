@@ -1,5 +1,5 @@
-deriveMetrics <- function(fullDataSync) {
-  byfeatureid <- group_by(fullDataSync, featureid)
+deriveMetrics <- function(data) {
+  byfeatureid <- group_by(data, featureid)
 byfeatureidYear <- group_by(byfeatureid, year, add = TRUE)
 #(maxTempfeatureid <- dplyr::dplyr::summarise(byfeatureid, max(tempPredicted, na.rm = T)))
 
@@ -58,14 +58,20 @@ nJulyObs <- meanJulyObs %>%
   dplyr::summarise(nJulyObs = n())
 
 nJulyObsYears <- nJulyObs %>%
-  dplyr::filter(nJulyObs >= 25) %>% # at least 25 days with observed data
+  dplyr::filter(nJulyObs >= 30) %>% # at least 25 days with observed data
   dplyr::summarise(nYearsJulyObs = n())
 
-meanJulyObs <- nJulyObs %>%
-  left_join(meanJulyObs) %>%
-  dplyr::filter(nJulyObs >= 25) %>%
-  summarise(meanJulyObs = mean(temp, na.rm = T)) %>%
-  left_join(nJulyObsYears)
+if(nrow(nJulyObsYears) == 0) {
+  meanJulyObs <- data.frame(featureid = unique(meanJulyObs$featureid),
+                            meanJulyObs = NA,
+                            nYearsJulyObs = 0)
+} else {
+  meanJulyObs <- nJulyObs %>%
+    left_join(meanJulyObs) %>%
+    dplyr::filter(nJulyObs >= 30) %>%
+    summarise(meanJulyObs = mean(temp, na.rm = T)) %>%
+    left_join(nJulyObsYears)
+}
 
 derivedfeatureidMetrics <- left_join(derivedfeatureidMetrics, meanJulyObs, by = "featureid")
 rm(meanJulyObs)
@@ -143,17 +149,21 @@ derivedfeatureidMetrics <- derivedfeatureidMetrics %>%
 
 derivedfeatureidMetrics <- calcYearsMaxTemp(grouped.df = byfeatureidYear, derived.df = derivedfeatureidMetrics, temp.threshold = 22) %>%
   mutate(yearsMaxTemp = ifelse(is.na(yearsMaxTemp), 0, as.numeric(yearsMaxTemp))) %>%
-  rename(yearsMaxTemp.22 = yearsMaxTemp) %>%
-  dplyr::mutate(freqMaxTemp.22 = yearsMaxTemp.22 / length(unique(byfeatureidYear$year)))
-derivedfeatureidMetrics[which(is.na(derivedfeatureidMetrics$meanMaxTemp)), "yearsMaxTemp.22"] <- NA
-derivedfeatureidMetrics[which(is.na(derivedfeatureidMetrics$meanMaxTemp)), "freqMaxTemp.22"] <- NA
+  dplyr::mutate(freqMaxTemp = yearsMaxTemp / length(unique(byfeatureidYear$year)))
+derivedfeatureidMetrics[which(is.na(derivedfeatureidMetrics$meanMaxTemp)), "yearsMaxTemp"] <- NA
+derivedfeatureidMetrics[which(is.na(derivedfeatureidMetrics$meanMaxTemp)), "freqMaxTemp"] <- NA
+
+derivedfeatureidMetrics <- derivedfeatureidMetrics %>%
+  dplyr::rename(yearsMaxTemp.22 = yearsMaxTemp,
+         freqMaxTemp.22 = freqMaxTemp)
+  
 derivedfeatureidMetrics <- derivedfeatureidMetrics %>%
   dplyr::mutate(yearsMaxTemp.22 = ifelse(!is.na(meanMaxTemp) & is.na(yearsMaxTemp.22), 0, yearsMaxTemp.22),
                 freqMaxTemp.22 = ifelse(!is.na(meanMaxTemp) & is.na(freqMaxTemp.22), 0, freqMaxTemp.22))
 
 derivedfeatureidMetrics <- calcYearsMaxTemp(grouped.df = byfeatureidYear, derived.df = derivedfeatureidMetrics, temp.threshold = 23.5) %>%
   mutate(yearsMaxTemp = ifelse(is.na(yearsMaxTemp), 0, as.numeric(yearsMaxTemp))) %>%
-  rename(yearsMaxTemp.23.5 = yearsMaxTemp) %>%
+  dplyr::rename(yearsMaxTemp.23.5 = yearsMaxTemp) %>%
   dplyr::mutate(freqMaxTemp.23.5 = yearsMaxTemp.23.5 / length(unique(byfeatureidYear$year)))
 derivedfeatureidMetrics[which(is.na(derivedfeatureidMetrics$meanMaxTemp)), "yearsMaxTemp.23.5"] <- NA
 derivedfeatureidMetrics[which(is.na(derivedfeatureidMetrics$meanMaxTemp)), "freqMaxTemp.23.5"] <- NA
