@@ -1,199 +1,121 @@
-
-
-#----------Add column denoting frequency of observations------------------------
-
-#' @param data time series data pull from the postgres database (df_values table)
-
-obs_freq <- function(data) {
-  obs_per_day <- data %>%
-    dplyr::group_by(series_id, date) %>%
-    dplyr::summarise(obs_per_day = n())
-  
-  median_obs <- obs_per_day %>%
-    #dplyr::mutate(series_id_alt = paste0(series_id, "-", "a")) %>%
-    dplyr::group_by(series_id) %>%
-    #dplyr::mutate(obs_per_day = ifelse(is.na(obs_per_day), NA_integer_, obs_per_day)) %>%
-    dplyr::summarise(median_freq = mean(obs_per_day, na.rm = T), min_n90 = median_freq*0.9) # make median when dplyr fixed
-  
-  data <- data %>%
-    left_join(obs_per_day, by = c("series_id", "date")) %>%
-    left_join(median_obs, by = c("series_id"))
-  
-  return(data)
-}
-
-#----------Uniformity of records within a day-----------------------------------
-
-# check to make sure datetime was done correctly when guessing 12-hr vs 24-hr formats
-
-# flag inconsistent time intervals within a day at a given location or series (deployment?)
-flag_interval <- function(data) {
-  if(!("median_freq" %in% colnames(data))) {
-    data <- obs_freq(data)
-  }
-  data <- ungroup(data)
-  data <- group_by(data, series_id, date)
-  data$row <- 1:nrow(data)
-  data$time_prev <- c(NA_real_, data[2:nrow(data)-1, ]$datetime)
-  data$series_prev <- c(NA_character_, data[1:nrow(data)-1, ]$series_id)
-  data_series <- data %>%
-    group_by(series_id, date) %>%
-    mutate(series_start = ifelse(is.na(series_prev), 1, ifelse(series_id == series_prev, NA_real_, 1)),
-           time_prev = ifelse(is.na(series_start), time_prev, NA_real_),
-           d_time = ifelse(median_freq > 1, datetime - time_prev, NA_real_)) %>%
-    summarise(flag_interval = ifelse(max(d_time, na.rm = T) != min(d_time, na.rm = T), TRUE, FALSE))
-  
-  data <- left_join(data, data_series, by = c("series_id", "date"))
-  
-  return(data)
-}
-
-#---------Check for duplicates: not necessary while things are being averaged----
-
-#n_occur <- data.frame(table(temperatureData$site_date))
-#n_occur[n_occur$Freq > 1, ]
-#temperatureData[temperatureData$site_date %in% n_occur$Var1[n_occur$Freq > 1], ]
-
-#temperatureData[temperatureData$site_date == "736_2007-08-01", ]
-
-
-
-#----------Flag incomplete days--------------
-
-# Flag days with less than 90% of median number of observations for that series
-
-flag_incomplete <- function(data) {
-  if(!("median_freq" %in% colnames(data))) {
-    data <- obs_freq(data)
-  }
-  data <- data %>%
-    dplyr::mutate(flag_incomplete = ifelse(obs_per_day <= min_n90, TRUE, FALSE))
-  return(data)
-}
-
-#----------Check for out of water (out of water vs. dry stream?)---------------- 
-# Rate of change in temperature per hour
-flag_hourly_rise <- function(data, deg = 5) {
-  if(!("median_freq" %in% colnames(data))) {
-    data <- obs_freq(data)
-  }
+flag_daily_rise <- function (data, deg = 5) 
+{
   data <- ungroup(data)
   data$row <- 1:nrow(data)
-  data$temp_prev <- c(NA_real_, data[2:nrow(data)-1, ]$temp)
-  data$series_prev <- c(NA_character_, data[1:nrow(data)-1, ]$series_id)
-  data <- data %>%
-    #group_by(series_id) %>%
-    mutate(series_start = ifelse(is.na(series_prev), 1, ifelse(series_id == series_prev, NA_real_, 1)),
-           temp_prev = ifelse(is.na(series_start), temp_prev, NA_real_),
-          # d_temp = ifelse(median_freq == 24, temp - temp_prev, NA_real_), # restore this line once dplyr median fixed
-          d_temp = ifelse(median_freq > 1, temp - temp_prev, NA_real_),
-           flag_hourly_rise = ifelse(abs(d_temp) < deg | is.na(d_temp), FALSE, TRUE))
-  
-  return(data)
-}
-
-
-# Rate of change in mean temperature per day
-flag_daily_rise <- function(data, deg = 5) {
-  data <- ungroup(data)
-  data$row <- 1:nrow(data)
-  data$temp_prev <- c(NA_real_, data[2:nrow(data)-1, ]$temp)
-  data$series_prev <- c(NA_character_, data[1:nrow(data)-1, ]$series_id)
-  data <- data %>%
-    #group_by(series_id) %>%
-    mutate(series_start = ifelse(is.na(series_prev), 1, ifelse(series_id == series_prev, NA_real_, 1)),
-           temp_prev = ifelse(is.na(series_start), temp_prev, NA_real_),
-           d_temp = temp - temp_prev,
-           flag_daily_rise = ifelse(abs(d_temp) < deg | is.na(d_temp), FALSE, TRUE))
-  
-  return(data)
-}
-
-#----------Check for excessively cold events------------------------------------
-
-# Convert -1 - 0 C readings to 0
-convert_neg <- function(data) {
-  if(!("median_freq" %in% colnames(data))) {
-    data <- obs_freq(data)
+  data$temp_prev <- c(NA_real_, data[2:nrow(data) - 1, ]$temp)
+  if(length(data$series_id)==0) {
+    data$series_id = data$featureid
   }
-  data <- data %>%
-    mutate(temp = ifelse(temp < 0 & temp >= -1 & median_freq > 1, 0, temp))
-  
+  data$series_prev <- c(NA_character_, data[1:nrow(data) - 
+                                              1, ]$series_id)
+  data <- data %>% mutate(series_start = ifelse(is.na(series_prev), 
+                                                1, ifelse(series_id == series_prev, NA_real_, 1)), temp_prev = ifelse(is.na(series_start), 
+                                                                                                                      temp_prev, NA_real_), d_temp = temp - temp_prev, flag_daily_rise = ifelse(abs(d_temp) < 
+                                                                                                                                                                                                  deg | is.na(d_temp), FALSE, TRUE))
   return(data)
 }
 
-# Flagging observations < -1 C makes sense.  
 
-flag_cold_obs <- function(data) {
-  if(!("median_freq" %in% colnames(data))) {
-    data <- obs_freq(data)
+
+MAD.roller <- function(vals, window){
+library(RcppRoll)
+if(!is.numeric(window) | length(window) != 1) {
+stop("window must be a single numeric value")
+}
+#vals <- data[ , var]
+# Croux and Rousseeuw, 1992
+if(window >= 10) {
+b <- 1/qnorm(3/4)
+}
+if(window == 9) {
+b <- 1.107
+}
+if(window == 8) {
+b <- 1.129
+}
+if(window == 7) {
+b <- 1.140
+}
+if(window == 6) {
+b <- 1.200
+}
+if(window == 5) {
+b <- 1.206
+}
+if(window == 4) {
+b <- 1.363
+}
+if(window < 4) {
+stop("window must be a numeric value >= 4")
+}
+warning('MAD.roller function has not been robustly tested w/ NAs')
+u.i <- is.finite(vals)
+left.fill <- median(head(vals[u.i], ceiling(window/2)))
+right.fill <- median(tail(vals[u.i], ceiling(window/2)))
+medians <- roll_median(vals[u.i], n=window, fill=c(left.fill, 0, right.fill))
+abs.med.diff <- abs(vals[u.i]-medians)
+left.fill <- median(head(abs.med.diff, ceiling(window/2)))
+right.fill <- median(tail(abs.med.diff, ceiling(window/2)))
+abs.med <- roll_median(abs.med.diff, n=window, fill=c(left.fill, 0, right.fill))
+MAD <- abs.med*b
+MAD.normalized = rep(NA,length(vals))
+MAD.normalized[u.i] <- abs.med.diff/MAD # division by zero
+MAD.normalized[is.na(MAD.normalized)] <- 0
+#data$MAD.normalized <- MAD.normalized
+#return(data)
+return(MAD.normalized)
+}
+
+
+MAD.windowed <- function(vals, windows){
+stopifnot(length(vals) == length(windows))
+if (length(unique(windows)) == 1){
+w = unique(windows)
+x = vals
+return(MAD.roller(x, w))
+} else {
+. <- '_dplyr_var'
+mad <- group_by_(data.frame(x=vals,w=windows), 'w') %>% 
+  mutate_(mad='sensorQC:::MAD.values(x)') %>% 
+  .$mad
+return(mad)
+}
+}
+
+
+# flag if n number of points in a row are within 0.1 C (calc number of ~identical temps in a row)
+roll_consistant <- function() {
+  
+}
+
+
+# visualize time series with remaining sub-daily problems
+dir.create(file.path(data_dir, "diagnostics"))
+for(i in 1:length(bad_series_id)) {
+  bad_series <- as.data.frame(dplyr::filter(df_values, series_id == bad_series_id[i]))
+  bad_hourly <- bad_series %>%
+    dplyr::filter(abs(d_temp) > 4) %>%
+    as.data.frame(stringsAsFactors = FALSE)
+  bad_MAD <- bad_series %>%
+    dplyr::filter(MAD_normalized > 10) %>%
+    as.data.frame(stringsAsFactors = FALSE)
+  bad_MAD_30 <- bad_series %>%
+    dplyr::filter(MAD_normalized_30 > 10) %>%
+    as.data.frame(stringsAsFactors = FALSE)
+  g <- ggplot(bad_series, aes(datetime, temp)) + geom_line() + geom_point() + ylim(c(0, 30)) + ggtitle(paste0("series_id: ", bad_series_id[i]))
+  if(nrow(bad_hourly) > 0) {
+    g <- g + geom_point(data = bad_hourly, aes(datetime, temp), colour = "yellow", size = 5, alpha = 0.8)
   }
-  data <- data %>%
-    mutate(flag_cold_obs = ifelse(temp < -1 & median_freq > 1, TRUE, FALSE))
-  
-  return(data)
-}
-
-flag_cold_days <- function(data) {
-  if(!("median_freq" %in% colnames(data))) {
-    data <- obs_freq(data)
+  if(nrow(bad_MAD) > 0) {
+    g <- g + geom_point(data = bad_MAD, aes(datetime, temp), colour = "red", size = 5, alpha = 0.5)
   }
-  data <- data %>%
-    mutate(flag_cold_days = ifelse(temp < -1 & median_freq == 1, TRUE, FALSE))
-  
-  return(data)
-}
-
-#---------Check for excessively hot readings------------------------------------
-# Flagging observations > 30 C might not work for the database, as it isn't all small trout streams.
-
-flag_hot_obs <- function(data, threshold = 35) {
-  if(!("median_freq" %in% colnames(data))) {
-    data <- obs_freq(data)
+  if(nrow(bad_MAD_30) > 0) {
+    g <- g + geom_point(data = bad_MAD_30, aes(datetime, temp), colour = "green", size = 5, alpha = 0.5)
   }
-  data <- data %>%
-    mutate(flag_hot_obs = ifelse(temp > threshold & median_freq > 1, TRUE, FALSE))
-  
-  return(data)
+  ggsave(file = file.path(data_dir, "diagnostics", paste0("series_", bad_series_id[i], ".png")), plot = g)
 }
 
-flag_hot_days <- function(data, threshold = 35) {
-  if(!("median_freq" %in% colnames(data, threshold))) {
-    data <- obs_freq(data)
-  }
-  data <- data %>%
-    mutate(flag_hot_days = ifelse(temp > threshold & median_freq == 1, TRUE, FALSE))
-  
-  return(data)
-}
+# MAD doesn't seem effective near the ends of any time series
 
-#---------Flagging extremes-----------------------------------------------------
-# Flagging upper and lower 5th percentiles probably wont work for the database, as those are best reverified by whoever collected/uploaded the data.
-
-flag_extreme_obs <- function(data, qlo = 0.001, qhi = 0.999) {
-  if(!("median_freq" %in% colnames(data))) {
-    data <- obs_freq(data)
-  }
-  data <- data %>%
-    mutate(flag_extremes = ifelse(temp > quantile(temp, c(qhi), na.rm = T) | temp < quantile(temp, c(qlo) & median_freq > 1, na.rm = T), FALSE, TRUE))
-  
-  return(data)
-}
-
-
-flag_extreme_days <- function(data, qlo = 0.001, qhi = 0.999) {
-  if(!("median_freq" %in% colnames(data))) {
-    data <- obs_freq(data)
-  }
-  data <- data %>%
-    mutate(flag_extremes = ifelse(temp > quantile(temp, c(qhi), na.rm = T) | temp < quantile(temp, c(qlo) & median_freq == 1, na.rm = T), FALSE, TRUE))
-  
-  return(data)
-}
-
-
-
-
-
-
+# challenge of how to exclude all points during out of water event (in field or office) without manually doing it for each time series!
 
