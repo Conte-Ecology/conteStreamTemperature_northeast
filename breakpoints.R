@@ -6,6 +6,7 @@
 # example: $ Rscript breakpoints.R ./temperatureData.RData ./daymet_results.csv ./springFallBPs.RData
 
 # NOTE: this has not actually been run, and is mostly just copy and pasted from the analysis vignette
+rm(list = ls())
 gc()
 
 library(data.table)
@@ -20,7 +21,7 @@ library(stringr)
 # install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 
-data_dir <- "localData_2015-08-24" # problem is that it takes multiple days to run
+data_dir <- "localData_2015-12-21"
 
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)

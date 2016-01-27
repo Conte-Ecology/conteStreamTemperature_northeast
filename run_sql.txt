@@ -1,0 +1,16 @@
+
+# if on the server hosting the database
+psql -d sheds -f code/daymet_query.sql > daymet_results.csv
+
+# if running from a remote location
+psql -h osensei.cns.umass.edu -U dan -d sheds -f localData_2015-06-09/code/daymet_query.sql > localData_2015-06-09/daymet_results.csv
+# password will be the database password, not the server password
+
+# connect to remote database
+psql -h <host> -p <port> -u <database>
+psql -h <host> -p <port> -U <username> -W <password> <database>
+
+## For persistent session
+# log in to server
+# run screen
+# run psql query

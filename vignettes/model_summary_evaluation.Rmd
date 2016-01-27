@@ -13,10 +13,27 @@ library(dplyr)
 library(conteStreamTemperature)
 ```
 
+set custom themes
+
+```{r presentation ggplot theme, echo=FALSE}
+theme_bw_journal <- function (base_family = "") {
+    theme_grey(base_family = base_family) %+replace% 
+        theme(axis.text = element_text(size = rel(0.8)), axis.ticks = element_line(colour = "black"), 
+            legend.key = element_rect(colour = "grey80"), panel.background = element_rect(fill = "white", 
+                colour = NA), panel.border = element_rect(fill = NA, 
+                colour = "grey50"), panel.grid.major = element_line(colour = "grey90", 
+                size = 0.2), panel.grid.minor = element_line(colour = "grey98", 
+                size = 0.5), strip.background = element_rect(fill = "grey80", 
+                colour = "grey50", size = 0.2))
+    }
+
+theme_set(theme_bw_journal())
+```
+
 load data
 
 ```{r}
-data_dir <- "localData_2015-11-20" 
+data_dir <- "localData_2016-01-19" 
 
 load(paste0(data_dir, "/tempDataSync.RData"))
 
@@ -67,7 +84,7 @@ There is large variablity among sites and hucs. Little variation of AR1 among si
 
 ```{r}
 # Predictions in R
-tempDataSyncS <- predictTemp(fullDataSyncS = tempDataSyncS, coef.list = coef.list, rand_ids = rand_ids, Random_AR1 = FALSE)
+tempDataSyncS <- predictTemp(data = tempDataSyncS, coef.list = coef.list, cov.list = cov.list, rand_ids = rand_ids, Random_AR1 = FALSE)
 
 rmse(tempDataSyncS$temp - tempDataSyncS$tempPredicted) # 0.6398
   
@@ -126,7 +143,7 @@ rmse(tempDataSyncS$temp - tempDataSyncS$tempPredicted)
 rmse(tempDataSyncS$temp - tempDataSyncS$tempPredictedJags)
 rmse(tempDataSyncS$temp - tempDataSyncS$trend) 
 
-tempDataSyncValidS <- predictTemp(fullDataSyncS = tempDataSyncValidS, coef.list = coef.list, rand_ids = rand_ids, Random_AR1 = FALSE)
+tempDataSyncValidS <- predictTemp(data = tempDataSyncValidS, coef.list = coef.list, cov.list = cov.list, rand_ids = rand_ids, Random_AR1 = FALSE)
 rmse(tempDataSyncValidS$temp - tempDataSyncValidS$tempPredicted) 
 rmse(tempDataSyncValidS$temp - tempDataSyncValidS$trend) 
 ```
@@ -148,10 +165,12 @@ Very disappointing validation. Potential problems:
 foo <- dplyr::select(tempDataSyncS, featureid, date, fixed.ef, site.ef, huc.ef, year.ef, trend, tempPredicted, tempPredictedJags, tempTrendJags)
 tempDataSync <- tempDataSync %>%
   dplyr::left_join(foo)
+tempDataSync$validation <- "calibrate"
 
 foo <- dplyr::select(tempDataSyncValidS, featureid, date, fixed.ef, site.ef, huc.ef, year.ef, trend, tempPredicted)
 tempDataSyncValid <- tempDataSyncValid %>%
   dplyr::left_join(foo)
+tempDataSyncValid$validation <- "validate"
 
 master_data <- dplyr::rbind_list(tempDataSync, tempDataSyncValid)
 
@@ -162,21 +181,28 @@ master_data <- master_data %>%
 master_data <- master_data %>%
   dplyr::group_by(featureid, year) %>%
   dplyr::mutate(MAD_normalized = MAD.roller(temp, 6),
-                MAD_normalized = MAD.roller(temp, 10),
+                MAD_normalized_10 = MAD.roller(temp, 10),
                 MAD_normalized_30 = MAD.roller(temp, 30),
-                flag_MAD = ifelse(MAD_normalized > 10, TRUE, FALSE)) # 10 day moving window
+                flag_MAD = ifelse(MAD_normalized > 10, TRUE, FALSE))
 
 master_data$id_year <- paste0(master_data$featureid, "_", master_data$year)
+
+rmse_sum <- master_data %>%
+  group_by(id_year) %>%
+  mutate(RMSE = rmse(temp - trend)) %>%
+  summarise(RMSE = mean(RMSE, na.rm = T))
+
+master_data <- dplyr::left_join(master_data, rmse_sum)
 
 series <- unique(master_data$id_year)
 n <- length(series)
 for(i in 1:n) {
   data_1 <- dplyr::filter(master_data, id_year == series[i])
-  g <- ggplot(data_1, aes(date, temp)) + ylim(c(0, 35)) + ggtitle(paste0("featureid: ", data_1$featureid[1], "  year: ", data_1$year[1])) #+ facet_wrap(~year)
+  g <- ggplot(data_1, aes(date, temp)) + ylim(c(0, 35)) + ggtitle(paste0(data_1$validation, " |  featureid: ", data_1$featureid[1], " | year: ", data_1$year[1], " | RMSE = ", round(data_1$RMSE, digits = 2))) #+ facet_wrap(~year)
 #   if(nrow(bad_MAD_30) > 0) {
 #     g <- g + geom_point(data = bad_MAD_30, aes(datetime, temp), colour = "yellow", size = 5, alpha = 0.5)
 #   }
-  g <- g + geom_point(aes(colour = MAD_normalized)) + geom_line(aes(colour = MAD_normalized)) + 
+  g <- g + geom_point(aes(colour = MAD_normalized_10)) + geom_line(aes(colour = MAD_normalized_10)) + 
     scale_colour_gradient(high = "yellow", low = "blue", limits = c(0, 6)) 
   
   # add agency name
@@ -194,12 +220,12 @@ for(i in 1:n) {
 
 
 # output daily flags
-d_flags <- df_values3 %>%
-  dplyr::filter(flag_daily_rise == TRUE |
-                  flag_cold_days == TRUE |
-                  flag_hot_days == TRUE |
-                  flag_extreme_days == TRUE) %>%
-  dplyr::select(-row, -temp_prev, -series_prev, -series_start, -median_freq, -min_n90)
+# d_flags <- df_values3 %>%
+#   dplyr::filter(flag_daily_rise == TRUE |
+#                   flag_cold_days == TRUE |
+#                   flag_hot_days == TRUE |
+#                   flag_extreme_days == TRUE) %>%
+#   dplyr::select(-row, -temp_prev, -series_prev, -series_start, -median_freq, -min_n90)
 
 # Median Absolute Deviations for spike detection
 
@@ -213,19 +239,21 @@ d_flags <- df_values3 %>%
 ### Is there a trade-off with AR1 term by site and other random site effects?
 
 ```{r, echo=FALSE}
+Random_AR1 <- FALSE
 if(Random_AR1) {
 df_site_effects <- coef.list$B.site %>%
   dplyr::left_join(dplyr::select(coef.list$B.ar1, sitef, site, B.ar1 = mean)) %>%
   dplyr::rename(B.site_intercept = B.site_intercept.site)
-} else {
-  df_site_effects <- coef.list$B.site %>%
-  dplyr::left_join(dplyr::select(coef.list$B.ar1, sitef, site, B.ar1 = mean)) %>%
-  dplyr::rename(B.site_intercept = B.site_intercept.site)
-}
 
 ggplot(df_site_effects, aes(B.ar1, B.site_intercept)) + geom_point() + geom_smooth()
 ggplot(df_site_effects, aes(B.ar1, B.site_airTemp)) + geom_point() +geom_smooth()
 ggplot(df_site_effects, aes(B.ar1, B.site_temp7p)) + geom_point() + geom_smooth()
+
+} else {
+  df_site_effects <- coef.list$B.site %>%
+  dplyr::rename(B.site_intercept = B.site_intercept.site)
+}
+
 
 ggplot(df_site_effects, aes(B.site_airTemp, B.site_temp7p)) + geom_point() + geom_smooth()
 ```
@@ -238,7 +266,7 @@ Reran the model with AR1 fixed and no change in RMSEs
 
 ```{r}
 obs_errors <- tempDataSyncS %>%
-  group_by(featureid) %>%
+  group_by(featureid, year) %>%
   dplyr::mutate(resids = temp - trend) %>%
   dplyr::summarise(num_obs = n(),
                    RMSE = rmse(resids))
@@ -247,22 +275,27 @@ ggplot(obs_errors, aes(num_obs, RMSE)) + geom_point() + geom_smooth()
 
 quantile(obs_errors$RMSE)
 
-bad_sites <- obs_errors %>%
-  dplyr::filter(RMSE >= quantile(obs_errors$RMSE, probs = c(0.99)))
+all_errors <- master_data %>%
+  group_by(featureid, year, id_year) %>%
+  dplyr::mutate(resids = temp - trend) %>%
+  dplyr::summarise(num_obs = n(),
+                   RMSE = rmse(resids))
+bad_site_years <- all_errors %>%
+  dplyr::filter(RMSE >= quantile(all_errors$RMSE, probs = c(0.75)))
 
-bad_featureid <- bad_sites$featureid
+bad_id_years <- bad_site_years$id_year
 
-tempDataSync <- tempDataSync %>%
-  left_join(dplyr::select(tempDataSyncS, featureid, date, fixed.ef, site.ef, huc.ef, year.ef, trend, tempPredicted, tempTrendJags))
+#tempDataSync <- tempDataSync %>%
+ # left_join(dplyr::select(tempDataSyncS, featureid, date, fixed.ef, site.ef, huc.ef, year.ef, trend, tempPredicted, tempTrendJags))
 
 # plot each time series
 foo <- list()
 bar <- list()
 g <- list()
-for(i in 1:length(bad_featureid)) {
-  foo[[i]] <- dplyr::filter(tempDataSync, featureid == bad_featureid[i])
-  bar[[i]] <- dplyr::filter(tempDataSyncS, featureid == bad_featureid[i])
-  g[[i]] <- ggplot(foo[[i]], aes(date, trend)) + geom_point(colour = "red") + geom_line(colour = "red") + geom_point(aes(date, airTemp), colour = "black") + geom_line(aes(date, temp), colour = "blue") + geom_point(aes(date, temp), colour = "blue") + ggtitle(bad_featureid[i])
+for(i in 1:length(bad_id_years)) {
+  foo[[i]] <- dplyr::filter(master_data, id_year == bad_id_years[i])
+  #bar[[i]] <- dplyr::filter(master_data, featureid == bad_featureid[i])
+  g[[i]] <- ggplot(foo[[i]], aes(date, trend)) + geom_point(colour = "red") + geom_line(colour = "red") + geom_line(aes(date, airTemp), colour = "black") + geom_line(aes(date, temp), colour = "blue") + geom_point(aes(date, temp), colour = "blue") + ggtitle(paste0(bad_id_years[i], " | ", foo[[i]]$validation))
   print(g[[i]])
 }
 
@@ -366,6 +399,7 @@ site_days <- unique(tempDataSync$site_day)
 sites <- unique(tempDataSync$featureid)
 hucs <- unique(tempDataSync$huc)
 years <- unique(tempDataSync$year)
+site_years <- unique(tempDataSync$featureid_year)
 
 # overall validation
 rmse(tempDataSyncValid$temp - tempDataSyncValid$trend)
@@ -385,6 +419,13 @@ valid_miss_sites <- tempDataSyncValid %>%
 rmse(valid_miss_sites$temp - valid_miss_sites$trend)
 rmse(valid_miss_sites$temp - valid_miss_sites$tempPredicted)
 
+# site and huc data but missing a site_year
+valid_miss_site_years <- tempDataSyncValid %>%
+  dplyr::filter(!(featureid_year %in% site_years) & site %in% sites & huc %in% hucs)
+
+rmse(valid_miss_site_years$temp - valid_miss_site_years$trend)
+rmse(valid_miss_site_years$temp - valid_miss_site_years$tempPredicted)
+
 # sites and huc data but missing years
 valid_miss_years <- tempDataSyncValid %>%
   dplyr::filter(!(year %in% years) & site %in% sites & huc %in% hucs)
@@ -392,16 +433,138 @@ valid_miss_years <- tempDataSyncValid %>%
 rmse(valid_miss_years$temp - valid_miss_years$trend)
 rmse(valid_miss_years$temp - valid_miss_years$tempPredicted)
 
-# no data
+# no data - too few sites so this isn't very useful, especially without confidence intervals
 valid_miss_all <- tempDataSyncValid %>%
   dplyr::filter(!(year %in% years) & !(site %in% sites) & !(huc %in% hucs))
 
 rmse(valid_miss_all$temp - valid_miss_all$trend)
 rmse(valid_miss_all$temp - valid_miss_all$tempPredicted)
+
+# 2010
+valid_2010 <- tempDataSyncValid %>%
+  dplyr::filter(year == 2010)
+
+rmse(valid_2010$temp - valid_2010$trend)
+rmse(valid_2010$temp - valid_2010$tempPredicted)
+
+# 2010 sites not used in model fitting
+valid_miss_2010_sites <- tempDataSyncValid %>%
+  dplyr::filter(year == 2010 & !(site %in% sites))
+
+rmse(valid_miss_2010_sites$temp - valid_miss_2010_sites$trend)
+
+# 2010 sites used in model fitting
+valid_2010_sites <- tempDataSyncValid %>%
+  dplyr::filter(year == 2010 & site %in% sites)
+
+rmse(valid_2010_sites$temp - valid_2010_sites$trend)
+
 ```
+
+
+Specifically, to evaluate the spatial and temporal predictive power of our model, we used independent validation data consisting of `r nrow(tempDataSyncValidS)` observations from `r length(unique(tempDataSyncValidS$featureid))` stream reaches representing `r length(unique(tempDataSyncValid$featureid_year))` reach-year combinations within `r length(unique(tempDataSyncValidS$huc))` HUC8 subbasins between `r min(tempDataSyncValidS$year)` - `r max(tempDataSyncValidS$year)`.
+
 
 Could also look site by site depending how much huc or year data there is but there doesn't seem to be huge variation in the predictive ability with site, huc, or year data missing.
 
+The amount of data in other years could affect the predictive ability in future years. To assess this, calculate the RMSE in each site in 2010 and the total amound of data from each of those sites that was used in the fitting. Then do a simple regression and plot.
+
+```{r validation data amounts}
+rmse_2010 <- tempDataSyncValid %>%
+  dplyr::filter(year == 2010) %>%
+  dplyr::group_by(featureid) %>%
+  dplyr::summarise(obs_2010 = n(),
+                   rmse = rmse(temp - trend))
+
+fit_sum <- tempDataSync %>%
+  dplyr::group_by(featureid) %>%
+  dplyr::summarise(obs = n(), 
+                   years = length(unique(year)))
+
+rmse_2010 <- rmse_2010 %>%
+  dplyr::left_join(fit_sum) %>%
+  replace(is.na(.), 0)
+rmse_2010
+summary(rmse_2010)
+
+# 95% confidence intervals
+rmse_bs <- sample(rmse_2010$rmse, 10000, replace = TRUE)
+quantile(rmse_bs, c(0.025, 0.975))
+
+g <- ggplot(rmse_2010, aes(obs, rmse)) + 
+  geom_point(aes(colour = years)) + 
+  geom_smooth(level = 0.95) + 
+  scale_color_gradient(low = "black", high = "red") + 
+  #xlim(0, 5) +
+  #ylim(0, 5) +
+  xlab("Number of observations (days with data) used to fit the model") +
+  ylab("RMSE by reach in 2010") +
+  theme_bw_journal()
+
+g
+ggsave(file.path("manuscripts/Figures/rmse_2010_obs_plot.jpg"), plot = g, device = "jpg")
+
+# RMSE based on amount of data in the validation set
+g <- ggplot(rmse_2010, aes(obs_2010, rmse)) + 
+  geom_point(aes(colour = obs)) + 
+  geom_smooth(level = 0.95) + 
+  scale_color_gradient(low = "black", high = "red") + 
+  #xlim(0, 5) +
+  #ylim(0, 5) +
+  xlab("Number of observations in the validation data per reach") +
+  ylab("RMSE by reach in 2010") +
+  theme_bw_journal()
+
+g
+ggsave(file.path("manuscripts/Figures/rmse_2010_valid_obs_plot.jpg"), plot = g, device = "jpg")
+```
+
+Plot all the validation data vs the observed to see if any bias
+
+```{r plot all validation data vs observed}
+g <- ggplot(tempDataSyncValid, aes(temp, trend)) + 
+  geom_point() + 
+  geom_abline(intercept = 0, slope = 1, colour = "blue") +
+  xlim(0, 30) +
+  ylim(0, 30) +
+  xlab("Observed Water Temperature (C)") +
+  ylab("Predicted Water Temperature (C)") +
+  theme_bw_journal()
+
+g
+ggsave(file.path("manuscripts/Figures/validation_plot.jpg"), plot = g, device = "jpg")
+```
+
+Amount of data used in fitting effect on validation RMSE
+
+```{r validation data amounts}
+rmse_obs <- tempDataSyncValid %>%
+  dplyr::group_by(featureid) %>%
+  dplyr::summarise(rmse = rmse(temp - trend))
+
+rmse_obs <- rmse_obs %>%
+  dplyr::left_join(fit_sum) %>%
+  replace(is.na(.), 0)
+rmse_obs
+summary(rmse_obs)
+
+# 95% confidence intervals
+rmse_bs <- sample(rmse_obs$rmse, 10000, replace = TRUE)
+quantile(rmse_bs, c(0.025, 0.975))
+
+g <- ggplot(rmse_obs, aes(obs, rmse)) + 
+  geom_point(aes(colour = years)) + 
+  geom_smooth(level = 0.95) + 
+  scale_color_gradient(low = "black", high = "red") + 
+  #xlim(0, 5) +
+  #ylim(0, 5) +
+  xlab("Number of observations (days with data) used to fit the model") +
+  ylab("RMSE by reach") +
+  theme_bw_journal()
+
+g
+ggsave(file.path("manuscripts/Figures/rmse_obs_plot.jpg"), plot = g, device = "jpg")
+```
 
 ### Evaluation of breakpoints
 
@@ -424,44 +587,85 @@ summary(derived.metrics)
 
 
 
-### ERROR summary by site and year
+### ERROR summary by site 
 
 ```{r}
-tempDataSyncS_resids <- tempDataSyncS %>%
-  group_by(featureid, year) %>%
+tempDataSyncValid <- tempDataSyncValid %>%
+  group_by(featureid) %>%
   filter(!(is.na(temp) & !is.na(trend))) %>%
   mutate(error = temp - trend)
 
-if(dim(tempDataSyncS_resids)[1] > 0) {
-  error_metrics_year <- tempDataSyncS_resids %>%
-    dplyr::summarise(RMSE_trend = rmse(error),
-                     MAE_trend = mae(error),
-                     NSE_trend = nse(temp, tempPredicted)) 
-  error_metrics <- error_metrics_year %>%
-    dplyr::summarise(meanRMSE_trend = mean(RMSE_trend, na.rm = T),
-                     meanMAE_trend = mean(MAE_trend, na.rm = T),
-                     meanNSE_trend = mean(NSE_trend, na.rm = T))
+foo <- tempDataSyncValid %>%
+  dplyr::mutate(impoundArea = AreaSqKM * allonnet / 100) %>%
+  dplyr::summarise_each(. , funs(mean)) 
 
-  error_metrics_year <- error_metrics_year %>%
-    left_join(df_covariates_upstream) %>%
-    dplyr::mutate(impoundArea = AreaSqKM * allonnet / 100)
-}
+valid_summary <- tempDataSyncValid %>%
+  group_by(featureid) %>%
+  dplyr::summarise(RMSE = rmse(error),
+                MAE = mae(error),
+                NSE = nse(temp, trend)) %>%
+  dplyr::left_join(foo)
 
-summary(error_metrics_year)
+valid_summary %>%
+  dplyr::select(temp, forest, AreaSqKM, impoundArea, developed, elevation, impervious, allonnet, RMSE, MAE, NSE) %>%
+  summary()
 
+ggplot(valid_summary, aes(RMSE, MAE)) + geom_point()
+ggplot(valid_summary, aes(RMSE, NSE)) + geom_point()
 ```
 
 ### characteristics of sites correlated with predictive ability?
 
 ```{r}
-ggplot(error_metrics_year, aes(AreaSqKM, RMSE_trend)) + geom_point() + geom_smooth()
+g <- ggplot(valid_summary, aes(forest, RMSE)) +
+  geom_point() +
+  geom_smooth() +
+  xlab("Forest Cover (%)")
+  theme_bw_journal()
+g
+ggsave("manuscripts/Figures/forest_rmse.jpg", g, device = "jpg")
 
-ggplot(error_metrics_year, aes(impoundArea, RMSE_trend)) + geom_point() + geom_smooth()
+g <- ggplot(valid_summary, aes(AreaSqKM, RMSE)) +
+  geom_point() +
+  geom_smooth() +
+  xlab("Drainage Area (sq KM)")
+  theme_bw_journal()
+g
+ggsave("manuscripts/Figures/drainage_rmse.jpg", g, device = "jpg")
 
-ggplot(error_metrics_year, aes(forest, RMSE_trend)) + geom_point() + geom_smooth()
+g <- ggplot(valid_summary, aes(allonnet, RMSE)) +
+  geom_point() +
+  geom_smooth() +
+  xlab("Percentage of drainage area impounded")
+  theme_bw_journal()
+g
+ggsave("manuscripts/Figures/allonnet_rmse.jpg", g, device = "jpg")
 
-ggplot(error_metrics_year, aes(year, RMSE_trend)) + geom_point() + geom_smooth()
+g <- ggplot(valid_summary, aes(developed, RMSE)) +
+  geom_point() +
+  geom_smooth() +
+  xlab("Percentage of catchment developed")
+  theme_bw_journal()
+g
+ggsave("manuscripts/Figures/developed_rmse.jpg", g, device = "jpg")
 
+library(GGally)
+short_sum <- valid_summary %>%
+  dplyr::select(temp, forest, AreaSqKM, impoundArea, developed, elevation, impervious, allonnet, RMSE, NSE)
+ggpairs(short_sum)
+
+valid_summary_year <- tempDataSyncValid %>%
+  group_by(featureid, year) %>%
+  dplyr::summarise(RMSE = rmse(error),
+                MAE = mae(error),
+                NSE = nse(temp, trend))
+
+g <- ggplot(valid_summary_year, aes(as.character(year), RMSE)) +
+  geom_boxplot() +
+  xlab("Year") +
+  theme_bw_journal()
+g
+ggsave("manuscripts/Figures/year_rmse.jpg", g, device = "jpg")
 ```
 
 

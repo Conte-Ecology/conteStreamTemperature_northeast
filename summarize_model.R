@@ -11,6 +11,7 @@
 rm(list = ls())
 gc()
 
+detach("package:dplyr", unload = TRUE)
 
 library(ggplot2)
 library(ggmcmc)
@@ -20,7 +21,7 @@ library(devtools)
 library(conteStreamTemperature)
 library(rjags)
 
-data_dir <- "localData_2015-09-28" 
+data_dir <- "localData_2015-12-21" 
 
 args <- commandArgs(trailingOnly = TRUE)
 
@@ -75,9 +76,15 @@ if(test_jags_pred) {
   rmse(temps$temp - temps$temp.predicted) # 0.633
 }
 
+# JAGS object is too large, need to cut daily predictions
+fu <- mcmc.list()
+for(i in 1:length(M.ar1)) {
+  bar <- attr(M.ar1[[i]], which = "dimnames")[[2]] #[2000:2200]
+  sna <- M.ar1[[i]][1:3000, which(!grepl("stream.mu", bar) & !grepl("trend", bar))]
+  fu[[i]] <- as.mcmc(sna)
+}
 
-
-system.time(ggs.ar1 <- ggs(M.ar1)) 
+system.time(ggs.ar1 <- ggs(fu)) 
 
 gc(verbose = FALSE) 
 
@@ -100,6 +107,9 @@ ggmcmc(ggs.ar1, file = paste0(data_dir, "/figures/ggmcmc-sigma-year.pdf"), famil
 ggmcmc(ggs.ar1, file = paste0(data_dir, "/figures/ggmcmc-ar1-rho-huc.pdf"), family = "rho.B.huc", plot = "ggs_traceplot")
 
 ggmcmc(ggs.ar1, file = paste0(data_dir, "/figures/ggmcmc-ar1-B-ar1.pdf"), family = "B.ar1", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
+
+detach("package:ggmcmc", unload = TRUE)
+
 
 
 system.time(coef.summary <- avgCoefs(ggs.ar1)) 
