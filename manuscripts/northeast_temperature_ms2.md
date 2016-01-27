@@ -17,7 +17,7 @@ Introduction
 
 **Options:** Water Research, **Water Resources Research**, Freshwater Biology, Journal of Hydrology, Ecohydrology, Journal of Environmental Quality, Hydrobiologia, JAWRA
 
-Temperature is a critical factor in regulating the physical, chemical, and biological properties of streams. Warming stream temperatures decrease dissolved oxygen, decrease water density, and alter the circulation and stratification patterns of the stream (refs). Biogeochemical processes such as nitrogen and carbon cycling are also temperature dependent and affect primary production, decomposition, and eutrophication (refs). Both physical properties and biogeochemical processes influence the suitability for organisms living in and using the stream habitat beyond just primary producers. Additionally, temperature can have direct effects on the biota, especially ectotherms such as invertebrates, amphibians, and fish [e.g., @Kanno2013; @Xu2010; @Xu2010a; @Al-Chokhachy2013a]. Given commercial and recreational interests, there is a large body of literature describing the effects of temperature on fish, particularly the negative effects of warming temperatures on cool-water fishes such as salmonids . Finally, stream temperature can even affect electricity, drinking water, and recreation (see van Vliet et al 2011). Therefore, understanding and predicting stream temperatures are important for a multitude of stakeholders.
+Temperature is a critical factor in regulating the physical, chemical, and biological properties of streams. Warming stream temperatures decrease dissolved oxygen, decrease water density, and alter the circulation and stratification patterns of streams (refs). Biogeochemical processes such as nitrogen and carbon cycling are also temperature dependent and affect primary production, decomposition, and eutrophication (refs). Both physical properties and biogeochemical processes influence the suitability for organisms living in and using the stream habitat beyond just primary producers. Additionally, temperature can have direct effects on the biota, especially poikliotherms such as invertebrates, amphibians, and fish [e.g., @Kanno2013; @Xu2010; @Xu2010a; @Al-Chokhachy2013a]. Given commercial and recreational interests, there is a large body of literature describing the effects of temperature on fish, particularly the negative effects of warming temperatures on cool-water fishes such as salmonids . Finally, stream temperature can even affect electricity, drinking water, and recreation (see van Vliet et al 2011). Therefore, understanding and predicting stream temperatures are important for a multitude of stakeholders.
 
 Stream temperature models can be used for explanatory purposes (understanding factors and mechanisms affecting temperature) and for prediction. Predictions can be spatial and temporal including forecasting and hindcasting. Predictions across space are especially valuable because there is often a need for information at locations with little or no observed temperature data. For example, many states have regulations related to the management of streams classified as cold, cool, and warm waters (refs), but because of the tremendous number of headwater streams it is impossible classify most streams based on observed data. Therefore, modeled stream temperature is needed to classify most streams for regulatory purposes. Forecasting can provide immediate information such as the expected temperature the next hour, day, or week as well as long-term information about expected temperatures months, years, and decades in the future. Hindcasting can be used to examine temperature variability and trends over time and for model validation. Both forecasting and hindcasting are useful for understanding climate change effects on stream temperature regimes.
 
@@ -29,9 +29,9 @@ As with stochastic models, statistical models generally rely on correlative rela
 
 In contrast with deterministic approaches, statistical models require less detailed site-level data and therefore can be applied over greater spatial extents than process-based models. They also can describe the relationships between additional covariates and stream temperature, which is a limitation of stochastic models. These relationships can be used to understand and predict anthropogenic effects on stream temperature such as timber harvest, impervious development, and water control and release [@Webb2008]. Quantifying the relationship between anthropogenic effects, landscape characteristics, meteorological patterns, and stream temperature allows for prediction to new sites and times using statistical models. This is advantageous for forecasting and hindcasting to predict and understand climate change effects on stream temperatures. This is critical because not all streams respond identically to air temperature changes and the idiosyncratic responses may be predicted based interactions of known factors such as flow, precipitation, forest cover, basin topology, impervious surfaces, soil characteristics, geology, and impoundments [@Webb2008].
 
-Letcher et al. (ref) outline the general challenges of statistical stream temperature models including ... They developed a statistical model that addresses ... but is limited to a single small network of streams with long time series.
+Letcher et al. [-@letcher2015] outline six general challenges of statistical stream temperature models including accounting for 1) the non-linear relationship between air and water temperature at high and low air temperatures, 2) different relationships between air and water temperature in the spring and fall (hysteresis), 3) thermal inertia resulting in lagged responses of water temperature to changes in air temperature, 4) incomplete time series data and locations with large differences in the amount of available data, 5) spatial and temporal autocorrelation, and 6) important predictors of stream water temperature other than air temperature. They developed a statistical model that addresses aspects of non-linear relationships, hysteresis, thermal inertia, and spatial and temporal autocorrelation but their analysis was limited to a single small network of streams with long time series [@letcher2015].
 
-We describe a novel statistical model of daily stream temperature that incorporates features of stochastic models and extends the Letcher et al. (ref) framework to large geographic areas. This model handles time series data of widely varying duration from many sites using a hierarchical mixed model approach to account for autocorrelation at specific locations within watersheds. It incorporates catchment, landscape, and meteorological covariates for explanatory and predictive purposes. It includes an autoregressive function to account for temporal autocorrelation in the time series, a challenge with other statistical models at fine temporal resolution. Additionally, our hierarchical Bayesian approach readily allows for complete accounting of uncertainty. We use the model to predict daily stream temperature across the northeastern United States over a 34-year time record.
+We describe a novel statistical model of daily stream temperature that incorporates features of stochastic models and extends the Letcher et al. [-@letcher2015] framework to large geographic areas. This model handles time series data of widely varying duration from many sites using a hierarchical mixed model approach to account for autocorrelation at specific locations within watersheds. It incorporates catchment, landscape, and meteorological covariates for explanatory and predictive purposes. It includes an autoregressive function to account for temporal autocorrelation in the time series, a challenge with other statistical models at fine temporal resolution. Additionally, our hierarchical Bayesian approach readily allows for complete accounting of uncertainty. We use the model to predict daily stream temperature across the northeastern United States over a 34-year time record.
 
 
 Methods
@@ -56,15 +56,15 @@ Stream network delineation
 
 Statistical models of stream temperature often rely on the close relationship between air temperature and water temperature. However, this relationship breaks down during the winter in temperature zones, particularly as streams freeze, thereby changing their thermal and properties. Many researchers and managers are interested in the non-winter effects of temperature. The winter period, when phase change and ice cover alter the air-water relationship, differs in both time (annually) and space. We developed an index of air-water synchrony ($Index_{sync}$) so we can model the portion of the year that it not affected by freezing properties. The index is the difference between air and observed water temperatures divided by the water temperature plus 0.000001 to avoid division by zero. 
 
-We calculate the $Index_{sync}$ for each day of the year at each reach for each year with observed data. We then calculate the 99.9% confidence interval of $Index_{sync}$ for days between the 125 and 275 days of the year (05 May and 02 October). Then moving from the middle of the year (day 180) to the beinging of the year, we searched for the first time when 10 consecutive days were not within the 99.9% CI. This was selected as the spring breakpoint. Similarly moving from the middle to the end of the year, the first event with fewer than 16 consecutive days within the 99.9% CI was assigned as the autumn breakpoint. Independent breakpoints were estimated for each reach-year combination. For reach-years with insufficient data to generate continuous trends and confidence intervals, we used the mean break points across years for that reach. If there was not sufficient local reach information, we used the mean breakpoints from the smallest hydrologic unit the reach is nested in (i.e. check for mean from HUC12, then HUC10, HUC8, etc.). More details regarding the identification of the synchronized period can be found in Letcher et al. (*in review*). The portion of the year between the spring and autumn breakpoints was used for modeling the non-winter, approximately ice-free stream temperatures.
+We calculate the $Index_{sync}$ for each day of the year at each reach for each year with observed data. We then calculate the 99.9% confidence interval of $Index_{sync}$ for days between the 125 and 275 days of the year (05 May and 02 October). Then moving from the middle of the year (day 180) to the beginning of the year, we searched for the first time when 10 consecutive days were not within the 99.9% CI. This was selected as the spring breakpoint. Similarly moving from the middle to the end of the year, the first event with fewer than 16 consecutive days within the 99.9% CI was assigned as the autumn breakpoint. Independent breakpoints were estimated for each reach-year combination. For reach-years with insufficient data to generate continuous trends and confidence intervals, we used the mean break points across years for that reach. If there was not sufficient local reach information, we used the mean breakpoints from the smallest hydrologic unit the reach is nested in (i.e. check for mean from HUC12, then HUC10, HUC8, etc.). More details regarding the identification of the synchronized period can be found in Letcher et al. (*in review*). The portion of the year between the spring and autumn breakpoints was used for modeling the non-winter, approximately ice-free stream temperatures.
 
-We used a generalized linear mixed model to account for correlation in space (stream reach nested within HUC8). This allowed us to incorporate short time series as well as long time series from different reaches and disjunct time series from the same reaches without risk of pseudoreplication (ref: Hurlbert). By limited stream drainage area to <400 $km^2$ and only modeling the synchronized period of the year, we were able to use a linear model, avoiding the non-linearities that occur at very high temperatures due to evaporative cooling and near 0 C dur to phase change (ref: mohseni). 
+We used a generalized linear mixed model to account for correlation in space (stream reach nested within HUC8). This allowed us to incorporate short time series as well as long time series from different reaches and disjunct time series from the same reaches without risk of pseudoreplication (ref: Hurlbert). By limited stream drainage area to <400 $km^2$ and only modeling the synchronized period of the year, we were able to use a linear model, avoiding the non-linearities that occur at very high temperatures due to evaporative cooling and near 0 C due to phase change (ref: mohseni). 
 
 We assumed stream temperature measurements were normally distributed following,
 
 $$ t_{h,r,y,d} \sim \mathcal{N}(\mu_{h,r,y,d}, \sigma) $$
 
-where $t_{h,r,y,d}$ is the observed stream water temperature at the reach ($r$) within the sub-basin identified by the 8-digit Hydrologic Unit Code (HUC8; $h$) for each day ($d$) in each year ($y$). We describe the normal distribution based on the mean ($mu_{h,r,y,d}$) and standard deviation ($\sigma$) and assign a vague prior of $\sigma = 100$. The mean temperature is modelled to follow a linear trend
+where $t_{h,r,y,d}$ is the observed stream water temperature at the reach ($r$) within the sub-basin identified by the 8-digit Hydrologic Unit Code (HUC8; $h$) for each day ($d$) in each year ($y$). We describe the normal distribution based on the mean ($mu_{h,r,y,d}$) and standard deviation ($\sigma$) and assign a vague prior of $\sigma = 100$. The mean temperature is modeled to follow a linear trend
 
 $$ \omega_{h,r,y,d} = X_0 B_0 + X_{h,r} B_{h,r} + X_{h} B_{h} + X_{y} B_{y} $$
 
@@ -86,9 +86,9 @@ $$ B_0 = \beta_{0}^{1},...,\beta_{0}^{K_{0}} \sim \mathcal{N}(0, 100) $$
 
 $$ \sigma_{k_0} = 100 $$
 
-**??The effects of air temperature on the day of observation ($d$) and mean air temperature over the previous 7 days varied randomly with reach nested within HUC8, as did precipitation, the previous 30-day precipitation mean, and the interactions of air temperature and preciptation (all 4 combinations).??**
+**??The effects of air temperature on the day of observation ($d$) and mean air temperature over the previous 7 days varied randomly with reach nested within HUC8, as did precipitation, the previous 30-day precipitation mean, and the interactions of air temperature and precipitation (all 4 combinations).??**
 
-$B_{h,r}$ is the $R \times K_{R}$ matrix of regression coefficients where $R$ is the number of unique reaches and $K_{R}$ is the number of regression coeffcients that vary randomly by reach within HUC8. We assumed prior distributions of
+$B_{h,r}$ is the $R \times K_{R}$ matrix of regression coefficients where $R$ is the number of unique reaches and $K_{R}$ is the number of regression coefficients that vary randomly by reach within HUC8. We assumed prior distributions of
 
 $$ B_{h,r} \sim \mathcal{N}(0,\sigma_{k_{r}}), \text{for $k_{r} = 1,...,K_{R}$,} $$
 
@@ -96,7 +96,7 @@ $$ \sigma_{r_0} = 100 $$
 
 $X_{h}$ is the matrix of parameters that vary by HUC8. We allowed for correlation among the effects of these HUC8 coefficients as described by Gelman and Hill [-@Gelman2007].
 
-$B_{h}$ is the $H \times K_{H}$ matrix of coefficients where $H$ is the number of HUC8 groups and $K_H$ is the number of paramaters that vary by HUC8 including a constant term. In our model, $K_{H} = K_{R}$ and we assumed priors distributions of
+$B_{h}$ is the $H \times K_{H}$ matrix of coefficients where $H$ is the number of HUC8 groups and $K_H$ is the number of parameters that vary by HUC8 including a constant term. In our model, $K_{H} = K_{R}$ and we assumed priors distributions of
 
 $$ B_{h} \sim \mathcal{N}(M_{h},\Sigma_{B_{h}}), \text{for $h = 1,...,H$} $$
 
@@ -120,13 +120,13 @@ $$ \mu_{1}^y = 0; \mu_{2:K_y}^y \sim \mathcal{N}(0, 100) $$
 
 $$ \Sigma_{B_{y}} \sim \text{Inv-Wishart}(diag(K_{y}), K_{y}+1) $$
 
-To estimate all the parameters and their uncertainties, we used a Bayesian analysis with a Gibbs sampler implemented in JAGS (ref) through R (ref) using the rjags package (ref). This approach was beneficial for hierarchical model flexibility and tractibility for large datasets. We used vague priors for all parameters so all inferences would be based on the data.
+To estimate all the parameters and their uncertainties, we used a Bayesian analysis with a Gibbs sampler implemented in JAGS (ref) through R (ref) using the rjags package (ref). This approach was beneficial for hierarchical model flexibility and tractability for large datasets. We used vague priors for all parameters so all inferences would be based on the data.
 
 **info on length of burn-in and sampling iterations and thinning**
 
 ### Model validation
 
-To validate our model, we held out 10% of subbasins (HUC8s) at random. We also held out 10% of remaining stream reaches with observed temperature data at random. Additionally, we excluded all 2010 data because it was an especially warm summer across the northeastern U.S. Therefore, we will be able to evaluate how well our model predicts across space and time. This included reaches with no data located within subbasins with and without data and how well the model predicts in warm years without data, which will be important if using this model with future climate predictions. The most challenging validation scenario was at reaches within HUC8s without any data in a year without any data. In total, **XX%** of observations and **XX%** of reaches were held out for validation.
+To validate our model, we held out 10% stream reaches at random. We also held out 10% of remaining reach-year combinations with observed temperature data at random. Additionally, we excluded all 2010 data because it was an especially warm summer across the northeastern U.S. Therefore, we will be able to evaluate how well our model predicts across space and time. This included reaches with no data located within subbasins with and without data and how well the model predicts in warm years without data, which will be important if using this model with future climate predictions. The most challenging validation scenario was at reaches within HUC8s without any data in a year without any data. In total, **26.4%** of observations and **33.3%** of reaches were held out for validation.
 
 To validate the model and assess its predictive ability, we randomly excluding 10% of site-year combinations, 10% of sites across all years. We also excluded all data from 2010, which was a particularly warm year across the region based on the mean summer daymet air temperatures. This approach was also used by [@DeWeber2014a] and helps to indicate the models predictive ability under future warming conditions. In total, we held out 28% of the data for validation.
 
@@ -143,27 +143,38 @@ Results
 We used **XX** observations from **XX** stream reaches within **XX** HUC8 subbasins between **1991-2013**, excluding 2010. 
 
 Evaluation of MCMC convergence (visual and R-hat)
-
-Evaluation of model fit
-
-The overall Root Mean Squared Error (RMSE) was 0.59 and the residuals were normally distributed and unbiased (no visual heterogeneity), indicating that the model was a good estimate of the process generating the data. 
+The iterations of the three MCMC chains converged on a single area of high posterior probability while exhibiting minimal autocorrelation, based on visual inspection of the iteration traceplots, partial vs. full density plots, autocorrelation plots. The potential scale reduction factors (PSRF, $\hat{R}$) for all parameters and the multivariate PSRF were < 1.1, further indicating good convergence of the MCMC chains [@Brooks1998].
 
 Coefficient estimates from the model
 
-Most variables and their interactions were significantly significant with 95% Credible Intervals that did not overlap zero (Table 1). The only non-significant parameters were the interactions of air temperature and forest cover and air temperature and Impounded Area. Drainage area alone was not significant but it was significant in its interactions with ... were significant.
+Most variables and their interactions were significantly significant with 95% Credible Intervals that did not overlap zero (Table 1). The only non-significant parameters were the interactions of air temperature and forest cover and air temperature and Impounded Area. Drainage area alone was not significant but it was significant in its interactions with all combinations of air temperature and precipitation (Table 1). Air temperature (1-day and 7-day) was the primary predictor of daily water temperature. The effect of air temperature was dampened by interactions with precipitation and drainage area (negative 3-way interactions; Table 1). There was also a large autocorrelation coefficient (AR1 = 0.77), indicating that if the other deterministic parameters in the model predicted temperature to be over- or under-estimated by 1 C yesterday, they will be similarly over- or under-estimated by 0.77 C today.
 
 Variability at the reach and huc scales
 
 There was much more unexplained random variation among sites than among HUC8, but the effects of air temperature on water temperature were only slightly more variable among sites compared with HUC8. There was very little random variability among years not explained by other parameters (Table 1).
 
-To evaluate the spatial and temporal predictive power of our model, we used independent validation data consisting of **XX** observations from **XX** stream reaches within **XX** HUC8 subbasins between **YYYY-YYYY**.
+Evaluation of model fit and predictive power
+
+The overall Root Mean Squared Error (RMSE) was 0.58 C and the residuals were normally distributed and unbiased (exhibiting no visual heterogeneity), indicating that the model was a good estimate of the process generating the data. These predicted values are adjusted for residual error, but to understand how well the model predicts temperatures when the previous day's observed temperature is unknown it is better to use the predictions prior to adjusting with the residual AR1 term. The RMSE for the fitted data using unadjusted predictions was 0.89 C. All additional predictions and summaries use the unadjusted predictions to better understand the predictive abilities of the model.
+
+Specifically, to evaluate the spatial and temporal predictive power of our model, we used independent validation data consisting of 46,290 daily temperature observations from 313 stream reaches representing 383 reach-year combinations within 36 HUC8 subbasins between 1998 and 2013. The overall unadjusted RMSE for all validation data was 1.81 C. Similar to the fitted data, there was no bias in the predictions of the validation data, with the potential exception of slight over-prediction at very low temperatures and possible slight under-prediction at very high temperatures (figure - appendix?) ![](Figures/validation_plot.jpg).
+
+To assess predictive accuracy in warm years without data, we calculated the RMSE for all reaches in 2010 (excluded from model fitting) to be 1.85 C. The RMSE in 2010 for reaches that had data in other years used in the modeling fitting was 1.77 C, whereas reaches that had no data in other years had an overall RMSE of 1.95 C in 2010 (no information about the specific reach or year in a warm year). We performed 10,000 bootstrap samples on the 2010 RMSE by reach and calculated the 95% confidence interval to be 0.73 - 4.17 C. Inference from this interval assumes the reaches sampled in 2010 represent a random sample of the reaches of interest.
+
+Interestingly, there appears to be only a slight improvement in RMSE with increases in the amount of data used in the model fitting or years of observed data (appendix figure) ![](Figures/rmse_2010_obs_plot.jpg). This suggests that the predictive ability is largely based on reach-level effects not accounted for in the model. Similarly, there is no affect of the amount of data in the validation data for a reach on the RMSE estimate of that reach (appendix figure) ![](Figures/rmse_2010_valid_obs_plot.jpg). 
+
+
 
 Maps of each derived metric in appendix or special version of ICE
+
 
 Discussion
 ----------
 
 what we found
+
+interpretation of parameter estimates
+
 
 model separates uncertainty in estimates and predictions from variability across space and time. The random reach, HUC, and year effects explicitly address spatial and temporal variability, allowing for more proper accounting of uncertainty.
 
@@ -173,8 +184,20 @@ Disagreement (conflicting evidence? confused terminology) regarding the drivers 
 
 limitations - ground-surface water interactions not included. However, if remotely sensed predictors could be developed, or exist in a particular region, they could easily be included as site-level predictors.
 
+future developments
+* groundwater
+* within reach variability
+* autoregressive temperature not just residuals
+* detailed effects of impoundments (exponential decay with distance)
+* spatial autocorrelation
+* expand to larger spatial extent
+* nonlinear relationships
+* model winter
+* adjust breakpoint sync function to adjust with different stream conditions, elevations, and locations
+* 
 
-Acknowledgements
+
+Acknowledgments
 ----------------
 Thanks to A. Rosner for thoughtful discussions related to the analysis and inference.
 
@@ -184,72 +207,78 @@ Groups who provided data
 Tables
 ------
 
-Table 1. Regression summary table with coefficient estimates including the mean, standard deviation (SD), and 95% credible intervals (LCRI = 0.025%, UCRI = 0.975%). 
+Table 1. Regression summary table with coefficient estimates including the mean, standard deviation (SD), and 95% credible intervals (LCRI = 2.5%, UCRI = 97.5%). 
 
 ----------------------------------------------------------
-                     parameter   Mean    SD   LCRI    UCRI
------------------------------- ------ ----- ------ -------
-                     Intercept 16.683 0.119 16.444 16.9142
+                     Parameter   Mean    SD    LCRI   UCRI
+------------------------------ ------ ----- ------- ------
+                     Intercept  16.69 0.135 16.4182 16.949
 
-                          AirT  1.946 0.024  1.899  1.9920
+                          AirT   1.91 0.022  1.8620  1.950
 
-                    7-day AirT  1.377 0.030  1.318  1.4359
+                    7-day AirT   1.36 0.029  1.3015  1.417
 
-                  2-day Precip  0.052 0.002  0.047  0.0559
+                  2-day Precip   0.06 0.002  0.0546  0.063
 
-                 30-day Precip  0.015 0.006  0.002  0.0271
+                 30-day Precip   0.01 0.006  0.0005  0.026
 
-                 Drainage Area  0.025 0.097 -0.167  0.2150
+                 Drainage Area   0.04 0.096 -0.1452  0.232
 
-                  Forest Cover -0.156 0.047 -0.248 -0.0636
+                Impounded Area   0.50 0.095  0.3181  0.691
 
-                Impounded Area  0.545 0.099  0.356  0.7379
+                  Forest Cover  -0.15 0.047 -0.2455 -0.059
 
-       2-day Precip x Drainage -0.041 0.002 -0.045 -0.0364
+           AirT x 2-day Precip   0.02 0.002  0.0195  0.028
 
-      30-day Precip x Drainage -0.059 0.006 -0.071 -0.0472
+          AirT x 30-day Precip  -0.01 0.004 -0.0224 -0.007
 
-                 AirT x Forest -0.005 0.016 -0.036  0.0269
+               AirT x Drainage  -0.06 0.029 -0.1170 -0.006
 
-         AirT x Impounded Area -0.030 0.016 -0.061  0.0003
+         AirT x Impounded Area   0.02 0.029 -0.0345  0.077
 
-AirT x 2-day Precip x Drainage -0.008 0.002 -0.013 -0.0043
+                 AirT x Forest  -0.02 0.015 -0.0508  0.009
 
-        AirT x 30-day Precip x -0.014 0.004 -0.022 -0.0060
+       2-day Precip x Drainage  -0.04 0.002 -0.0424 -0.034
+
+      30-day Precip x Drainage  -0.06 0.006 -0.0709 -0.046
+
+AirT x 2-day Precip x Drainage  -0.01 0.002 -0.0156 -0.008
+
+        AirT x 30-day Precip x  -0.01 0.004 -0.0193 -0.004
                       Drainage                            
 
-                           AR1  0.768 0.002  0.764  0.7719
+                           AR1   0.77 0.002  0.7681  0.776
 ----------------------------------------------------------
 **Random effects:**
 
 ----------------------------------
   Group       Coef   SD   Variance
 ------- ---------- ---- ----------
-   Site  Intercept 1.02      1.037
+   Site  Intercept 1.03      1.060
 
-              AirT 0.30      0.090
+              AirT 0.29      0.083
 
-        7-day AirT 0.35      0.123
+        7-day AirT 0.35      0.120
 
-   HUC8  Intercept 0.48      0.229
+   HUC8  Intercept 0.59      0.345
 
-              AirT 0.26      0.070
+              AirT 0.27      0.072
 
-        7-day AirT 0.27      0.071
+        7-day AirT 0.26      0.066
 
-   Year  Intercept 0.11      0.011
+   Year  Intercept 0.28      0.076
 ----------------------------------
 **HUC8 coefficient correlations:**
 
-------------------------------------------------
-          &nbsp;   Intercept   AirT   7-day AirT
----------------- ----------- ------ ------------
+--------------------------------------------
+      &nbsp;   Intercept   AirT   7-day AirT
+------------ ----------- ------ ------------
    Intercept                                
 
-        AirT       0.556                    
+        AirT        0.64                    
 
-  7-day AirT       0.275  0.202             
-------------------------------------------------
+  7-day AirT       0.338  0.234             
+--------------------------------------------
 
 
 

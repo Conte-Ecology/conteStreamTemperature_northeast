@@ -5,6 +5,7 @@ Daily model of stream temperature for regional predictions
 
 *Daniel J. Hocking ([dhocking@usgs.gov](mailto:dhocking@usgs.gov)), US Geological Survey, Conte Anadromous Fish Research Center, Turners Falls, MA, USA
 
+Disclaimer: This draft manuscript is distributed solely for purposes of scientific peer review. Its content is deliberative and predecisional, so it must not be disclosed or released by reviewers. Because the manuscript has not yet been approved for publication by the US Geological Survey (USGS), it does not represent any official finding or policy.
 
 Abstract
 --------
@@ -118,6 +119,8 @@ To estimate all the parameters and their uncertainties, we used a Bayesian analy
 
 ### Model validation
 
+To validate the model and assess its predictive ability, we randomly excluding 10% of site-year combinations, 10% of sites across all years. We also excluded all data from 2010, which was a particularly warm year across the region based on the mean summer daymet air temperatures. This approach was also used by [@DeWeber2014a] and helps to indicate the models predictive ability under future warming conditions. In total, we held out 28% of the data for validation.
+
 ### Derived metrics
 
 ### Climate change projections (future paper?)
@@ -128,6 +131,7 @@ Results
 
 Explain what you found. Avoid blind *P-values* (or avoid *P-values* altogether)
 
+breakpoints in time and space?
 
 Discussion
 ----------

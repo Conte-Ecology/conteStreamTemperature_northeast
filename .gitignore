@@ -33,9 +33,11 @@ outP.RData
 codaList-M3.RData
 example_models/
 Test/
+cleaning.R
 # Kyle.ignore
 maps/
 UMassWork/
 rawDataWork/
 Derived_Metric_Summary.html
 localData*
+Data_Raw/
