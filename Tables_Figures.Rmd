@@ -1,0 +1,158 @@
+---
+title: "Manuscript Tables and Figures"
+author: "Daniel Hocking"
+date: "Friday, April 10, 2015"
+output: html_document
+---
+
+```{r setup, echo=FALSE}
+library(pander)
+library(ggplot2)
+library(dplyr)
+library(RPostgreSQL)
+library(lubridate)
+library(conteStreamTemperature)
+library(texreg)
+library(stargazer)
+#library(tables)
+
+local_dir <- "/localData_2016-01-19/"
+data_dir <- paste0(getwd(), local_dir)
+
+#df <- readRDS(file.path(data_dir, "obs_predicted.RData"))
+coefs <- readRDS(file.path(data_dir, "coef.RData"))
+covs <- readRDS(file.path(data_dir, "covariate_list.RData"))
+df_breaks <- readRDS(file.path(data_dir, "springFallBPs.RData"))
+df_rmse <- readRDS(file.path(data_dir, "rmse_table.RData"))
+df_valid <- readRDS(file.path(data_dir, "valid_results.RData"))
+load(file.path(data_dir, "tempDataSync.RData"))
+
+df_breaks <- df_breaks %>%
+  dplyr::mutate(featureid = as.character(site))
+
+#df_temp <- left_join(df_temp, df_breaks, by = c("featureid", "year"))
+
+df_stds
+```
+
+
+```{r presentation ggplot theme, echo=FALSE}
+theme_bw_journal <- function (base_family = "") {
+    theme_grey(base_family = base_family) %+replace% 
+        theme(axis.text = element_text(size = rel(0.8)), axis.ticks = element_line(colour = "black"), 
+            legend.key = element_rect(colour = "grey80"), panel.background = element_rect(fill = "white", 
+                colour = NA), panel.border = element_rect(fill = NA, 
+                colour = "grey50"), panel.grid.major = element_line(colour = "grey90", 
+                size = 0.2), panel.grid.minor = element_line(colour = "grey98", 
+                size = 0.5), strip.background = element_rect(fill = "grey80", 
+                colour = "grey50", size = 0.2))
+    }
+
+theme_set(theme_bw_journal())
+```
+
+
+```{r coefficient table, echo=FALSE}
+df_foo <- coefs$fix.ef %>%
+  dplyr::mutate(sig = ifelse(LCRI < 0 & 0 < UCRI, "", "*")) %>%
+  dplyr::filter(coef != "B.huc_intercept.site", coef != "B.year_intercept.year") 
+
+bar <- data.frame(coef = c("intercept"
+                    , "B.huc_airTemp"
+                    , "B.huc_temp7p"
+                    , "prcp2"
+                    , "prcp30"
+                    , "AreaSqKM"
+                    , "impoundArea"
+                    , "forest"
+                    , "airTemp.prcp2"
+                    , "airTemp.prcp30"
+                    , "airTemp.da"
+                    , "airTemp.impoundArea"
+                    , "airTemp.forest"
+                    , "prcp2.da"
+                    , "prcp30.da"
+                    , "airTemp.prcp2.da"
+                    , "airTemp.prcp30.da"
+                    , "ar1"),
+                  parameter = c("Intercept",
+                              "AirT",
+                              "7-day AirT",
+                              "2-day Precip",
+                              "30-day Precip",
+                              "Drainage Area",
+                              "Impounded Area",
+                              "Forest Cover",
+                              "AirT x 2-day Precip",
+                              "AirT x 30-day Precip",
+                              "AirT x Drainage",
+                              "AirT x Impounded Area",
+                              "AirT x Forest",
+                              "2-day Precip x Drainage",
+                              "30-day Precip x Drainage",
+                              "AirT x 2-day Precip x Drainage",
+                              "AirT x 30-day Precip x Drainage",
+                              "AR1"),
+                  stringsAsFactors = FALSE)
+bar$row <- 1:nrow(bar)
+
+df_foo <- df_foo %>%
+  dplyr::left_join(bar) %>%
+  dplyr::arrange(row) %>%
+  dplyr::select(Parameter = parameter, Mean = mean, SD = sd, LCRI, UCRI)
+
+
+pandoc.table(format(df_foo, 
+                    digits = 1,
+                    scientific = FALSE),
+             justify = "right")
+
+stargazer(df_foo, 
+          title = "A.",
+          summary=FALSE, 
+          style = "apsr",
+          rownames = F, 
+          digits = 3, 
+          type = "latex") # need to take the $ out of names if using stargazer
+
+
+## Make table like lme4 results! ##
+#random effects
+coefs$sigma.site
+ran.ef <- data.frame(rbind(coefs$sigma.site, coefs$sigma.huc, coefs$sigma.year), stringsAsFactors = FALSE) %>%
+  dplyr::mutate(Variance = mean.sd^2)
+ran.ef$Group <- c("Site", "", "", "HUC8", "", "", "Year")
+ran.ef$Coef <- c("Intercept", "AirT", "7-day AirT", "Intercept", "AirT", "7-day AirT", "Intercept")
+ran.ef <- dplyr::select(ran.ef, Group, Coef, SD = mean.sd, Variance)
+
+stargazer(ran.ef, summary=FALSE, title = "", rownames = F, digits = 3, type = "latex")
+
+pandoc.table(format(ran.ef, 
+                    digits = 2,
+                    scientific = FALSE),
+             justify = "right")
+
+coefs$cor.huc
+ran.cor <- coefs$cor.huc
+names(ran.cor) <- c("Intercept", "AirT", "7-day AirT")
+row.names(ran.cor) <-  c("Intercept", "AirT", "7-day AirT")
+stargazer(ran.cor, summary=FALSE, title = "", rownames = T, digits = 3, type = "latex")
+
+pandoc.table(format(ran.cor, 
+                    digits = 2,
+                    scientific = FALSE),
+             justify = "right",
+             emphasize.rownames = FALSE)
+
+
+stargazer(df_foo, ran.ef, 
+          summary=FALSE,
+          style = "apsr",
+          dep.var.caption = "test",
+          title = "", 
+          rownames = F, 
+          digits = 3, 
+          type = "text")
+
+```
+
