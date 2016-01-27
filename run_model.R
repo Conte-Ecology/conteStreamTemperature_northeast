@@ -15,7 +15,7 @@ library(devtools)
 install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 
-data_dir <- "localData_2015-09-28"
+data_dir <- "localData_2016-01-19"
 
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
@@ -52,10 +52,13 @@ fixed.ef <- c("intercept"
               #, "airTemp.prcp2.da.forest" # maybe add in when have riparian forest
               #, "temp7p.prcp7.da"
               #, "temp7p.forest.prcp7.da"
-              , "devel_hi"
-              , "airTemp.devel_hi"
+              #, "devel_hi"
+              #, "airTemp.devel_hi"
               , "prcp30"
               , "prcp30.da"
+              , "airTemp.da"
+              , "airTemp.prcp2"
+              , "airTemp.prcp30"
               , "airTemp.prcp30.da"
              #, "allonnet"
              #, "allonnet2" - only makes sense when a single impoundment but this can be the total of multiple impoundments
@@ -63,8 +66,8 @@ fixed.ef <- c("intercept"
             # , "airTemp.allonnet2"
             , "impoundArea" # area makes more sense than percent area, especially when comparing small headwaters to 3rd order catchments with impoundments
             , "airTemp.impoundArea"
-             , "agriculture" # consider making random when extend to VA
-             , "airTemp.agriculture" # try making random when extend to VA
+            # , "agriculture" # consider making random when extend to VA
+            # , "airTemp.agriculture" # try making random when extend to VA
 )
 
 site.ef <- c( "intercept.site" 
@@ -73,11 +76,10 @@ site.ef <- c( "intercept.site"
 )
 
 year.ef <- c( "intercept.year"
-              , "dOY" 
-              , "dOY2"
-              , "dOY3"
+#               , "dOY" 
+#               , "dOY2"
+#               , "dOY3"
 )
-
 
 cov.list <- list(fixed.ef = fixed.ef, site.ef = site.ef, huc.ef = site.ef, year.ef = year.ef)
 # model matrix not working because creates a design matrix
@@ -89,23 +91,26 @@ monitor.params <- c(#"residuals",
   #"deviance",
   "sigma",
   "B.ar1",
-  "mu.ar1",
-  "sigma.ar1",
+  #"mu.ar1",
+  #"sigma.ar1",
   "B.0",
   "B.site",
   #"rho.B.site",
   "stream.mu",
+  "trend",
+ # "reduced.pred",
+#  "reduced.trend",
   "sigma.b.site",
   "B.huc",
   "rho.B.huc",
   "mu.huc",
   "sigma.b.huc",
-  "xi.huc",
-  "xi.year",
-  "tau.B.year.raw",
-  "tau.B.huc.raw",
+  # "xi.huc",
+ #  "xi.year",
+#   "tau.B.year.raw",
+   "tau.B.huc.raw",
   "B.year",
-  "rho.B.year",
+  #"rho.B.year",
   "mu.year",
   "sigma.b.year")
 
@@ -119,52 +124,47 @@ if (!file.exists(paste0(data_dir, '/code'))) {
 # system.time(M.ar1 <- modelRegionalTempAR1(tempDataSyncS, cov.list=cov.list, firstObsRows = firstObsRows, evalRows = evalRows, n.burn = 10000, n.it = 3000, n.thin = 3, nc = 3, coda = coda.tf, param.list = monitor.params, cluster_type = "PSOCK")) # Slow with AR1: ~13 min per 100 iter for site AR = 13 hours for 6000 iterations
 # 
 
-#save.image("testing.RData")
 
-system.time(M.ar1.s <- modelRegionalTempAR1Scaled(tempDataSyncS, cov.list=cov.list, firstObsRows = firstObsRows, evalRows = evalRows, n.burn = 30000, n.it = 9000, n.thin = 9, nc = 3, coda = coda.tf, param.list = monitor.params, cluster_type = "PSOCK")) # Slow with AR1: ~13 min per 100 iter for site AR = 13 hours for 6000 iterations
+system.time(M.ar1 <- modelRegionalTempAR1SimpleYear(tempDataSyncS, cov.list=cov.list, firstObsRows = firstObsRows, evalRows = evalRows, n.burn = 10000, n.it = 9000, n.thin = 3, nc = 3, coda = coda.tf, param.list = monitor.params, cluster_type = "PSOCK", data_dir = data_dir)) # 28 hours
+
+
+
+
+#system.time(M.ar1.s <- modelRegionalTempAR1Scaled(tempDataSyncS, cov.list=cov.list, firstObsRows = firstObsRows, evalRows = evalRows, n.burn = 3000, n.it = 1000, n.thin = 1, nc = 3, coda = coda.tf, param.list = monitor.params, cluster_type = "PSOCK", data_dir = data_dir)) # Slow with AR1: ~13 min per 100 iter for site AR = 13 hours for 6000 iterations
+
+# firstRows <- firstObsRows[1:500]
+# evalR <- 1:max(firstRows)
+# evalR[firstRows] <- NA
+# evalR <- evalR[!is.na(evalR)]
+# dataS <- tempDataSyncS[1:max(firstRows), ]
+# 
+# #system.time(M.ar1 <- modelRegionalTempAR1(dataS, cov.list=cov.list, firstObsRows = firstRows, evalRows = evalR, n.burn = 1, n.it = 10, n.thin = 1, nc = 3, coda = coda.tf, param.list = monitor.params)) 
+# 
+# system.time(M.ar1.s <- modelRegionalTempAR1Scaled(dataS, cov.list=cov.list, firstObsRows = firstRows, evalRows = evalR, n.burn = 1000, n.it = 2000, n.thin = 2, nc = 3, coda = coda.tf, param.list = monitor.params, cluster_type = "PSOCK", data_dir = data_dir)) # Slow with AR1: ~13 min per 100 iter for site AR = 13 hours for 6000 iterations
 
 # save to rdata
-saveRDS(M.ar1.s, file = output_file)
+saveRDS(M.ar1, file = output_file)
 saveRDS(cov.list, file = output2_file)
 
 
+# plot(M.ar1[ , c("xi.huc[1]", "xi.huc[2]", "xi.huc[3]")])
+# plot(M.ar1[ , c("xi.year[1]", "xi.year[2]")])
+# plot(M.ar1[ , c("xi.year[3]", "xi.year[4]")])
 
+plot(M.ar1[ , c("B.0[1]", "sigma.b.huc[2]", "sigma.b.huc[3]")])
+plot(M.ar1[ , c("sigma.b.site[1]", "sigma.b.site[2]", "sigma.b.site[3]")])
+plot(M.ar1[ , c("mu.huc[2]", "mu.huc[3]")])
+#plot(M.ar1[ , c("sigma.b.site[4]", "sigma.b.site[5]", "sigma.b.site[6]")])
+plot(M.ar1[ , c("B.0[2]", "B.0[3]", "B.0[4]")])
+plot(M.ar1[ , c("sigma.b.year")])
+#plot(M.ar1[ , c("sigma.b.year[2]", "sigma.b.year[3]", "sigma.b.year[4]")])
+plot(M.ar1[ , c("sigma")])
 
-plot(M.ar1.s[ , c("xi.huc[1]", "xi.huc[2]", "xi.huc[3]")])
-plot(M.ar1.s[ , c("xi.year[1]", "xi.year[2]", "xi.year[3]", "xi.year[4]")])
+plot(M.ar1[ , c("tau.B.huc.raw[1,1]", "tau.B.huc.raw[2,2]", "tau.B.huc.raw[3,3]")])
+#plot(M.ar1[ , c("tau.B.year.raw[1,1]", "tau.B.year.raw[2,2]", "tau.B.year.raw[3,3]", "tau.B.year.raw[4,4]")])
 
-plot(M.ar1.s[ , c("B.0[1]", "sigma.b.huc[2]", "sigma.b.huc[3]")])
-plot(M.ar1.s[ , c("sigma.b.year[2]", "sigma.b.year[3]", "sigma.b.year[4]")])
-plot(M.ar1.s[ , c("sigma.ar1", "sigma")])
+# plot(M.ar1[ , c("trend.reduced[1]", "trend.reduced[2]", "trend.reduced[100]")])
+# plot(M.ar1[ , c("pred.reduced[2]", "pred.reduced[20]", "pred.reduced[100]")])
 
-plot(M.ar1.s[ , c("tau.B.year.raw[1,1]", "tau.B.year.raw[2,2]", "tau.B.year.raw[3,3]", "tau.B.year.raw[4,4]")])
-
-
-
-data.cal <- prepDF(data, covars = cov.list)
-
-X.0 <- data.cal$data.fixed
-variables.fixed <- names(X.0)
-K.0 <- length(variables.fixed)
-
-
-# Random site effects
-X.site <- data.cal$data.random.sites
-variables.site <- names(X.site)
-sites <- data$sitef
-J <- length(unique(sites))
-K <- length(variables.site)
-n <- dim(data)[1]
-W.site <- diag(K)
-
-hucs <- data$hucf
-M <- length(unique(hucs))
-W.huc <- diag(K)
-
-# Random Year effects
-X.year <- data.cal$data.random.years
-variables.year <- names(X.year)
-years <- data$yearf
-Ti <- length(unique(years))
-L <- length(variables.year)
-W.year <- diag(L)
+plot(M.ar1[ , c("trend[1]", "trend[300]", "trend[600]")])
+plot(M.ar1[ , c("stream.mu[2]", "stream.mu[400]", "stream.mu[1000]")])
