@@ -29,7 +29,9 @@ As with stochastic models, statistical models generally rely on correlative rela
 
 In contrast with deterministic approaches, statistical models require less detailed site-level data and therefore can be applied over greater spatial extents than process-based models. They also can describe the relationships between additional covariates and stream temperature, which is a limitation of stochastic models. These relationships can be used to understand and predict anthropogenic effects on stream temperature such as timber harvest, impervious development, and water control and release [@Webb2008]. Quantifying the relationship between anthropogenic effects, landscape characteristics, meteorological patterns, and stream temperature allows for prediction to new sites and times using statistical models. This is advantageous for forecasting and hindcasting to predict and understand climate change effects on stream temperatures. This is critical because not all streams respond identically to air temperature changes and the idiosyncratic responses may be predicted based interactions of known factors such as flow, precipitation, forest cover, basin topology, impervious surfaces, soil characteristics, geology, and impoundments [@Webb2008].
 
-We describe a novel statistical model of daily stream temperature that incorporates features of stochastic models and apply it to a large geographic area. This model handles time series data of widely varying duration from many sites using a hierarchical mixed model approach to account for autocorrelation at specific locations within watersheds. It incorporates catchment, landscape, land-use, and meteorological covariates for explanatory and predictive purposes. It includes an autoregressive function to account for temporal autocorrelation in the time series, a challenge with other statistical models at fine temporal resolution. Additionally, our hierarchical Bayesian approach readily allows for complete accounting of uncertainty. We use the model to predict daily stream temperature across the northeastern United States over a 34-year time record.
+Letcher et al. (ref) outline the general challenges of statistical stream temperature models including ... They developed a statistical model that addresses ... but is limited to a single small network of streams with long time series.
+
+We describe a novel statistical model of daily stream temperature that incorporates features of stochastic models and extends the Letcher et al. (ref) framework to large geographic areas. This model handles time series data of widely varying duration from many sites using a hierarchical mixed model approach to account for autocorrelation at specific locations within watersheds. It incorporates catchment, landscape, and meteorological covariates for explanatory and predictive purposes. It includes an autoregressive function to account for temporal autocorrelation in the time series, a challenge with other statistical models at fine temporal resolution. Additionally, our hierarchical Bayesian approach readily allows for complete accounting of uncertainty. We use the model to predict daily stream temperature across the northeastern United States over a 34-year time record.
 
 
 Methods
@@ -40,7 +42,7 @@ Methods
 
 ### Water temperature data
 
-We gathered stream temperature data from state and federal agencies, individual academic researchers, and non-governmental organizations (NGOs). The data were collected using automated temperature loggers. The temporal frequency of recording ranged from every 5 minutes to once per hour. This data was consolidated in a PostgreSQL database linked to a web service at [http://www.ecosheds.org](http://www.ecosheds.org). Data collectors can upload data at this website and choose whether to make the data publicly available or not. The raw data is stored in the database and users can flag problem values and time series. For our analysis, we performed some automated and visual QAQC on the sub-daily values, summarized to mean daily temperatures and performed additional QAQC on the daily values. The QAQC was intended to flag and remove values associated with logger malfunctions, out-of-water events (including first and last days when loggers were recording but not yet in streams), and days with incomplete data which would alter the daily mean. We developed an R (ref) package for analyzing stream temperature data from our database, including the QAQC functions which can be found at [https://github.com/Conte-Ecology/conteStreamTemperature](https://github.com/Conte-Ecology/conteStreamTemperature). The R scripts using these functions for our analysis are available at [https://github.com/Conte-Ecology/conteStreamTemperature_northeast](https://github.com/Conte-Ecology/conteStreamTemperature_northeast). 
+We gathered stream temperature data from state and federal agencies, individual academic researchers, and non-governmental organizations (NGOs). The data were collected using automated temperature loggers. The temporal frequency of recording ranged from every 5 minutes to once per hour. This data was consolidated in a PostgreSQL database linked to a web service at [http://www.db.ecosheds.org](http://www.db.ecosheds.org). Data collectors can upload data at this website and choose whether to make the data publicly available or not. The raw data is stored in the database and users can flag problem values and time series. For our analysis, we performed some automated and visual QAQC on the sub-daily values, summarized to mean daily temperatures and performed additional QAQC on the daily values. The QAQC was intended to flag and remove values associated with logger malfunctions, out-of-water events (including first and last days when loggers were recording but not yet in streams), and days with incomplete data which would alter the daily mean. We developed an R (ref) package for analyzing stream temperature data from our database, including the QAQC functions which can be found at [https://github.com/Conte-Ecology/conteStreamTemperature](https://github.com/Conte-Ecology/conteStreamTemperature). The R scripts using these functions for our analysis are available at [https://github.com/Conte-Ecology/conteStreamTemperature_northeast](https://github.com/Conte-Ecology/conteStreamTemperature_northeast). 
 
 Stream reach (stream section between any two confluences) was our finest spatial resolution for the analysis. In the rare case where we had multiple logger locations within the same reach recording at the same time, we used the mean value from the loggers for a given day. In the future, with sufficient within reach data, it would be possible to use our modeling framework to also estimate variability within reach.
 
@@ -69,12 +71,12 @@ $$ \omega_{h,r,y,d} = X_0 B_0 + X_{h,r} B_{h,r} + X_{h} B_{h} + X_{y} B_{y} $$
 but the expected mean temperature ($\mu_{h,r,y,d}$) was also adjusted based on the residual error from the previous day
 
 $$ \mu_{h,r,y,d} = \begin{cases}
-    \omega_{h,r,y,d} + \delta_{r}(t_{h,r,y,d-1} - \omega_{h,r,y,d-1}) & \quad  \text{for $t_{h,r,y,d-1}$ is real} \\
+    \omega_{h,r,y,d} + \delta(t_{h,r,y,d-1} - \omega_{h,r,y,d-1}) & \quad  \text{for $t_{h,r,y,d-1}$ is real} \\
     \omega_{h,r,y,d} & \quad  \text{for $t_{h,r,y,d-1}$ is not real}
   \end{cases}
  $$
 
-where $\delta_{r}$ is an autoregressive [AR(1)] coefficient that varies randomly by reach and $\omega_{h,r,y,d}$ is the expected temperature before accounting for temporal autocorrelation in the error structure.
+where $\delta$ is an autoregressive [AR(1)] coefficient and $\omega_{h,r,y,d}$ is the expected temperature before accounting for temporal autocorrelation in the error structure.
 
 $X_{0}$ is the $n \times K_0$ matrix of predictor values. $B_0$ is the vector of $K_0$ coefficients, where $K_0$ is the number of fixed effects parameters including the overall intercept. We used **???XX???** fixed effect parameters including the overall intercept. These include **??latitude, longitude, upstream drainage area, percent forest cover, elevation, surficial coarseness classification, percent wetland area, upstream impounded area, and an interaction of drainage area and air temperature??**. We assumed the following distributions and vague priors for the fixed effects coefficients
 
@@ -126,9 +128,11 @@ To estimate all the parameters and their uncertainties, we used a Bayesian analy
 
 To validate our model, we held out 10% of subbasins (HUC8s) at random. We also held out 10% of remaining stream reaches with observed temperature data at random. Additionally, we excluded all 2010 data because it was an especially warm summer across the northeastern U.S. Therefore, we will be able to evaluate how well our model predicts across space and time. This included reaches with no data located within subbasins with and without data and how well the model predicts in warm years without data, which will be important if using this model with future climate predictions. The most challenging validation scenario was at reaches within HUC8s without any data in a year without any data. In total, **XX%** of observations and **XX%** of reaches were held out for validation.
 
+To validate the model and assess its predictive ability, we randomly excluding 10% of site-year combinations, 10% of sites across all years. We also excluded all data from 2010, which was a particularly warm year across the region based on the mean summer daymet air temperatures. This approach was also used by [@DeWeber2014a] and helps to indicate the models predictive ability under future warming conditions. In total, we held out 28% of the data for validation.
+
 ### Derived metrics
 
-We use the meteorological data from daymet to predict daily temperatures for all stream reaches (<400 km$^2$) in the region for the synchronized period of the year from 1980-2013. The predictions are conditional on the specific random effects where available and receive the mean effect for reaches, HUC8s, and years when no data was collected. From these daily predictions, we derive a variety of metrics to characterize the stream thermal regime. These include mean (over the 34 years) July temperature, mean summer temperature, mean number of days per year above a thermal threshold (18, 20, 22 C used by default),frequency of years that the mean daily temperature exceeds each of these thresholds, and the maximum 7-day and 30-day moving means for each year and across all years. We also provide predictions of cold, cool, and warm waters specific to states with regulations related to these classifications.
+We use the meteorological data from daymet to predict daily temperatures for all stream reaches (<200 km$^2$) in the region for the synchronized period of the year from 1980-2013. The predictions are conditional on the specific random effects where available and receive the mean effect for reaches, HUC8s, and years when no data was collected. From these daily predictions, we derive a variety of metrics to characterize the stream thermal regime. These include mean (over the 34 years) July temperature, mean summer temperature, mean number of days per year above a thermal threshold (18, 20, 22 C used by default),frequency of years that the mean daily temperature exceeds each of these thresholds, and the maximum 7-day and 30-day moving means for each year and across all years. We also provide predictions of cold, cool, and warm waters specific to states with regulations related to these classifications.
 
 ### Climate change projections (future paper?)
 
@@ -142,11 +146,19 @@ Evaluation of MCMC convergence (visual and R-hat)
 
 Evaluation of model fit
 
+The overall Root Mean Squared Error (RMSE) was 0.59 and the residuals were normally distributed and unbiased (no visual heterogeneity), indicating that the model was a good estimate of the process generating the data. 
+
 Coefficient estimates from the model
+
+Most variables and their interactions were significantly significant with 95% Credible Intervals that did not overlap zero (Table 1). The only non-significant parameters were the interactions of air temperature and forest cover and air temperature and Impounded Area. Drainage area alone was not significant but it was significant in its interactions with ... were significant.
 
 Variability at the reach and huc scales
 
+There was much more unexplained random variation among sites than among HUC8, but the effects of air temperature on water temperature were only slightly more variable among sites compared with HUC8. There was very little random variability among years not explained by other parameters (Table 1).
+
 To evaluate the spatial and temporal predictive power of our model, we used independent validation data consisting of **XX** observations from **XX** stream reaches within **XX** HUC8 subbasins between **YYYY-YYYY**.
+
+Maps of each derived metric in appendix or special version of ICE
 
 Discussion
 ----------
@@ -159,6 +171,8 @@ lots of sensors because relatively cheap and easy to collect, but varying length
 
 Disagreement (conflicting evidence? confused terminology) regarding the drivers of stream temperature
 
+limitations - ground-surface water interactions not included. However, if remotely sensed predictors could be developed, or exist in a particular region, they could easily be included as site-level predictors.
+
 
 Acknowledgements
 ----------------
@@ -167,94 +181,79 @@ Thanks to A. Rosner for thoughtful discussions related to the analysis and infer
 Groups who provided data
 
 
-
-
 Tables
 ------
 
-Table 1: Example Markdown table
+Table 1. Regression summary table with coefficient estimates including the mean, standard deviation (SD), and 95% credible intervals (LCRI = 0.025%, UCRI = 0.975%). 
 
-+--------------+-------+-----+---------+--------+------------+
-|Name          |col2   |col3 |col4     |col5    |Comments    |
-+==============+=======+=====+=========+========+============+
-|Brook Trout   |1      |big  |few      |2.2     |Ecology &   |
-|              |       |     |         |        |life history|
-|              |       |     |         |        |data        |
-|              |       |     |         |        |associated  |
-|              |       |     |         |        |with trout  |
-+--------------+-------+-----+---------+--------+------------+
-|*Desmognathus*|100    |small|many     |0.3     |Widespread  |
-|*fuscus*      |       |     |         |        |salamander  |
-|              |       |     |         |        |species     |
-+--------------+-------+-----+---------+--------+------------+
+----------------------------------------------------------
+                     parameter   Mean    SD   LCRI    UCRI
+------------------------------ ------ ----- ------ -------
+                     Intercept 16.683 0.119 16.444 16.9142
 
-| Name | Phone |
-| ---- | ----- |
-|      |       |
+                          AirT  1.946 0.024  1.899  1.9920
 
-**example created with pander**
+                    7-day AirT  1.377 0.030  1.318  1.4359
 
----------------------------------------
-    parameter       mean     sd    sig 
------------------- ------- ------ -----
-    Intercept      17.7035 0.2486   *  
+                  2-day Precip  0.052 0.002  0.047  0.0559
 
-       AirT        2.1721  0.1472   *  
+                 30-day Precip  0.015 0.006  0.002  0.0271
 
-    7-day AirT     1.5792  0.1362   *  
+                 Drainage Area  0.025 0.097 -0.167  0.2150
 
-   Development     0.1709  0.0559   *  
+                  Forest Cover -0.156 0.047 -0.248 -0.0636
 
-   Agriculture     -0.0583 0.0665      
+                Impounded Area  0.545 0.099  0.356  0.7379
 
- Impoundment Area  0.3678  0.0660   *  
+       2-day Precip x Drainage -0.041 0.002 -0.045 -0.0364
 
-AirT x Impoundment -0.0288 0.0229      
+      30-day Precip x Drainage -0.059 0.006 -0.071 -0.0472
 
-  AirT x Forest    -0.0176 0.0265      
+                 AirT x Forest -0.005 0.016 -0.036  0.0269
 
-AirT x Prcp2 x DA  -0.0036 0.0016   *  
+         AirT x Impounded Area -0.030 0.016 -0.061  0.0003
 
-AirT x prcp30 x DA -0.0020 0.1666      
+AirT x 2-day Precip x Drainage -0.008 0.002 -0.013 -0.0043
 
-       Day         0.0506  0.1070      
+        AirT x 30-day Precip x -0.014 0.004 -0.022 -0.0060
+                      Drainage                            
 
-     Day$^2$       -0.5141 0.0887   *  
+                           AR1  0.768 0.002  0.764  0.7719
+----------------------------------------------------------
+**Random effects:**
 
-      Day^3        -0.0834 0.0778      
+----------------------------------
+  Group       Coef   SD   Variance
+------- ---------- ---- ----------
+   Site  Intercept 1.02      1.037
 
-       AR1         0.7696  0.0073   *  
----------------------------------------
+              AirT 0.30      0.090
 
-**example created with stargazer**
+        7-day AirT 0.35      0.123
 
-\begin{table}[!htbp] \centering 
-  \caption{} 
-  \label{} 
-\begin{tabular}{@{\extracolsep{5pt}} cccc} 
-\\[-1.8ex]\hline 
-\hline \\[-1.8ex] 
-parameter & mean & sd & sig \\ 
-\hline \\[-1.8ex] 
-Intercept & 17.7035 & 0.2486 & \textasteriskcentered  \\ 
-AirT &  2.1721 & 0.1472 & \textasteriskcentered  \\ 
-7-day AirT &  1.5792 & 0.1362 & \textasteriskcentered  \\ 
-Development &  0.1709 & 0.0559 & \textasteriskcentered  \\ 
-Agriculture & -0.0583 & 0.0665 &  \\ 
-Impoundment Area &  0.3678 & 0.0660 & \textasteriskcentered  \\ 
-AirT x Impoundment & -0.0288 & 0.0229 &  \\ 
-AirT x Forest & -0.0176 & 0.0265 &  \\ 
-AirT x Prcp2 x DA & -0.0036 & 0.0016 & \textasteriskcentered  \\ 
-AirT x prcp30 x DA & -0.0020 & 0.1666 &  \\ 
-Day &  0.0506 & 0.1070 &  \\ 
-Day$\hat{\mkern6mu}$2 & -0.5141 & 0.0887 & \textasteriskcentered  \\ 
-Day$^3$ & -0.0834 & 0.0778 &  \\ 
-AR1 &  0.7696 & 0.0073 & \textasteriskcentered  \\ 
-\hline \\[-1.8ex] 
-\end{tabular} 
-\end{table} 
+   HUC8  Intercept 0.48      0.229
 
-Figures
+              AirT 0.26      0.070
+
+        7-day AirT 0.27      0.071
+
+   Year  Intercept 0.11      0.011
+----------------------------------
+**HUC8 coefficient correlations:**
+
+------------------------------------------------
+          &nbsp;   Intercept   AirT   7-day AirT
+---------------- ----------- ------ ------------
+   Intercept                                
+
+        AirT       0.556                    
+
+  7-day AirT       0.275  0.202             
+------------------------------------------------
+
+
+
+Figures (do this as a separate file then merge the PDF)
 -------
 
 Figure 1. Example of adding a figure.
