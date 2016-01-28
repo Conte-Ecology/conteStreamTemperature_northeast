@@ -156,3 +156,23 @@ stargazer(df_foo, ran.ef,
 
 ```
 
+
+```{r box plots and histograms of derived metrics}
+
+metrics <- metrics.lat.lon %>%
+  dplyr::select(mean30DayMax,
+                freqMaxTemp.22,
+                meanResist,
+                TS)
+g1 <- ggplot(metrics, aes(mean30DayMax)) + geom_histogram() + xlab("Annual 30-day maximum temperature (mean 1980-2013)") + theme_bw_journal()
+g2 <- ggplot(metrics, aes(freqMaxTemp.22)) + geom_histogram() + xlab("Frequency of years the max temperature exceeds 22 C") + theme_bw_journal()
+g3 <- ggplot(metrics, aes(meanResist)) + geom_histogram() + xlab("Resistance to changes in summer air temperature (mean 1980-2013)") + theme_bw_journal()
+g4 <- ggplot(metrics, aes(TS)) + geom_histogram() + xlab("Thermal sensitivity (mean 1980-2013)") + theme_bw_journal()
+
+library(gridExtra)
+grid.arrange(g1, g2, g3, g4, nrow = 2, ncol = 2)
+ggsave(filename = file.path("manuscripts/Figures", "metrics_histograms.jpg"), device = "jpg")
+
+```
+
+
