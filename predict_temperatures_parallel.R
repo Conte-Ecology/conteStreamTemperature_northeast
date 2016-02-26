@@ -131,8 +131,8 @@ catchmentid <- df_covariates_upstream %>%
   dplyr::mutate(impoundArea = allonnet * AreaSqKM) %>%
   dplyr::filter(featureid %in% daymet_catchments,
                 #AreaSqKM > 0.001,
-                AreaSqKM <= 400,
-                allonnet < 70)
+                AreaSqKM <= 1000)#,
+                #allonnet < 70)
 
 catchmentid <- unique(catchmentid$featureid)
 n.catches <- length(catchmentid)
@@ -256,20 +256,18 @@ metrics.lat.lon <- featureid_lat_lon %>%
   left_join(derived.site.metrics) # reverse this join or full join so get NA for all missing catchments? - doesn't seem to be working correctly yet - check again
 
 # for Maps in ArcGIS
-metrics_arc <- as.data.frame(dplyr::select(metrics.lat.lon, featureid, mean30DayMax, meanDays.18, meanResist))
+metrics_arc <- as.data.frame(dplyr::select(metrics.lat.lon, featureid, mean30DayMax, meanDays.18, freqMaxTemp.23.5, meanResist, TS))
 metrics_arc[is.na(metrics_arc)] <- -9999.99
 write.table(metrics_arc, file = paste0(data_dir, "/derived_site_metrics_arc.csv"), sep = ',', row.names = F)
 
 
-# filter
-# reduce number of catchments to loop through to only interpolation
+# filter for ICE
 metrics.lat.lon <- metrics.lat.lon %>%
   dplyr::left_join(df_covariates_upstream) %>%
   dplyr::mutate(impoundArea = allonnet * AreaSqKM) %>%
-  dplyr::filter(AreaSqKM > 0.01,
-                AreaSqKM <= 200,
-                allonnet < 50,
-                impoundArea < 100)
+  dplyr::filter(AreaSqKM > 0.001,
+                AreaSqKM <= 300,
+                allonnet < 70)
 
 saveRDS(metrics.lat.lon, file = paste0(data_dir, "/derived_site_metrics.RData"))
 write.table(metrics.lat.lon, file = paste0(data_dir, "/derived_site_metrics.csv"), sep = ',', row.names = F)
