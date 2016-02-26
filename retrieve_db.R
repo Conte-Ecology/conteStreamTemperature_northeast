@@ -53,12 +53,18 @@ save(output_file4, file = paste0(output_file4, "/data_dir.RData"))
 
 #------------------set up database connections--------------------
 # connect to database source
-  db <- src_postgres(dbname='sheds', host='felek.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
-
+  db <- src_postgres(dbname='sheds_new', host='osensei.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+  
 # table references
 tbl_locations <- tbl(db, 'locations') %>%
   rename(location_id=id, location_name=name, location_description=description) %>%
   select(-created_at, -updated_at)
+
+df_locations <- dplyr::collect(tbl_locations)
+
+dbDisconnect(db$con)
+
+db <- src_postgres(dbname='sheds', host='felek.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
 
 tbl_agencies <- tbl(db, 'agencies') %>%
   rename(agency_id=id, agency_name=name) %>%
@@ -69,12 +75,14 @@ tbl_series <- tbl(db, 'series') %>%
   rename(series_id=id) %>%
   select(-created_at, -updated_at)
 
+tbl_values <- tbl(db, 'values') %>%
+  rename(value_id=id)
+
 tbl_variables <- tbl(db, 'variables') %>%
   rename(variable_id=id, variable_name=name, variable_description=description) %>%
   select(-created_at, -updated_at)
 
-tbl_values <- tbl(db, 'values') %>%
-  rename(value_id=id)
+df_variables <- dplyr::collect(tbl_variables)
 
 #tbl_daymet <- tbl(db, 'daymet')
 
@@ -82,15 +90,6 @@ tbl_values <- tbl(db, 'values') %>%
 # keep_agencies <- c('MADEP', 'MAUSGS')
 
 ##### Need way to filter data that has a "yes" QAQC flag
-
-# fetch locations
-df_locations <- left_join(tbl_locations, tbl_agencies, by=c('agency_id'='agency_id')) %>%
-  # filter(agency_name %in% keep_agencies) %>%
-  filter(agency_name != "TEST") %>%
-  rename(featureid=catchment_id) %>%
-  collect
-summary(df_locations)
-unique(df_locations$agency_name)
 
 #------------------------fetch temperature data-------------------
 
@@ -101,20 +100,32 @@ df_values <- tbl_values %>%
   left_join(dplyr::select(tbl_variables, variable_id, variable_name),
             by=c('variable_id'='variable_id')) %>%
   dplyr::select(-file_id) %>%
-  filter(location_id %in% df_locations$location_id,
-         variable_name=="TEMP") %>%
+  filter(variable_name=="TEMP") %>%
   collect %>%
   mutate(datetime=with_tz(datetime, tzone='EST'),
          date = as.Date(datetime),
          series_id = as.character(series_id)) %>%
   rename(temp = value)
 
-Sys.time() - start.time # ~ 6 minutes
+Sys.time() - start.time # ~ 6 minutes (gets much longer as data added - 30 minutes with southern data included)
+
+# fetch locations
+df_locations <- left_join(df_locations, df_agencies, by=c('agency_id'='agency_id')) %>%
+  # filter(agency_name %in% keep_agencies) %>%
+  filter(agency_name != "TEST") %>%
+  rename(featureid=catchment_id)
+str(df_locations)
+summary(df_locations)
+unique(df_locations$agency_name)
+
 
 df_values <- df_values %>%
-  dplyr::left_join(dplyr::select(df_locations, location_id, featureid))
+  dplyr::left_join(dplyr::select(df_locations, location_id, featureid, latitude, longitude, agency_name))
   
 summary(df_values)
+
+df_values <- df_values %>%
+  dplyr::filter(!is.na(featureid))
 
 saveRDS(df_values, file = file.path(getwd(), data_dir, "df_values.RData"))
 
