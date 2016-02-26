@@ -18,7 +18,7 @@ install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 
 #data_dir <- getOption("SHEDS_DATA")
-data_dir <- paste0("localData_2015-12-21")
+data_dir <- paste0("localData_2016-02-26_newDelineation")
 
 if(!file.exists(file.path(getwd(), data_dir))) dir.create(file.path(getwd(), data_dir))
   
@@ -28,7 +28,7 @@ args <- commandArgs(trailingOnly = TRUE)
 # until running as a bash script add the files here
 if(length(args) < 1) {
   print("No arguments imported. Using default input and output files and directories")
-  args <- c(paste0(data_dir, "/temperatureData.RData"), paste0(data_dir, "/covariateData.RData"), paste0(data_dir, "/climateData.RData"))
+  args <- c(paste0(data_dir, "/temperatureData.RData"), paste0(data_dir, "/covariateData.RData"), paste0(data_dir, "/climateData.RData"), data_dir)
 }
 
 output_file1 <- args[1]
@@ -43,6 +43,13 @@ output_file3 <- args[3]
 if (file.exists(output_file3)) {
   warning(paste0('Output file 3 already exists, overwriting: ', output_file3))
 }
+output_file4 <- args[4]
+if (file.exists(output_file3)) {
+  warning(paste0('Output file 4 already exists, overwriting: ', output_file4))
+}
+
+# save directory so don't have to change in every subsequent file
+save(output_file4, file = paste0(output_file4, "/data_dir.RData"))
 
 #------------------set up database connections--------------------
 # connect to database source
