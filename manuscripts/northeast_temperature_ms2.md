@@ -50,8 +50,8 @@ Stream reach (stream section between any two confluences) was our finest spatial
 
 Temperature logger locations were spatially mapped to the stream reaches of a high 
 resolution network of hydrologic catchments developed across the Northeastern 
-United States. The National Huydrography Dataset High Resolution 
-Delineation Version 2 (NHDHRDV2), maintains a higher resolution and catchment 
+United States. The National Hydrography Dataset High Resolution 
+Delineation Version 2 (NHDHRDV2) maintains a higher resolution and catchment 
 areal consistency than the established NHDPlus Version 2 dataset. The main purpose
 of the higher resoultion is to capture small headwaters that may be critical to 
 ecological assessment. A summary of this dataset with links to detailed documentation 
