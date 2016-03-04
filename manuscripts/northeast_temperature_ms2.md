@@ -48,7 +48,40 @@ Stream reach (stream section between any two confluences) was our finest spatial
 
 *Stream network delineation and landscape data*
 
+Temperature logger locations were spatially mapped to the stream reaches of a high 
+resolution network of hydrologic catchments developed across the Northeastern 
+United States. The National Huydrography Dataset High Resolution 
+Delineation Version 2 (NHDHRDV2), maintains a higher resolution and catchment 
+areal consistency than the established NHDPlus Version 2 dataset. The main purpose
+of the higher resoultion is to capture small headwaters that may be critical to 
+ecological assessment. A summary of this dataset with links to detailed documentation 
+can be found in the [SHEDS Data project](http://conte-ecology.github.io/shedsData/).
+
+
 ### Meteorological (, Climatic,) and landscape data - separate landscape if use climate data for future projections
+
+The landscape and meteorological data were assembled from various sources. These 
+variables are spatially attributed to the hydrologic catchments for incorporation 
+into the model. The variables used in the model are described in (Table 0?). All 
+of the variables referenced in the table refer to values calculated for the downstream 
+point of each catchment.
+
+
+
+| Variable | Description | Source | Processing | GitHub Repository |
+|:--------:| ----------- | ------ | ---------- | ----------------- |
+| Total Drainage Area | The total contributing drainage area | [The National LandCover Database](http://www.mrlc.gov/nlcd06_data.php) | The individual catchment areas are summed for all of the contributing catchments in the upstream network| [NHDHRDV2](https://github.com/Conte-Ecology/shedsData/tree/master/NHDHRDV2) |
+| Riparian Forest Cover | The percentage of the upstream 200ft riparian buffer area that is covered by trees taller than 5 meters | [The National LandCover Database (NLCD)](http://www.mrlc.gov/nlcd06_data.php) | All of the NLCD forest type classifications are combined and attributed to each riparian buffer polygon  using GIS tools. All upstream polygon values are then aggregated.| [nlcdLandCover](https://github.com/Conte-Ecology/shedsData/tree/master/basinCharacteristics/rasterPrep/nlcdLandCover) |
+| Daily Precipition | Daily precipitation record for the individual local catchment | [Daymet Daily Surface Weather and Climatological Summaries](https://daymet.ornl.gov/) | Daily precipitation records are spatially assigned to each catchment using the [zonalDaymet](https://github.com/Conte-Ecology/zonalDaymet) R package| [daymet](https://github.com/Conte-Ecology/shedsData/tree/master/daymet) |
+| Upstream Impounded Area| The total area upstream that is covered by wetlands, lakes, or ponds that intersect the high resolution stream netowork | [Fish & Wildlife Service (FWS) National Wetlands Inventory](http://www.fws.gov/wetlands/Data/Data-Download.html)| All freshwater surface water bodies are combined and attributed to each catchment using GIS tools. All upstream polygon values are then aggregated.| [fwsWetlands](https://github.com/Conte-Ecology/shedsData/tree/master/basinCharacteristics/rasterPrep/fwsWetlands) |
+| Percent Agriculture | The percentage of the upstream area that is covered by agricultural land (e.g. cultivated crops, orchards, and pasture) including fallow land. | [The National LandCover Database](http://www.mrlc.gov/nlcd06_data.php)| All of the NLCD agricutlural classifications are combined and attributed to each catchment polygon using GIS tools. All upstream polygon values are then aggregated.| [nlcdLandCover](https://github.com/Conte-Ecology/shedsData/tree/master/basinCharacteristics/rasterPrep/nlcdLandCover) |
+| Percent High Intensity Developed | The percentage of the upstream area covered by places where people work or live in high numbers (typically defined as areas  covered by more than 80% impervious surface) | [The National LandCover Database](http://www.mrlc.gov/nlcd06_data.php)| The NLCD high intensity developed classification is attributed to each catchment polygon using GIS tools. All upstream polygon values are then aggregated. | [nlcdLandCover](https://github.com/Conte-Ecology/shedsData/tree/master/basinCharacteristics/rasterPrep/nlcdLandCover) |
+
+
+
+
+
+
 
 **Kyle** - Where the data came from with any necessary citations and any processing done (minimally descriptive) along with links to webpages, repos, README, and packages as appropriate.
 
