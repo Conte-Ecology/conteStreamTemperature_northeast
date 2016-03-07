@@ -44,37 +44,45 @@ if (file.exists(output_file3)) {
   warning(paste0('Output file 3 already exists, overwriting: ', output_file3))
 }
 output_file4 <- args[4]
-if (file.exists(output_file3)) {
+if (file.exists(output_file4)) {
   warning(paste0('Output file 4 already exists, overwriting: ', output_file4))
 }
 
 # save directory so don't have to change in every subsequent file
-save(output_file4, file = paste0(output_file4, "/data_dir.RData"))
+save(data_dir, file = paste0(output_file4, "/data_dir.RData"))
 
 #------------------set up database connections--------------------
 # connect to database source
-  db <- src_postgres(dbname='sheds', host='felek.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
-
+  db <- src_postgres(dbname='sheds_new', host='osensei.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+  
 # table references
 tbl_locations <- tbl(db, 'locations') %>%
-  rename(location_id=id, location_name=name, location_description=description) %>%
-  select(-created_at, -updated_at)
+  dplyr::rename(location_id=id, location_name=name, location_description=description) %>%
+  dplyr::select(-created_at, -updated_at)
+
+df_locations <- dplyr::collect(tbl_locations)
+
+dbDisconnect(db$con)
+
+db <- src_postgres(dbname='sheds', host='felek.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
 
 tbl_agencies <- tbl(db, 'agencies') %>%
-  rename(agency_id=id, agency_name=name) %>%
-  select(-created_at, -updated_at)
+  dplyr::rename(agency_id=id, agency_name=name) %>%
+  dplyr::select(-created_at, -updated_at)
 df_agencies <- collect(tbl_agencies)
 
 tbl_series <- tbl(db, 'series') %>%
-  rename(series_id=id) %>%
-  select(-created_at, -updated_at)
-
-tbl_variables <- tbl(db, 'variables') %>%
-  rename(variable_id=id, variable_name=name, variable_description=description) %>%
-  select(-created_at, -updated_at)
+  dplyr::rename(series_id=id) %>%
+  dplyr::select(-created_at, -updated_at)
 
 tbl_values <- tbl(db, 'values') %>%
-  rename(value_id=id)
+  dplyr::rename(value_id=id)
+
+tbl_variables <- tbl(db, 'variables') %>%
+  dplyr::rename(variable_id=id, variable_name=name, variable_description=description) %>%
+  dplyr::select(-created_at, -updated_at)
+
+df_variables <- dplyr::collect(tbl_variables)
 
 #tbl_daymet <- tbl(db, 'daymet')
 
@@ -83,38 +91,41 @@ tbl_values <- tbl(db, 'values') %>%
 
 ##### Need way to filter data that has a "yes" QAQC flag
 
-# fetch locations
-df_locations <- left_join(tbl_locations, tbl_agencies, by=c('agency_id'='agency_id')) %>%
-  # filter(agency_name %in% keep_agencies) %>%
-  filter(agency_name != "TEST") %>%
-  rename(featureid=catchment_id) %>%
-  collect
-summary(df_locations)
-unique(df_locations$agency_name)
-
 #------------------------fetch temperature data-------------------
 
 start.time <- Sys.time()
 
 df_values <- tbl_values %>%
-  left_join(tbl_series, by = c("series_id")) %>%
-  left_join(dplyr::select(tbl_variables, variable_id, variable_name),
+  dplyr::left_join(tbl_series, by = c("series_id")) %>%
+  dplyr::left_join(dplyr::select(tbl_variables, variable_id, variable_name),
             by=c('variable_id'='variable_id')) %>%
   dplyr::select(-file_id) %>%
-  filter(location_id %in% df_locations$location_id,
-         variable_name=="TEMP") %>%
-  collect %>%
-  mutate(datetime=with_tz(datetime, tzone='EST'),
+  dplyr::filter(variable_name=="TEMP") %>%
+  dplyr::collect %>%
+  dplyr::mutate(datetime=with_tz(datetime, tzone='EST'),
          date = as.Date(datetime),
          series_id = as.character(series_id)) %>%
-  rename(temp = value)
+  dplyr::rename(temp = value)
 
-Sys.time() - start.time # ~ 6 minutes
+Sys.time() - start.time # ~ 6 minutes (gets much longer as data added - 30 minutes with southern data included)
+
+# fetch locations
+df_locations <- left_join(df_locations, df_agencies, by=c('agency_id'='agency_id')) %>%
+  # filter(agency_name %in% keep_agencies) %>%
+  dplyr::filter(agency_name != "TEST") %>%
+  dplyr::rename(featureid=catchment_id)
+str(df_locations)
+summary(df_locations)
+unique(df_locations$agency_name)
+
 
 df_values <- df_values %>%
-  dplyr::left_join(dplyr::select(df_locations, location_id, featureid))
+  dplyr::left_join(dplyr::select(df_locations, location_id, featureid, latitude, longitude, agency_name))
   
 summary(df_values)
+
+df_values <- df_values %>%
+  dplyr::filter(!is.na(featureid))
 
 saveRDS(df_values, file = file.path(getwd(), data_dir, "df_values.RData"))
 
@@ -122,12 +133,12 @@ saveRDS(df_values, file = file.path(getwd(), data_dir, "df_values.RData"))
 
 #--------------------- Filter to Cleaned locations/series --------------
 
-df_clean_featureid <- read.csv("clean_featureids.csv", header = T, stringsAsFactors = FALSE)
-clean_featureid <- unique(df_clean_featureid$featureid)
+df_clean_series <- read.csv("all_good_series.csv", header = T, stringsAsFactors = FALSE)
+clean_series <- unique(df_clean_series$series_id)
 #clean_featureid <- as.numeric(gsub(",","", clean_featureid))
 
 df_values <- df_values %>%
-  dplyr::filter(featureid %in% clean_featureid)
+  dplyr::filter(series_id %in% clean_series)
 
 #--------------------------QAQC---------------------------
 
@@ -199,7 +210,7 @@ prob_rate_change <- df_values %>%
   dplyr::group_by(series_id) %>%
   dplyr::mutate(month = month(date)) %>%
   dplyr::filter(median_freq > 1,
-                abs(d_temp) > 4 | MAD_normalized_30 > 10) %>%
+                abs(d_temp) > 4 | MAD_normalized_30 > 5) %>%
   dplyr::filter(MAD_normalized != "Inf",
                 month > 3 & month < 12) %>%
   dplyr::summarise(count = n())
@@ -236,7 +247,10 @@ length(unique(df_values$series_id))
 # get list of bad series for plotting
 bad_series_id <- unique(prob_rate_change$series_id)
 
-for(i in 1:20) {
+if(!file.exists(paste0(data_dir, "/diagnostics/plots"))) dir.create(file.path(getwd(), data_dir, "diagnostics/plots"), recursive = TRUE)
+
+
+for(i in 1:length(bad_series_id)) {
   bad_series <- as.data.frame(dplyr::filter(df_values, series_id == bad_series_id[i]))
   bad_hourly <- bad_series %>%
     dplyr::filter(abs(d_temp) > 4) %>%
@@ -252,7 +266,7 @@ for(i in 1:20) {
     g <- g + geom_point(data = bad_MAD_30, aes(datetime, temp), colour = "yellow", size = 5, alpha = 0.5)
   }
   g <- g + geom_point(aes(colour = MAD_normalized)) + scale_colour_gradient(high = "red", low = "black", limits = c(0, 4)) + theme_bw()
-  print(g)
+  ggsave(paste0(data_dir, "/diagnostics/plots/series_", bad_series_id[i], ".png"), plot = g)
 }
 }
 
@@ -261,8 +275,8 @@ for(i in 1:20) {
 
 # Filter based on subdaily flags
 df_values2 <- df_values %>%
-  group_by(series_id, date) %>%
-  filter(flag_incomplete == "FALSE", # make all != TRUE to include NA?
+  dplyr::group_by(series_id, date) %>%
+  dplyr::filter(flag_incomplete == "FALSE", # make all != TRUE to include NA?
          flag_cold_obs == "FALSE",
          flag_hot_obs == "FALSE",
          flag_interval == "FALSE" | is.na(flag_interval),
@@ -275,14 +289,14 @@ df_values2 <- df_values %>%
 
 # Convert to daily
 df_values3 <- df_values2 %>%
-  group_by(series_id, date, location_id, agency_id) %>%
-  filter(flagged == "FALSE") %>%
-  summarise(meanTemp = mean(temp), 
+  dplyr::group_by(series_id, date, location_id, agency_id) %>%
+  dplyr::filter(flagged == "FALSE") %>%
+  dplyr::summarise(meanTemp = mean(temp), 
             maxTemp = max(temp), 
             minTemp = min(temp), 
             #obs_per_day = mean(obs_per_day),  # change mean to median when dplyr fixed
             n_obs = n()) %>%
-  rename(temp = meanTemp)
+  dplyr::rename(temp = meanTemp)
 summary(df_values3)
 dim(df_values3)
 
@@ -324,15 +338,20 @@ df_values3 <- df_values3 %>%
 # Get location and agency data and join to temperature data
 # df_locations <- collect(select(tbl_locations, location_id, location_name, latitude, longitude, featureid=catchment_id))
 temperatureData <- df_values3 %>%
-  left_join(df_locations) %>%
+  dplyr::left_join(df_locations) %>%
   #left_join(df_agencies, by = 'agency_id') %>%
   dplyr::select(series_id, location_id, agency_name, location_name, latitude, longitude, featureid, date, temp, maxTemp, minTemp, n_obs) %>%
-  mutate(agency_name=factor(agency_name),
+  dplyr::mutate(agency_name=factor(agency_name),
          location_name=factor(location_name),
          year = year(date))
 
 # create temperatureData input dataset
 summary(temperatureData)
+
+# save series used
+df_series <- data.frame(series_id = unique(df_values3$series_id), stringsAsFactors = FALSE)
+write.csv(df_series, file = paste0(data_dir, "/series_used.csv"), row.names = FALSE)
+
 
 #Summarise to featureid
 # for all current analyses just need mean within reach (featureid)
@@ -357,42 +376,60 @@ years <- unique(temperatureData2$year)
 featureids <- unique(temperatureData2$featureid)
 featureids <- featureids[!is.na(featureids)]
 
-#-----------------------fetch covariates-----------------------
 closeAllConnections()
 rm(db)
 gc()
 
+save.image(paste0(data_dir, "/temp_temp.RData"))
+
+#-----------------------fetch covariates-----------------------
+featureids <- as.integer(featureids)
+
 # connect to database source
-db <- src_postgres(dbname='sheds', host='osensei.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
-
-tbl_covariates <- tbl(db, 'covariates')
-
-# check upstream vs local covariates
+db <- src_postgres(dbname='sheds_new', host='osensei.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
 
 # fetch covariates
-start.time <- Sys.time()
+# featureid |  variable  | value | zone  | riparian_distance_ft 
+cov_fetch <- c("agriculture", "alloffnet", "allonnet", "AreaSqKM", "devel_hi", "devel_low", "devel_med", "developed", "devel_opn", "drainageclass", "elevation", "forest", "fwsopenwater", "fwswetlands", "herbaceous", "hydrogroup_a", "hydrogroup_ab", "hydrogroup_cd", "hydrogroup_d1", "hydrogroup_d4", "impervious", "openoffnet", "openonnet", "percent_sandy", "slope_pcnt", "surfcoarse", "tree_canopy", "undev_forest", "water", "wetland")
 
-df_covariates <- filter(tbl_covariates, featureid %in% featureids) %>%
-  collect %>%
-  spread(variable, value) # convert from long to wide by variable
-summary(df_covariates)
+start.time <- Sys.time()
+tbl_covariates <- tbl(db, 'covariates') %>%
+  dplyr::filter(featureid %in% featureids & variable %in% cov_fetch)
+
+df_covariates_long <- dplyr::collect(tbl_covariates)
 
 Sys.time() - start.time
 
-# create covariateData input dataset
-covariateData <- left_join(select(df_locations, location_id, location_name, latitude, longitude, featureid),
-                           df_covariates,
-                           by=c('featureid'='featureid')) %>%
-  mutate(location_name=factor(location_name))
-summary(covariateData)
+df_covariates <- df_covariates_long %>%
+  tidyr::spread(variable, value) # convert from long to wide by variable
+summary(df_covariates)
 
 # need to organize covariates into upstream or local by featureid
-upstream <- covariateData %>%
-  group_by(featureid) %>%
-  filter(zone == "upstream") %>%
-  select(-zone, -location_id, -location_name) %>%
-  summarise_each(funs(mean))
+upstream <- df_covariates %>%
+  dplyr::group_by(featureid) %>%
+  dplyr::filter(zone == "upstream",
+                is.na(riparian_distance_ft)) %>%
+  # dplyr::select(-zone, -location_id, -location_name) %>%
+  # dplyr::summarise_each(funs(mean)) %>% # needed???
+  dplyr::rename(forest_all = forest)
 
+# Get upstream riparian forest
+riparian_200 <- df_covariates %>%
+  dplyr::group_by(featureid) %>%
+  dplyr::select(featureid, forest, zone, riparian_distance_ft) %>%
+  dplyr::filter(zone == "upstream",
+                riparian_distance_ft == 200)
+
+# create covariateData input dataset
+covariateData <- riparian_200 %>%
+  dplyr::select(-riparian_distance_ft) %>%
+  dplyr::left_join(upstream)
+
+
+# covariateData <- left_join(covariateData,
+#                            dplyr::select(df_locations, location_id, location_name, latitude, longitude, featureid)) %>%
+#   dplyr::mutate(location_name=factor(location_name))
+# summary(covariateData)
 
 
 #---------------------daymet climate data-------------------------
@@ -411,7 +448,8 @@ cat(qry, file = paste0(data_dir, "/code/daymet_query.sql"))
 #----------------save files---------------------
 
 saveRDS(temperatureData2, file=output_file1)
-saveRDS(upstream, file=output_file2)
+#saveRDS(upstream, file=output_file2)
+saveRDS(covariateData, file=output_file2)
 #saveRDS(data_dir, file=)
 #saveRDS(climateData, file=output_file3)
 

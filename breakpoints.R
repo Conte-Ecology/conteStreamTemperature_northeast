@@ -21,7 +21,7 @@ library(stringr)
 # install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 
-data_dir <- "localData_2015-12-21"
+data_dir <- "localData_2016-02-26_newDelineation"
 
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
@@ -69,7 +69,7 @@ summary(masterData)
 featureids <- unique(masterData$featureid)
 
 # connect to database source
-db <- src_postgres(dbname='sheds', host='felek.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+db <- src_postgres(dbname='sheds_new', host='osensei.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
 
 tbl_huc12 <- tbl(db, 'catchment_huc12') %>%
   dplyr::filter(featureid %in% featureids)

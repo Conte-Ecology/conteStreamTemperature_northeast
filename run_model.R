@@ -12,10 +12,10 @@ gc()
 
 library(dplyr)
 library(devtools)
-install_github("Conte-Ecology/conteStreamTemperature")
+#install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 
-data_dir <- "localData_2016-01-19"
+data_dir <- "localData_2016-02-26_newDelineation"
 
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
@@ -40,6 +40,16 @@ if (file.exists(output2_file)) {
   warning(paste0('Output2 file already exists, overwriting: ', output2_file))
 }
 
+
+# check correlations and for sufficient data
+cor(tempDataSyncS$forest, tempDataSyncS$agriculture)
+cor(tempDataSyncS$forest, tempDataSyncS$devel_hi)
+cor(tempDataSyncS$devel_hi, tempDataSyncS$agriculture)
+cor(tempDataSyncS$forest, tempDataSyncS$impoundArea)
+cor(tempDataSyncS$impoundArea, tempDataSyncS$agriculture)
+cor(tempDataSyncS$devel_hi, tempDataSyncS$impoundArea)
+cor(tempDataSyncS$airTemp, tempDataSyncS$temp7p) # too highly correlated?
+
 ### Run the model in JAGS
 
 fixed.ef <- c("intercept" 
@@ -52,8 +62,8 @@ fixed.ef <- c("intercept"
               #, "airTemp.prcp2.da.forest" # maybe add in when have riparian forest
               #, "temp7p.prcp7.da"
               #, "temp7p.forest.prcp7.da"
-              #, "devel_hi"
-              #, "airTemp.devel_hi"
+              , "devel_hi"
+              , "airTemp.devel_hi"
               , "prcp30"
               , "prcp30.da"
               , "airTemp.da"
@@ -66,8 +76,8 @@ fixed.ef <- c("intercept"
             # , "airTemp.allonnet2"
             , "impoundArea" # area makes more sense than percent area, especially when comparing small headwaters to 3rd order catchments with impoundments
             , "airTemp.impoundArea"
-            # , "agriculture" # consider making random when extend to VA
-            # , "airTemp.agriculture" # try making random when extend to VA
+             , "agriculture" # consider making random when extend to VA
+             , "airTemp.agriculture" # try making random when extend to VA
 )
 
 site.ef <- c( "intercept.site" 
@@ -125,7 +135,7 @@ if (!file.exists(paste0(data_dir, '/code'))) {
 # 
 
 
-system.time(M.ar1 <- modelRegionalTempAR1SimpleYear(tempDataSyncS, cov.list=cov.list, firstObsRows = firstObsRows, evalRows = evalRows, n.burn = 10000, n.it = 9000, n.thin = 3, nc = 3, coda = coda.tf, param.list = monitor.params, cluster_type = "PSOCK", data_dir = data_dir)) # 28 hours
+system.time(M.ar1 <- modelRegionalTempAR1SimpleYear(tempDataSyncS, cov.list=cov.list, firstObsRows = firstObsRows, evalRows = evalRows, n.burn = 3000, n.it = 3000, n.thin = 3, nc = 3, coda = coda.tf, param.list = monitor.params, cluster_type = "PSOCK", data_dir = data_dir)) # 17 hours
 
 
 

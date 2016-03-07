@@ -21,7 +21,7 @@ library(devtools)
 library(conteStreamTemperature)
 library(rjags)
 
-data_dir <- "localData_2015-12-21" 
+data_dir <- "localData_2016-02-26_newDelineation" 
 
 args <- commandArgs(trailingOnly = TRUE)
 
@@ -80,7 +80,7 @@ if(test_jags_pred) {
 fu <- mcmc.list()
 for(i in 1:length(M.ar1)) {
   bar <- attr(M.ar1[[i]], which = "dimnames")[[2]] #[2000:2200]
-  sna <- M.ar1[[i]][1:3000, which(!grepl("stream.mu", bar) & !grepl("trend", bar))]
+  sna <- M.ar1[[i]][1:nrow(M.ar1[[1]]), which(!grepl("stream.mu", bar) & !grepl("trend", bar))]
   fu[[i]] <- as.mcmc(sna)
 }
 
@@ -109,6 +109,10 @@ ggmcmc(ggs.ar1, file = paste0(data_dir, "/figures/ggmcmc-ar1-rho-huc.pdf"), fami
 ggmcmc(ggs.ar1, file = paste0(data_dir, "/figures/ggmcmc-ar1-B-ar1.pdf"), family = "B.ar1", plot = c("ggs_traceplot", "ggs_compare_partial", "ggs_autocorrelation"))
 
 detach("package:ggmcmc", unload = TRUE)
+
+
+
+
 
 
 

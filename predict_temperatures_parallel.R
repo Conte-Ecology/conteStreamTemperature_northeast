@@ -18,10 +18,10 @@ library(lubridate)
 #library(DataCombine) # for the slide function
 library(RPostgreSQL)
 library(devtools)
-install_github("Conte-Ecology/conteStreamTemperature")
+#install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 
-data_dir <- "localData_2016-01-19" 
+data_dir <- "localData_2016-02-26_newDelineation" 
 
 args <- commandArgs(TRUE)
 
@@ -56,11 +56,11 @@ springFallBPs <- readRDS(input_file)
 
 ########## connect to database ##########
 drv <- dbDriver("PostgreSQL")
-con <- dbConnect(drv, dbname="sheds", host='osensei.cns.umass.edu', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+con <- dbConnect(drv, dbname="sheds_new", host='osensei.cns.umass.edu', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
 
 ########## Get List of featureid to predict ##########
 # Get list of unique catchments with daymet data
-qry <- "SELECT DISTINCT featureid FROM daymet;" # add join with drainage area and filter to those < 400
+qry <- "SELECT DISTINCT featureid FROM daymet;" # add join with drainage area and filter to those < 400 
 result <- dbSendQuery(con, qry)
 catchments <- fetch(result, n=-1)
 daymet_catchments <- as.character(catchments$featureid)
@@ -91,10 +91,17 @@ rs <- dbSendQuery(con, "SELECT featureid,
                   FROM catchments;")
 featureid_lat_lon <- fetch(rs, n=-1) 
 
-
+dbClearResult(res = rs)
+dbDisconnect(con)
+dbUnloadDriver(drv)
 ########## Get Landscape Covariates ########## 
 # get covariates outside loop then subset within loop rather than pull from database each iteration
 
+# connect to database source
+db <- src_postgres(dbname='sheds_new', host='osensei.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+
+# fetch covariates
+# featureid |  variable  | value | zone  | riparian_distance_ft 
 param_list <- c("forest", 
                 "herbaceous", 
                 "agriculture", 
@@ -108,15 +115,45 @@ param_list <- c("forest",
                 "dayl", 
                 "swe")
 
-cov_list_string <- paste(shQuote(param_list), collapse = ", ")
+# cov_list_string <- paste(shQuote(param_list), collapse = ", ")
+# 
+# qry_covariates <- paste0("SELECT * FROM covariates WHERE zone='upstream' AND variable IN (", cov_list_string, ") ;") # could add AreaSqKM <400
+# rs <- dbSendQuery(con, qry_covariates)
+# df_covariates_long <- fetch(rs, n=-1)
 
-qry_covariates <- paste0("SELECT * FROM covariates WHERE zone='upstream' AND variable IN (", cov_list_string, ") ;") # could add AreaSqKM <400
-rs <- dbSendQuery(con, qry_covariates)
-df_covariates_long <- fetch(rs, n=-1)
+start.time <- Sys.time()
+tbl_covariates <- tbl(db, 'covariates') %>%
+  dplyr::filter(variable %in% param_list)
+df_covariates_long <- dplyr::collect(tbl_covariates)
+Sys.time() - start.time
 
-# transform from long to wide format
-df_covariates_upstream <- tidyr::spread(df_covariates_long, variable, value)
+df_covariates <- df_covariates_long %>%
+  tidyr::spread(variable, value) # convert from long to wide by variable
+summary(df_covariates)
 
+# need to organize covariates into upstream or local by featureid
+upstream <- df_covariates %>%
+  dplyr::group_by(featureid) %>%
+  dplyr::filter(zone == "upstream",
+                is.na(riparian_distance_ft)) %>%
+  # dplyr::select(-zone, -location_id, -location_name) %>%
+  # dplyr::summarise_each(funs(mean)) %>% # needed???
+  dplyr::rename(forest_all = forest)
+
+# Get upstream riparian forest
+riparian_200 <- df_covariates %>%
+  dplyr::group_by(featureid) %>%
+  dplyr::select(featureid, forest, zone, riparian_distance_ft) %>%
+  dplyr::filter(zone == "upstream",
+                riparian_distance_ft == 200)
+
+# create covariateData input dataset
+df_covariates_upstream  <- riparian_200 %>%
+  dplyr::select(-riparian_distance_ft) %>%
+  dplyr::left_join(upstream)
+
+
+closeAllConnections()
 
 ########## featureid-site ########## 
 # not sure if this is needed
@@ -141,9 +178,7 @@ n.catches <- length(catchmentid)
 # temporary save entire environment so don't have to pull from dataframe for testing
 save.image(file.path(getwd(), paste0(data_dir, "/db_pull_for_predictions.RData")))
 
-dbClearResult(res = rs)
-dbDisconnect(con)
-dbUnloadDriver(drv)
+
 #dbListConnections(drv)
 
 gc()
