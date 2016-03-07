@@ -27,7 +27,7 @@ config <- fromJSON('model_config.json')
 
 # validate = TRUE # get rid of this once model_config.json is ready
 
-data_dir <- "localData_2016-01-19" 
+data_dir <- "localData_2016-02-26_newDelineation"
 
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
@@ -81,10 +81,12 @@ tempData <- climateData %>%
                 airTemp = (tmax + tmin) / 2)
 
 #------ REMOVE SITES WITHIN 50 m OF AN IMPOUNDMENT - A. Roy unpublished data --------#
-
+exclude = FALSE
+if(exclude == TRUE) {
 exclude_ids <- as.numeric(gsub(",", "", unique(exclude_sites$catchment_id)))
 tempData <- tempData %>%
   dplyr::filter(!(featureid %in% exclude_ids))
+}
 
 
 #-------------------------------------------------------------------------------------
@@ -156,8 +158,8 @@ tempDataBP <- left_join(tempDataBP, springFallBPs)
 
 # highly buffered sites (springs) and highly variable sites have trouble with the breakpoints. Make day 90 the earliest possible and 330 the latest possible
 tempDataBP <- tempDataBP %>%
-  dplyr::mutate(finalSpringBP = ifelse(finalSpringBP < 90.0 & !is.na(finalSpringBP), 90.0, finalSpringBP),
-                finalFallBP = ifelse(finalFallBP > 330.0 & !is.na(finalFallBP), 330.0, finalFallBP))
+  dplyr::mutate(finalSpringBP = ifelse(finalSpringBP < 75.0 | is.na(finalSpringBP), 75.0, finalSpringBP),
+                finalFallBP = ifelse(finalFallBP > 330.0 | is.na(finalFallBP), 330.0, finalFallBP)) # adjust to take mean by site, huc12, 10, 8, 4, grand mean, min 75
 
 #------------ evaluate break points ---------------
 bp_test <- FALSE
@@ -215,10 +217,10 @@ tempDataSync <- dplyr::filter(tempDataBP, dOY >= finalSpringBP & dOY <= finalFal
 
 # Filter by Drainage area
 tempDataSync <- tempDataSync %>%
-  dplyr::filter(AreaSqKM >= 0.5 & AreaSqKM < 200 & allonnet < 50) %>%
+  dplyr::filter(AreaSqKM >= 0.01 & AreaSqKM < 200 & allonnet < 50) %>%
   dplyr::filter(!is.na(impoundArea)) %>%
-  dplyr::mutate(featureid_year = paste0(featureid, "_", year)) %>%
-  dplyr::filter(!(featureid %in% exclude_ids))
+  dplyr::mutate(featureid_year = paste0(featureid, "_", year))# %>%
+ # dplyr::filter(!(featureid %in% exclude_ids))
 
 #---------------------------------------------------------------------------------------
 
@@ -248,20 +250,19 @@ var.names <- c("airTemp",
                "dayl", 
                "swe")
 
-featureids <- unique(tempDataSync$featureid)
+featureids <- as.integer(unique(tempDataSync$featureid))
 
 # connect to database source
-db <- src_postgres(dbname='sheds', host='felek.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+db <- src_postgres(dbname='sheds_new', host='osensei.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
 
 tbl_huc12 <- tbl(db, 'catchment_huc12') %>%
-  dplyr::filter(featureid %in% featureids)
+  dplyr::filter(featureid %in% featureids) %>%
+  dplyr::mutate(HUC4=substr(huc12, as.integer(1), as.integer(4)),
+                HUC8=substr(huc12, as.integer(1), as.integer(8)),
+                HUC10=substr(huc12, as.integer(1), as.integer(10)))
 
 df_huc <- tbl_huc12 %>%
   dplyr::collect() %>%
-  dplyr::mutate(HUC4=as.character(str_sub(huc12, 1, 4)),
-                HUC8=as.character(str_sub(huc12, 1, 8)),
-                HUC10=as.character(str_sub(huc12, 1, 10)),
-                huc = as.character(HUC8)) %>%
   dplyr::rename(HUC12 = huc12)
 
 tempDataSync <- tempDataSync %>%
@@ -277,17 +278,19 @@ tempDataSync <- tempDataSync %>%
 #dplyr::select()
 
 #------ Temporarily only use sites vetted by hand outside database ----------- --------#
-
-bad_id <- read.csv("bad_featuireid_year.csv", header = TRUE, stringsAsFactors = FALSE)
-bad_id$id_year <- paste0(bad_id$featureid, "_", bad_id$year)
-
-tempDataSync$id_year <- paste0(tempDataSync$featureid, "_", tempDataSync$year)
-tempDataSync <- tempDataSync %>%
-  dplyr::filter(!(id_year %in% bad_id$id_year))
+# 
+# bad_id <- read.csv("bad_featuireid_year.csv", header = TRUE, stringsAsFactors = FALSE)
+# bad_id$id_year <- paste0(bad_id$featureid, "_", bad_id$year)
+# 
+# tempDataSync$id_year <- paste0(tempDataSync$featureid, "_", tempDataSync$year)
+# tempDataSync <- tempDataSync %>%
+#   dplyr::filter(!(id_year %in% bad_id$id_year))
 
 #-------------------------------------------------------------------------------------
 
 #------------- cut first and last day of each time series ----------------------
+
+# make sure this doesn't mess with AR1 term
 
 tempDataSync <- indexDeployments(tempDataSync, regional = TRUE)
 firstObsRows <- createFirstRows(tempDataSync)
@@ -312,7 +315,7 @@ tempDataSync <- tempDataSync %>%
 #----------- exclude unnaturally warm sites ------------------
 # sites may be warm due to impoundments, effluent, or loggers in the sun (frequently warmer than the air temp)
 # exclude excessively warm sites (due to impoundments, effluent, sun, etc.)
-df_warm <- flag_warm_influence(data = dplyr::group_by(tempDataSync, featureid_year), vals = "temp", refs = "airTemp", threshold = 0.75)
+df_warm <- flag_warm_influence(data = dplyr::group_by(tempDataSync, featureid_year), vals = "temp", refs = "airTemp", threshold = 0.8)
 
 tempDataSync <- tempDataSync %>%
   dplyr::group_by(featureid_year) %>%
@@ -324,6 +327,7 @@ tempDataSync <- tempDataSync %>%
 series <- unique(df_warm[which(df_warm$prop_warm >0.5 & df_warm$prop_warm < 0.75), ]$featureid_year)
 n <- length(series)
 dir.create(path = file.path(data_dir, "warm_sites"))
+
 for(i in 1:n) {
   data_1 <- dplyr::filter(tempDataSync, featureid_year == series[i])
   g <- ggplot(data_1, aes(date, temp)) + ylim(c(0, 35)) + ggtitle(paste0("featureid: ", data_1$featureid[1], " | year: ", data_1$year[1], " | prop_warm: ", round(df_warm[which(df_warm$featureid_year == series[i]), ]$prop_warm, digits = 2))) #+ facet_wrap(~year)
@@ -345,11 +349,11 @@ for(i in 1:n) {
   ggsave(paste0(data_dir, "/warm_sites/", series[i], ".png"), plot = g)
 }
 
-bad_featureid_year <- c("738125_2012", "750893_2010", "750978_2008", "750978_2010", "777209_2013", "757508_2005", "467429_2005", "738115_2012", "870984_2011", "870984_2011")
+#bad_featureid_year <- c("738125_2012", "750893_2010", "750978_2008", "750978_2010", "777209_2013", "757508_2005", "467429_2005", "738115_2012", "870984_2011", "870984_2011")
 tempDataSync <- tempDataSync %>%
   dplyr::left_join(df_warm) %>%
-  dplyr::filter(flag_warm == FALSE,
-                !(featureid_year %in% bad_featureid_year)) %>%
+  dplyr::filter(flag_warm == FALSE) %>% #,
+               # !(featureid_year %in% bad_featureid_year)) %>%
   dplyr::select(-flag_warm, -featureid_year) 
 
 length(unique(temperatureData$featureid))
@@ -359,6 +363,7 @@ length(unique(tempDataSync$featureid))
 #--------------------------------------------------------------
 
 #-------------- remove site-year combos with fewer than 4 data points remaining --------
+tempDataSync$huc <- tempDataSync$HUC8
 
 keep_columns <- c("featureid"
                   , "featureid_year"
@@ -383,8 +388,8 @@ keep_columns <- c("featureid"
                   , "prcp2"
                   , "prcp7"
                   , "prcp30"
-                  , "latitude"
-                  , "longitude"
+                  #, "latitude"
+                 # , "longitude"
                   , "agriculture"
                   , "herbaceous"
                   , "allonnet"
