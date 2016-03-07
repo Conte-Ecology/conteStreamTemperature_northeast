@@ -352,6 +352,7 @@ summary(temperatureData)
 df_series <- data.frame(series_id = unique(df_values3$series_id), stringsAsFactors = FALSE)
 write.csv(df_series, file = paste0(data_dir, "/series_used.csv"), row.names = FALSE)
 
+
 #Summarise to featureid
 # for all current analyses just need mean within reach (featureid)
 
