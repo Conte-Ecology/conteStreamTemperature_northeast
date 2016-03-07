@@ -186,3 +186,11 @@ ggsave(filename = file.path("manuscripts/Figures", "metrics_histograms.jpg"), pl
 ```
 
 
+Locations, Lat, Lon, Fitting, Validation, for Mapping Data Used
+
+```{r locations for mapping data use}
+
+
+```
+
+
