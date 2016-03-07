@@ -3,8 +3,10 @@
 psql -d sheds -f code/daymet_query.sql > daymet_results.csv
 
 # if running from a remote location
-psql -h osensei.cns.umass.edu -U dan -d sheds -f localData_2015-06-09/code/daymet_query.sql > localData_2015-06-09/daymet_results.csv
+psql -h osensei.cns.umass.edu -U dan -d sheds -f localData_2016-02-26_newDelineation/code/daymet_query.sql > localData_2016-02-26_newDelineation/daymet_results.csv
 # password will be the database password, not the server password
+
+localData_2016-02-26_newDelineation
 
 # connect to remote database
 psql -h <host> -p <port> -u <database>
