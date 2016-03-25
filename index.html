@@ -54,8 +54,6 @@
 <h2>
 <a id="independent-data-sources" class="anchor" href="#independent-data-sources" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Independent Data Sources</h2>
 
-<p>Add table of variables used with link to Kyle's project page (maybe copy part of the table)</p>
-
 <h2>
 <a id="predictor-variables" class="anchor" href="#predictor-variables" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Predictor Variables</h2>
 
@@ -65,61 +63,173 @@
 <h3>
 <a id="coefficients-table" class="anchor" href="#coefficients-table" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Coefficients Table</h3>
 
-<hr>
-
-<pre><code>                 Parameter   Mean    SD   LCRI    UCRI
-</code></pre>
-
-<hr>
-
-<pre><code>                 Intercept 17.051 0.123  16.81 17.2980
-
-                      AirT  2.029 0.020   1.99  2.0694
-
-                7-day AirT  1.551 0.025   1.50  1.5997
-
-              2-day Precip  0.051 0.002   0.05  0.0541
-
-             30-day Precip  0.001 0.006  -0.01  0.0130
-
-             Drainage Area  0.371 0.058   0.26  0.4849
-
-            Impounded Area  0.181 0.067   0.05  0.3092
-
-     Riparian Forest Cover -0.249 0.050  -0.35 -0.1504
-
-          High Development -0.002 0.032  -0.06  0.0615
-
-               Agriculture -0.139 0.047  -0.23 -0.0461
-
-       AirT x 2-day Precip  0.019 0.002   0.02  0.0228
-
-      AirT x 30-day Precip -0.033 0.003  -0.04 -0.0261
-
-           AirT x Drainage  0.027 0.019  -0.01  0.0662
-
-     AirT x Impounded Area -0.047 0.023  -0.09 -0.0003
-
-             AirT x Forest -0.016 0.017  -0.05  0.0181
-
-   AirT x High Development -0.001 0.011  -0.02  0.0212
-
-       AirT x Agriculture, -0.017 0.016  -0.05  0.0147
-
-   2-day Precip x Drainage -0.039 0.002  -0.04 -0.0353
-
-  30-day Precip x Drainage -0.044 0.006  -0.06 -0.0336
-</code></pre>
-
-<p>AirT x 2-day Precip x Drainage -0.015 0.002  -0.02 -0.0118</p>
-
-<pre><code>    AirT x 30-day Precip x -0.005 0.003  -0.01  0.0017
-                  Drainage                            
-
-                       AR1  0.813 0.002   0.81  0.8159
-</code></pre>
-
-<hr>
+<table>
+<thead>
+<tr>
+<th align="right">Parameter</th>
+<th align="right">Mean</th>
+<th align="right">SD</th>
+<th align="right">LCRI</th>
+<th align="right">UCRI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="right">Intercept</td>
+<td align="right">17.051</td>
+<td align="right">0.123</td>
+<td align="right">16.81</td>
+<td align="right">17.2980</td>
+</tr>
+<tr>
+<td align="right">AirT</td>
+<td align="right">2.029</td>
+<td align="right">0.020</td>
+<td align="right">1.99</td>
+<td align="right">2.0694</td>
+</tr>
+<tr>
+<td align="right">7-day AirT</td>
+<td align="right">1.551</td>
+<td align="right">0.025</td>
+<td align="right">1.50</td>
+<td align="right">1.5997</td>
+</tr>
+<tr>
+<td align="right">2-day Precip</td>
+<td align="right">0.051</td>
+<td align="right">0.002</td>
+<td align="right">0.05</td>
+<td align="right">0.0541</td>
+</tr>
+<tr>
+<td align="right">30-day Precip</td>
+<td align="right">0.001</td>
+<td align="right">0.006</td>
+<td align="right">-0.01</td>
+<td align="right">0.0130</td>
+</tr>
+<tr>
+<td align="right">Drainage Area</td>
+<td align="right">0.371</td>
+<td align="right">0.058</td>
+<td align="right">0.26</td>
+<td align="right">0.4849</td>
+</tr>
+<tr>
+<td align="right">Impounded Area</td>
+<td align="right">0.181</td>
+<td align="right">0.067</td>
+<td align="right">0.05</td>
+<td align="right">0.3092</td>
+</tr>
+<tr>
+<td align="right">Riparian Forest Cover</td>
+<td align="right">-0.249</td>
+<td align="right">0.050</td>
+<td align="right">-0.35</td>
+<td align="right">-0.1504</td>
+</tr>
+<tr>
+<td align="right">High Development</td>
+<td align="right">-0.002</td>
+<td align="right">0.032</td>
+<td align="right">-0.06</td>
+<td align="right">0.0615</td>
+</tr>
+<tr>
+<td align="right">Agriculture</td>
+<td align="right">-0.139</td>
+<td align="right">0.047</td>
+<td align="right">-0.23</td>
+<td align="right">-0.0461</td>
+</tr>
+<tr>
+<td align="right">AirT x 2-day Precip</td>
+<td align="right">0.019</td>
+<td align="right">0.002</td>
+<td align="right">0.02</td>
+<td align="right">0.0228</td>
+</tr>
+<tr>
+<td align="right">AirT x 30-day Precip</td>
+<td align="right">-0.033</td>
+<td align="right">0.003</td>
+<td align="right">-0.04</td>
+<td align="right">-0.0261</td>
+</tr>
+<tr>
+<td align="right">AirT x Drainage</td>
+<td align="right">0.027</td>
+<td align="right">0.019</td>
+<td align="right">-0.01</td>
+<td align="right">0.0662</td>
+</tr>
+<tr>
+<td align="right">AirT x Impounded Area</td>
+<td align="right">-0.047</td>
+<td align="right">0.023</td>
+<td align="right">-0.09</td>
+<td align="right">-0.0003</td>
+</tr>
+<tr>
+<td align="right">AirT x Forest</td>
+<td align="right">-0.016</td>
+<td align="right">0.017</td>
+<td align="right">-0.05</td>
+<td align="right">0.0181</td>
+</tr>
+<tr>
+<td align="right">AirT x High Development</td>
+<td align="right">-0.001</td>
+<td align="right">0.011</td>
+<td align="right">-0.02</td>
+<td align="right">0.0212</td>
+</tr>
+<tr>
+<td align="right">AirT x Agriculture,</td>
+<td align="right">-0.017</td>
+<td align="right">0.016</td>
+<td align="right">-0.05</td>
+<td align="right">0.0147</td>
+</tr>
+<tr>
+<td align="right">2-day Precip x Drainage</td>
+<td align="right">-0.039</td>
+<td align="right">0.002</td>
+<td align="right">-0.04</td>
+<td align="right">-0.0353</td>
+</tr>
+<tr>
+<td align="right">30-day Precip x Drainage</td>
+<td align="right">-0.044</td>
+<td align="right">0.006</td>
+<td align="right">-0.06</td>
+<td align="right">-0.0336</td>
+</tr>
+<tr>
+<td align="right">AirT x 2-day Precip x Drainage</td>
+<td align="right">-0.015</td>
+<td align="right">0.002</td>
+<td align="right">-0.02</td>
+<td align="right">-0.0118</td>
+</tr>
+<tr>
+<td align="right">AirT x 30-day Precip x Drainage</td>
+<td align="right">-0.005</td>
+<td align="right">0.003</td>
+<td align="right">-0.01</td>
+<td align="right">0.0017</td>
+</tr>
+<tr>
+<td align="right">AR1</td>
+<td align="right">0.813</td>
+<td align="right">0.002</td>
+<td align="right">0.81</td>
+<td align="right">0.8159</td>
+</tr>
+</tbody>
+</table>
 
 <hr>
 
