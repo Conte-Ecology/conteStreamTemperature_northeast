@@ -63,88 +63,99 @@
 <h3>
 <a id="coefficients-table" class="anchor" href="#coefficients-table" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Coefficients Table</h3>
 
-<pre><code>## 
-## ----------------------------------------------------------
-##                      Parameter   Mean    SD   LCRI    UCRI
-## ------------------------------ ------ ----- ------ -------
-##                      Intercept 17.051 0.123  16.81 17.2980
-## 
-##                           AirT  2.029 0.020   1.99  2.0694
-## 
-##                     7-day AirT  1.551 0.025   1.50  1.5997
-## 
-##                   2-day Precip  0.051 0.002   0.05  0.0541
-## 
-##                  30-day Precip  0.001 0.006  -0.01  0.0130
-## 
-##                  Drainage Area  0.371 0.058   0.26  0.4849
-## 
-##                 Impounded Area  0.181 0.067   0.05  0.3092
-## 
-##          Riparian Forest Cover -0.249 0.050  -0.35 -0.1504
-## 
-##               High Development -0.002 0.032  -0.06  0.0615
-## 
-##                    Agriculture -0.139 0.047  -0.23 -0.0461
-## 
-##            AirT x 2-day Precip  0.019 0.002   0.02  0.0228
-## 
-##           AirT x 30-day Precip -0.033 0.003  -0.04 -0.0261
-## 
-##                AirT x Drainage  0.027 0.019  -0.01  0.0662
-## 
-##          AirT x Impounded Area -0.047 0.023  -0.09 -0.0003
-## 
-##                  AirT x Forest -0.016 0.017  -0.05  0.0181
-## 
-##        AirT x High Development -0.001 0.011  -0.02  0.0212
-## 
-##            AirT x Agriculture, -0.017 0.016  -0.05  0.0147
-## 
-##        2-day Precip x Drainage -0.039 0.002  -0.04 -0.0353
-## 
-##       30-day Precip x Drainage -0.044 0.006  -0.06 -0.0336
-## 
-## AirT x 2-day Precip x Drainage -0.015 0.002  -0.02 -0.0118
-## 
-##         AirT x 30-day Precip x -0.005 0.003  -0.01  0.0017
-##                       Drainage                            
-## 
-##                            AR1  0.813 0.002   0.81  0.8159
-## ----------------------------------------------------------
+<hr>
+
+<pre><code>                 Parameter   Mean    SD   LCRI    UCRI
 </code></pre>
 
-<pre><code>## 
-## ----------------------------------
-##   Group       Coef   SD   Variance
-## ------- ---------- ---- ----------
-##    Site  Intercept 1.09      1.186
-## 
-##               AirT 0.34      0.113
-## 
-##         7-day AirT 0.36      0.132
-## 
-##    HUC8  Intercept 0.64      0.412
-## 
-##               AirT 0.24      0.059
-## 
-##         7-day AirT 0.28      0.080
-## 
-##    Year  Intercept 0.27      0.076
-## ----------------------------------
+<hr>
+
+<pre><code>                 Intercept 17.051 0.123  16.81 17.2980
+
+                      AirT  2.029 0.020   1.99  2.0694
+
+                7-day AirT  1.551 0.025   1.50  1.5997
+
+              2-day Precip  0.051 0.002   0.05  0.0541
+
+             30-day Precip  0.001 0.006  -0.01  0.0130
+
+             Drainage Area  0.371 0.058   0.26  0.4849
+
+            Impounded Area  0.181 0.067   0.05  0.3092
+
+     Riparian Forest Cover -0.249 0.050  -0.35 -0.1504
+
+          High Development -0.002 0.032  -0.06  0.0615
+
+               Agriculture -0.139 0.047  -0.23 -0.0461
+
+       AirT x 2-day Precip  0.019 0.002   0.02  0.0228
+
+      AirT x 30-day Precip -0.033 0.003  -0.04 -0.0261
+
+           AirT x Drainage  0.027 0.019  -0.01  0.0662
+
+     AirT x Impounded Area -0.047 0.023  -0.09 -0.0003
+
+             AirT x Forest -0.016 0.017  -0.05  0.0181
+
+   AirT x High Development -0.001 0.011  -0.02  0.0212
+
+       AirT x Agriculture, -0.017 0.016  -0.05  0.0147
+
+   2-day Precip x Drainage -0.039 0.002  -0.04 -0.0353
+
+  30-day Precip x Drainage -0.044 0.006  -0.06 -0.0336
 </code></pre>
 
-<pre><code>## 
-## --------------------------------------------
-##       &amp;nbsp;   Intercept   AirT   7-day AirT
-## ------------ ----------- ------ ------------
-##    Intercept                                
-## 
-##         AirT       0.553                    
-## 
-##   7-day AirT       0.306  0.126             
-## --------------------------------------------
+<p>AirT x 2-day Precip x Drainage -0.015 0.002  -0.02 -0.0118</p>
+
+<pre><code>    AirT x 30-day Precip x -0.005 0.003  -0.01  0.0017
+                  Drainage                            
+
+                       AR1  0.813 0.002   0.81  0.8159
 </code></pre>
+
+<hr>
+
+<hr>
+
+<p>Group       Coef   SD   Variance</p>
+
+<hr>
+
+<p>Site  Intercept 1.09      1.186</p>
+
+<pre><code>          AirT 0.34      0.113
+
+    7-day AirT 0.36      0.132
+</code></pre>
+
+<p>HUC8  Intercept 0.64      0.412</p>
+
+<pre><code>          AirT 0.24      0.059
+
+    7-day AirT 0.28      0.080
+</code></pre>
+
+<h2>
+<a id="---year--intercept-027------0076" class="anchor" href="#---year--intercept-027------0076" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>   Year  Intercept 0.27      0.076</h2>
+
+<hr>
+
+<pre><code>  &amp;nbsp;   Intercept   AirT   7-day AirT
+</code></pre>
+
+<hr>
+
+<p>Intercept                                </p>
+
+<pre><code>    AirT       0.553                    
+</code></pre>
+
+<h2>
+<a id="--7-day-airt-------0306--0126-------------" class="anchor" href="#--7-day-airt-------0306--0126-------------" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>  7-day AirT       0.306  0.126             </h2>
       </section>
       <footer>
         <p><small>Hosted on <a href="https://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
