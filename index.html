@@ -42,20 +42,113 @@
 <h2>
 <a id="objectives" class="anchor" href="#objectives" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Objectives</h2>
 
+<p>Our objective was to develop novel statistical model of daily stream temperature that incorporates features of stochastic models and extends the Letcher et al. (2016) framework to large geographic areas. The model needed to (1) handle time series data of widely varying duration from many sites accounting for autocorrelation at specific locations within watersheds, (2) while also including information about catchment, landscape, and meteorological conditions for explanatory and predictive purposes. (3) For a daily temperature model we needed to include an autoregressive function to account for temporal autocorrelation in the time series, a challenge with other statistical models at fine temporal resolution. (4) We also wanted to account for uncertainty at various levels and propogate this through to predictions. </p>
+
+<p>We use the model to predict daily stream temperature across the northeastern United States over a 34-year time record.</p>
+
 <h2>
 <a id="approach" class="anchor" href="#approach" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Approach</h2>
+
+<p>Statistical models of stream temperature often rely on the close relationship between air temperature and water temperature. However, this relationship breaks down during the winter in temperature zones, particularly as streams freeze, thereby changing their thermal and properties. Many researchers and managers are interested in the non-winter effects of temperature. The winter period, when phase change and ice cover alter the air-water relationship, differs in both time (annually) and space. We developed an index of air-water synchrony ($Index_{sync}$) so we can model the portion of the year that it not affected by freezing properties. The index is the difference between air and observed water temperatures divided by the water temperature plus 0.000001 to avoid division by zero. </p>
+
+<p>We calculate the $Index_{sync}$ for each day of the year at each reach for each year with observed data. We then calculate the 99.9% confidence interval of $Index_{sync}$ for days between the 125 and 275 days of the year (05 May and 02 October). Then moving from the middle of the year (day 180) to the beginning of the year, we searched for the first time when 10 consecutive days were not within the 99.9% CI. This was selected as the spring breakpoint. Similarly moving from the middle to the end of the year, the first event with fewer than 16 consecutive days within the 99.9% CI was assigned as the autumn breakpoint. Independent breakpoints were estimated for each reach-year combination. More details regarding the identification of the synchronized period can be found in Letcher et al. (2016). The portion of the year between the spring and autumn breakpoints was used for modeling the non-winter, approximately ice-free stream temperatures.</p>
+
+<p>We used a generalized linear mixed model to account for correlation in space (stream reach nested within HUC8). This allowed us to incorporate short time series as well as long time series from different reaches and disjunct time series from the same reaches without risk of pseudoreplication (Hurlbert 1984). By limited stream drainage area to &lt;200 $km^2$ and only modeling the synchronized period of the year, we were able to use a linear model, avoiding the non-linearities that occur at very high temperatures due to evaporative cooling and near 0 C due to phase change (Mohseni 1999).</p>
 
 <h2>
 <a id="model-structure" class="anchor" href="#model-structure" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Model Structure</h2>
 
+<p>We assumed stream temperature measurements were normally distributed following,</p>
+
+<p>$$ t_{h,r,y,d} \sim \mathcal{N}(\mu_{h,r,y,d}, \sigma) $$</p>
+
+<p>where $t_{h,r,y,d}$ is the observed stream water temperature at the reach ($r$) within the sub-basin identified by the 8-digit Hydrologic Unit Code (HUC8; $h$) for each day ($d$) in each year ($y$). We describe the normal distribution based on the mean ($mu_{h,r,y,d}$) and standard deviation ($\sigma$) and assign a vague prior of $\sigma = 100$. The mean temperature is modeled to follow a linear trend</p>
+
+<p>$$ \omega_{h,r,y,d} = X_0 B_0 + X_{h,r} B_{h,r} + X_{h} B_{h} + X_{y} B_{y} $$</p>
+
+<p>but the expected mean temperature ($\mu_{h,r,y,d}$) was also adjusted based on the residual error from the previous day</p>
+
+<p>$$ \mu_{h,r,y,d} = \begin{cases}
+    \omega_{h,r,y,d} + \delta(t_{h,r,y,d-1} - \omega_{h,r,y,d-1}) &amp; \quad  \text{for $t_{h,r,y,d-1}$ is real} \
+    \omega_{h,r,y,d} &amp; \quad  \text{for $t_{h,r,y,d-1}$ is not real}
+  \end{cases}
+ $$</p>
+
+<p>where $\delta$ is an autoregressive [AR(1)] coefficient and $\omega_{h,r,y,d}$ is the expected temperature before accounting for temporal autocorrelation in the error structure.</p>
+
+<p>$X_{0}$ is the $n \times K_0$ matrix of predictor values. $B_0$ is the vector of $K_0$ coefficients, where $K_0$ is the number of fixed effects parameters including the overall intercept. </p>
+
+<p>$B_{h,r}$ is the $R \times K_{R}$ matrix of regression coefficients where $R$ is the number of unique reaches and $K_{R}$ is the number of regression coefficients that vary randomly by reach within HUC8. The effects of daily air temperature and mean air temperature over the previous 7 days varied randomly with reach and HUC8 (Table 1). </p>
+
+<p>$X_{h}$ is the matrix of parameters that vary by HUC8. We allowed for correlation among the effects of these HUC8 coefficients as described by Gelman and Hill [-@Gelman2007].</p>
+
+<p>$B_{h}$ is the $H \times K_{H}$ matrix of coefficients where $H$ is the number of HUC8 groups and $K_H$ is the number of parameters that vary by HUC8 including a constant term. </p>
+
+<p>Similarly, we allowed the some effects of some parameters ($X_{y}$) to vary randomly by year with potential correlation among the coefficients. The intercept, day of the year ($day$), $day^2$, and $day^3$ all varied randomly with year such that $K_{y} = 4$. </p>
+
 <h2>
 <a id="stream-temperature-data-dependent-data" class="anchor" href="#stream-temperature-data-dependent-data" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Stream Temperature Data (Dependent Data)</h2>
 
-<h2>
-<a id="independent-data-sources" class="anchor" href="#independent-data-sources" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Independent Data Sources</h2>
+<p>Add summary of agencies, sites, and amounts of data</p>
 
 <h2>
 <a id="predictor-variables" class="anchor" href="#predictor-variables" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Predictor Variables</h2>
+
+<table>
+<thead>
+<tr>
+<th align="center">Variable</th>
+<th>Description</th>
+<th>Source</th>
+<th>Processing</th>
+<th>GitHub Repository</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">Total Drainage Area</td>
+<td>The total contributing drainage area from the entire upstream network</td>
+<td><a href="http://conte-ecology.github.io/shedsData/">The SHEDS Data project</a></td>
+<td>The individual polygon areas are summed for all of the catchments in the contributing network</td>
+<td><a href="https://github.com/Conte-Ecology/shedsData/tree/master/NHDHRDV2">NHDHRDV2</a></td>
+</tr>
+<tr>
+<td align="center">Riparian Forest Cover</td>
+<td>The percentage of the upstream 200ft riparian buffer area that is covered by trees taller than 5 meters</td>
+<td><a href="http://www.mrlc.gov/nlcd06_data.php">The National LandCover Database (NLCD)</a></td>
+<td>All of the NLCD forest type classifications are combined and attributed to each riparian buffer polygon  using GIS tools. All upstream polygon values are then aggregated.</td>
+<td><a href="https://github.com/Conte-Ecology/shedsData/tree/master/basinCharacteristics/rasterPrep/nlcdLandCover">nlcdLandCover</a></td>
+</tr>
+<tr>
+<td align="center">Daily Precipition</td>
+<td>The daily precipitation record for the individual local catchment</td>
+<td><a href="https://daymet.ornl.gov/">Daymet Daily Surface Weather and Climatological Summaries</a></td>
+<td>Daily precipitation records are spatially assigned to each catchment based on overlapping grid cells using the <a href="https://github.com/Conte-Ecology/zonalDaymet">zonalDaymet</a> R package</td>
+<td><a href="https://github.com/Conte-Ecology/shedsData/tree/master/daymet">daymet</a></td>
+</tr>
+<tr>
+<td align="center">Upstream Impounded Area</td>
+<td>The total area in the contributing drainage basin that is covered by wetlands, lakes, or ponds that intersect the stream network</td>
+<td><a href="http://www.fws.gov/wetlands/Data/Data-Download.html">U.S. Fish &amp; Wildlife Service (FWS) National Wetlands Inventory</a></td>
+<td>All freshwater surface water bodies are attributed to each catchment using GIS tools. All upstream polygon values are then aggregated.</td>
+<td><a href="https://github.com/Conte-Ecology/shedsData/tree/master/basinCharacteristics/rasterPrep/fwsWetlands">fwsWetlands</a></td>
+</tr>
+<tr>
+<td align="center">Percent Agriculture</td>
+<td>The percentage of the contributing drainage area that is covered by agricultural land (e.g. cultivated crops, orchards, and pasture) including fallow land.</td>
+<td><a href="http://www.mrlc.gov/nlcd06_data.php">The National LandCover Database</a></td>
+<td>All of the NLCD agricutlural classifications are combined and attributed to each catchment polygon using GIS tools. All upstream polygon values are then aggregated.</td>
+<td><a href="https://github.com/Conte-Ecology/shedsData/tree/master/basinCharacteristics/rasterPrep/nlcdLandCover">nlcdLandCover</a></td>
+</tr>
+<tr>
+<td align="center">Percent High Intensity Developed</td>
+<td>The percentage of the contributing drainage area covered by places where people work or live in high numbers (typically defined as areas  covered by more than 80% impervious surface)</td>
+<td><a href="http://www.mrlc.gov/nlcd06_data.php">The National LandCover Database</a></td>
+<td>The NLCD high intensity developed classification is attributed to each catchment polygon using GIS tools. All upstream polygon values are then aggregated.</td>
+<td><a href="https://github.com/Conte-Ecology/shedsData/tree/master/basinCharacteristics/rasterPrep/nlcdLandCover">nlcdLandCover</a></td>
+</tr>
+</tbody>
+</table>
 
 <h2>
 <a id="general-results" class="anchor" href="#general-results" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>General Results</h2>
@@ -231,43 +324,91 @@
 </tbody>
 </table>
 
-<hr>
+<table>
+<thead>
+<tr>
+<th align="right">Group</th>
+<th align="right">Coef</th>
+<th align="right">SD</th>
+<th align="right">Variance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="right">Site</td>
+<td align="right">Intercept</td>
+<td align="right">1.09</td>
+<td align="right">1.186</td>
+</tr>
+<tr>
+<td align="right"></td>
+<td align="right">AirT</td>
+<td align="right">0.34</td>
+<td align="right">0.113</td>
+</tr>
+<tr>
+<td align="right"></td>
+<td align="right">7-day AirT</td>
+<td align="right">0.36</td>
+<td align="right">0.132</td>
+</tr>
+<tr>
+<td align="right">HUC8</td>
+<td align="right">Intercept</td>
+<td align="right">0.64</td>
+<td align="right">0.412</td>
+</tr>
+<tr>
+<td align="right"></td>
+<td align="right">AirT</td>
+<td align="right">0.24</td>
+<td align="right">0.059</td>
+</tr>
+<tr>
+<td align="right"></td>
+<td align="right">7-day AirT</td>
+<td align="right">0.28</td>
+<td align="right">0.080</td>
+</tr>
+<tr>
+<td align="right">Year</td>
+<td align="right">Intercept</td>
+<td align="right">0.27</td>
+<td align="right">0.076</td>
+</tr>
+</tbody>
+</table>
 
-<p>Group       Coef   SD   Variance</p>
-
-<hr>
-
-<p>Site  Intercept 1.09      1.186</p>
-
-<pre><code>          AirT 0.34      0.113
-
-    7-day AirT 0.36      0.132
-</code></pre>
-
-<p>HUC8  Intercept 0.64      0.412</p>
-
-<pre><code>          AirT 0.24      0.059
-
-    7-day AirT 0.28      0.080
-</code></pre>
-
-<h2>
-<a id="---year--intercept-027------0076" class="anchor" href="#---year--intercept-027------0076" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>   Year  Intercept 0.27      0.076</h2>
-
-<hr>
-
-<pre><code>  &amp;nbsp;   Intercept   AirT   7-day AirT
-</code></pre>
-
-<hr>
-
-<p>Intercept                                </p>
-
-<pre><code>    AirT       0.553                    
-</code></pre>
-
-<h2>
-<a id="--7-day-airt-------0306--0126-------------" class="anchor" href="#--7-day-airt-------0306--0126-------------" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>  7-day AirT       0.306  0.126             </h2>
+<table>
+<thead>
+<tr>
+<th align="right"> </th>
+<th align="right">Intercept</th>
+<th align="right">AirT</th>
+<th align="right">7-day AirT</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="right">Intercept</td>
+<td align="right"></td>
+<td align="right"></td>
+<td align="right"></td>
+</tr>
+<tr>
+<td align="right">AirT</td>
+<td align="right">0.553</td>
+<td align="right"></td>
+<td align="right"></td>
+</tr>
+<tr>
+<td align="right">7-day AirT</td>
+<td align="right">0.306</td>
+<td align="right">0.126</td>
+<td align="right"></td>
+</tr>
+</tbody>
+</table>
       </section>
       <footer>
         <p><small>Hosted on <a href="https://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
