@@ -117,10 +117,11 @@ $(document).ready(function () {
 
 <div id="abstract" class="section level2">
 <h2>Abstract</h2>
+<p>Coming Soon</p>
 </div>
 <div id="objectives" class="section level2">
 <h2>Objectives</h2>
-<p>Our objective was to develop novel statistical model of daily stream temperature that incorporates features of stochastic models and extends the Letcher et al. (2016) framework to large geographic areas. The model needed to (1) handle time series data of widely varying duration from many sites accounting for autocorrelation at specific locations within watersheds, (2) while also including information about catchment, landscape, and meteorological conditions for explanatory and predictive purposes. (3) For a daily temperature model we needed to include an autoregressive function to account for temporal autocorrelation in the time series, a challenge with other statistical models at fine temporal resolution. (4) We also wanted to account for uncertainty at various levels and propogate this through to predictions.</p>
+<p>Our objective was to develop novel statistical model of daily stream temperature that incorporates features of stochastic models and extends the <a href="https://peerj.com/articles/1727.pdf">Letcher et al. (2016)</a> framework to large geographic areas. The model needed to (1) handle time series data of widely varying duration from many sites accounting for autocorrelation at specific locations within watersheds, (2) while also including information about catchment, landscape, and meteorological conditions for explanatory and predictive purposes. (3) For a daily temperature model we needed to include an autoregressive function to account for temporal autocorrelation in the time series, a challenge with other statistical models at fine temporal resolution. (4) We also wanted to account for uncertainty at various levels and propogate this through to predictions.</p>
 <p>We use the model to predict daily stream temperature across the northeastern United States over a 34-year time record.</p>
 </div>
 <div id="approach" class="section level2">
@@ -129,28 +130,223 @@ $(document).ready(function () {
 <p>We calculate the <span class="math inline">\(Index_{sync}\)</span> for each day of the year at each reach for each year with observed data. We then calculate the 99.9% confidence interval of <span class="math inline">\(Index_{sync}\)</span> for days between the 125 and 275 days of the year (05 May and 02 October). Then moving from the middle of the year (day 180) to the beginning of the year, we searched for the first time when 10 consecutive days were not within the 99.9% CI. This was selected as the spring breakpoint. Similarly moving from the middle to the end of the year, the first event with fewer than 16 consecutive days within the 99.9% CI was assigned as the autumn breakpoint. Independent breakpoints were estimated for each reach-year combination. More details regarding the identification of the synchronized period can be found in Letcher et al. (2016). The portion of the year between the spring and autumn breakpoints was used for modeling the non-winter, approximately ice-free stream temperatures.</p>
 <p>We used a generalized linear mixed model to account for correlation in space (stream reach nested within HUC8). This allowed us to incorporate short time series as well as long time series from different reaches and disjunct time series from the same reaches without risk of pseudoreplication (Hurlbert 1984). By limited stream drainage area to &lt;200 <span class="math inline">\(km^2\)</span> and only modeling the synchronized period of the year, we were able to use a linear model, avoiding the non-linearities that occur at very high temperatures due to evaporative cooling and near 0 C due to phase change (Mohseni 1999).</p>
 </div>
-<div id="model-structure" class="section level2">
-<h2>Model Structure</h2>
-<p>We assumed stream temperature measurements were normally distributed following,</p>
-<p><span class="math display">\[ t_{h,r,y,d} \sim \mathcal{N}(\mu_{h,r,y,d}, \sigma) \]</span></p>
-<p>where <span class="math inline">\(t_{h,r,y,d}\)</span> is the observed stream water temperature at the reach (<span class="math inline">\(r\)</span>) within the sub-basin identified by the 8-digit Hydrologic Unit Code (HUC8; <span class="math inline">\(h\)</span>) for each day (<span class="math inline">\(d\)</span>) in each year (<span class="math inline">\(y\)</span>). We describe the normal distribution based on the mean (<span class="math inline">\(mu_{h,r,y,d}\)</span>) and standard deviation (<span class="math inline">\(\sigma\)</span>) and assign a vague prior of <span class="math inline">\(\sigma = 100\)</span>. The mean temperature is modeled to follow a linear trend</p>
-<p><span class="math display">\[ \omega_{h,r,y,d} = X_0 B_0 + X_{h,r} B_{h,r} + X_{h} B_{h} + X_{y} B_{y} \]</span></p>
-<p>but the expected mean temperature (<span class="math inline">\(\mu_{h,r,y,d}\)</span>) was also adjusted based on the residual error from the previous day</p>
-<p><span class="math display">\[ \mu_{h,r,y,d} = \begin{cases}
-    \omega_{h,r,y,d} + \delta(t_{h,r,y,d-1} - \omega_{h,r,y,d-1}) &amp; \quad  \text{for $t_{h,r,y,d-1}$ is real} \\
-    \omega_{h,r,y,d} &amp; \quad  \text{for $t_{h,r,y,d-1}$ is not real}
-  \end{cases}
- \]</span></p>
-<p>where <span class="math inline">\(\delta\)</span> is an autoregressive [AR(1)] coefficient and <span class="math inline">\(\omega_{h,r,y,d}\)</span> is the expected temperature before accounting for temporal autocorrelation in the error structure.</p>
-<p><span class="math inline">\(X_{0}\)</span> is the <span class="math inline">\(n \times K_0\)</span> matrix of predictor values. <span class="math inline">\(B_0\)</span> is the vector of <span class="math inline">\(K_0\)</span> coefficients, where <span class="math inline">\(K_0\)</span> is the number of fixed effects parameters including the overall intercept.</p>
-<p><span class="math inline">\(B_{h,r}\)</span> is the <span class="math inline">\(R \times K_{R}\)</span> matrix of regression coefficients where <span class="math inline">\(R\)</span> is the number of unique reaches and <span class="math inline">\(K_{R}\)</span> is the number of regression coefficients that vary randomly by reach within HUC8. The effects of daily air temperature and mean air temperature over the previous 7 days varied randomly with reach and HUC8 (Table 1).</p>
-<p><span class="math inline">\(X_{h}\)</span> is the matrix of parameters that vary by HUC8. We allowed for correlation among the effects of these HUC8 coefficients as described by Gelman and Hill <span class="citation">[-@Gelman2007]</span>.</p>
-<p><span class="math inline">\(B_{h}\)</span> is the <span class="math inline">\(H \times K_{H}\)</span> matrix of coefficients where <span class="math inline">\(H\)</span> is the number of HUC8 groups and <span class="math inline">\(K_H\)</span> is the number of parameters that vary by HUC8 including a constant term.</p>
-<p>Similarly, we allowed the some effects of some parameters (<span class="math inline">\(X_{y}\)</span>) to vary randomly by year with potential correlation among the coefficients. The intercept, day of the year (<span class="math inline">\(day\)</span>), <span class="math inline">\(day^2\)</span>, and <span class="math inline">\(day^3\)</span> all varied randomly with year such that <span class="math inline">\(K_{y} = 4\)</span>.</p>
-</div>
 <div id="stream-temperature-data-dependent-data" class="section level2">
 <h2>Stream Temperature Data (Dependent Data)</h2>
-<p>Add summary of agencies, sites, and amounts of data</p>
+<p>Summary of data by states, contributors (agencies), and locations.</p>
+<table style="width:114%;">
+<colgroup>
+<col width="13%"></col>
+<col width="22%"></col>
+<col width="19%"></col>
+<col width="16%"></col>
+<col width="22%"></col>
+<col width="19%"></col>
+</colgroup>
+<thead>
+<tr class="header">
+<th align="right">state</th>
+<th align="right">agency_name</th>
+<th align="right">n_records</th>
+<th align="right">n_years</th>
+<th align="right">n_locations</th>
+<th align="right">n_streams</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">CT</td>
+<td align="right">CTDEEP</td>
+<td align="right">4806258</td>
+<td align="right">17</td>
+<td align="right">495</td>
+<td align="right">397</td>
+</tr>
+<tr class="even">
+<td align="right">MA</td>
+<td align="right">CTDEEP</td>
+<td align="right">16261</td>
+<td align="right">5</td>
+<td align="right">3</td>
+<td align="right">2</td>
+</tr>
+<tr class="odd">
+<td align="right">MA</td>
+<td align="right">MADEP</td>
+<td align="right">446338</td>
+<td align="right">6</td>
+<td align="right">115</td>
+<td align="right">104</td>
+</tr>
+<tr class="even">
+<td align="right">MA</td>
+<td align="right">MAFW</td>
+<td align="right">24127</td>
+<td align="right">5</td>
+<td align="right">48</td>
+<td align="right">40</td>
+</tr>
+<tr class="odd">
+<td align="right">MA</td>
+<td align="right">USFS</td>
+<td align="right">506434</td>
+<td align="right">5</td>
+<td align="right">40</td>
+<td align="right">22</td>
+</tr>
+<tr class="even">
+<td align="right">MA</td>
+<td align="right">USGS_Conte</td>
+<td align="right">510755</td>
+<td align="right">19</td>
+<td align="right">10</td>
+<td align="right">5</td>
+</tr>
+<tr class="odd">
+<td align="right">MD</td>
+<td align="right">MBSS</td>
+<td align="right">43278</td>
+<td align="right">11</td>
+<td align="right">474</td>
+<td align="right">382</td>
+</tr>
+<tr class="even">
+<td align="right">ME</td>
+<td align="right">BSP</td>
+<td align="right">52197</td>
+<td align="right">8</td>
+<td align="right">7</td>
+<td align="right">5</td>
+</tr>
+<tr class="odd">
+<td align="right">ME</td>
+<td align="right">HBM</td>
+<td align="right">5025</td>
+<td align="right">1</td>
+<td align="right">1</td>
+<td align="right">1</td>
+</tr>
+<tr class="even">
+<td align="right">ME</td>
+<td align="right">MEDEP</td>
+<td align="right">564133</td>
+<td align="right">17</td>
+<td align="right">91</td>
+<td align="right">64</td>
+</tr>
+<tr class="odd">
+<td align="right">ME</td>
+<td align="right">MEDMR</td>
+<td align="right">525688</td>
+<td align="right">16</td>
+<td align="right">65</td>
+<td align="right">51</td>
+</tr>
+<tr class="even">
+<td align="right">ME</td>
+<td align="right">MEDOT</td>
+<td align="right">85848</td>
+<td align="right">2</td>
+<td align="right">3</td>
+<td align="right">3</td>
+</tr>
+<tr class="odd">
+<td align="right">ME</td>
+<td align="right">MEIFW</td>
+<td align="right">55398</td>
+<td align="right">7</td>
+<td align="right">10</td>
+<td align="right">10</td>
+</tr>
+<tr class="even">
+<td align="right">ME</td>
+<td align="right">NOAA</td>
+<td align="right">45434</td>
+<td align="right">8</td>
+<td align="right">1</td>
+<td align="right">1</td>
+</tr>
+<tr class="odd">
+<td align="right">ME</td>
+<td align="right">USFWS</td>
+<td align="right">931190</td>
+<td align="right">8</td>
+<td align="right">19</td>
+<td align="right">11</td>
+</tr>
+<tr class="even">
+<td align="right">NH</td>
+<td align="right">MADEP</td>
+<td align="right">4654</td>
+<td align="right">1</td>
+<td align="right">1</td>
+<td align="right">1</td>
+</tr>
+<tr class="odd">
+<td align="right">NH</td>
+<td align="right">NHDES</td>
+<td align="right">1641</td>
+<td align="right">3</td>
+<td align="right">18</td>
+<td align="right">18</td>
+</tr>
+<tr class="even">
+<td align="right">NH</td>
+<td align="right">NHFG</td>
+<td align="right">2831</td>
+<td align="right">3</td>
+<td align="right">25</td>
+<td align="right">23</td>
+</tr>
+<tr class="odd">
+<td align="right">VA</td>
+<td align="right">USFS_SRS</td>
+<td align="right">4039</td>
+<td align="right">1</td>
+<td align="right">1</td>
+<td align="right">1</td>
+</tr>
+<tr class="even">
+<td align="right">VA</td>
+<td align="right">VAHUDY</td>
+<td align="right">140682</td>
+<td align="right">1</td>
+<td align="right">34</td>
+<td align="right">34</td>
+</tr>
+<tr class="odd">
+<td align="right">VT</td>
+<td align="right">USFS</td>
+<td align="right">2775</td>
+<td align="right">3</td>
+<td align="right">7</td>
+<td align="right">7</td>
+</tr>
+<tr class="even">
+<td align="right">VT</td>
+<td align="right">VTFWS</td>
+<td align="right">11551</td>
+<td align="right">11</td>
+<td align="right">46</td>
+<td align="right">45</td>
+</tr>
+<tr class="odd">
+<td align="right">WV</td>
+<td align="right">WVDNR</td>
+<td align="right">835882</td>
+<td align="right">8</td>
+<td align="right">214</td>
+<td align="right">185</td>
+</tr>
+<tr class="even">
+<td align="right"></td>
+<td align="right">Totals:</td>
+<td align="right">9622419</td>
+<td align="right">21</td>
+<td align="right">1728</td>
+<td align="right">1386</td>
+</tr>
+</tbody>
+</table>
 </div>
 <div id="predictor-variables" class="section level2">
 <h2>Predictor Variables</h2>
@@ -219,8 +415,7 @@ $(document).ready(function () {
 </div>
 <div id="general-results" class="section level2">
 <h2>General Results</h2>
-<div id="coefficients-table" class="section level3">
-<h3>Coefficients Table</h3>
+<p>The model results are summarized in this coefficients table. More results will be added in the future.</p>
 <table>
 <thead>
 <tr class="header">
@@ -472,7 +667,6 @@ $(document).ready(function () {
 </tr>
 </tbody>
 </table>
-</div>
 </div>
 
 
