@@ -128,7 +128,9 @@ df_covariates_long <- dplyr::collect(tbl_covariates)
 Sys.time() - start.time
 
 df_covariates <- df_covariates_long %>%
-  tidyr::spread(variable, value) # convert from long to wide by variable
+  tidyr::spread(variable, value) %>%
+  dplyr::mutate(featureid = as.integer(featureid)) # convert from long to wide by variable
+
 summary(df_covariates)
 
 # need to organize covariates into upstream or local by featureid
@@ -162,14 +164,18 @@ featureid_site <- tempDataSyncS %>%
   dplyr::distinct() %>%
   dplyr::mutate(site = as.character(site))
 
+daymet_catchments <- as.integer(daymet_catchments)
 
 # reduce number of catchments to loop through to only interpolation
 catchmentid <- df_covariates_upstream %>%
-  dplyr::mutate(impoundArea = allonnet * AreaSqKM) %>%
-  dplyr::filter(featureid %in% daymet_catchments,
-                #AreaSqKM > 0.001,
-                AreaSqKM <= 1000)#,
-                #allonnet < 70)
+  #dplyr::mutate(impoundArea = allonnet * AreaSqKM / 100) %>%
+  dplyr::filter(#featureid %in% daymet_catchments, # causes it to hang indefinitely - no longer needed anyway
+                AreaSqKM <= 200,
+                allonnet < 50,
+                !is.na(forest),
+                !is.na(allonnet),
+                !is.na(agriculture)) %>%
+  dplyr::select(featureid)
 
 catchmentid <- unique(catchmentid$featureid)
 n.catches <- length(catchmentid)
@@ -182,6 +188,12 @@ save.image(file.path(getwd(), paste0(data_dir, "/db_pull_for_predictions.RData")
 #dbListConnections(drv)
 
 gc()
+
+springFallBPs$site <- as.integer(as.character(springFallBPs$site))
+springFallBPs$featureid <- as.integer(as.character(springFallBPs$site))
+tempDataSync$featureid <- as.integer(as.character(tempDataSync$featureid))
+featureid_lat_lon$featureid <- as.integer(as.character(featureid_lat_lon$featureid))
+featureid_huc8$featureid <- as.integer(as.character(featureid_huc8$featureid))
 
 #------------------loop through all catchments----------- 
 # ?could speed up by excluding large drainage areas?
@@ -295,21 +307,34 @@ metrics_arc <- as.data.frame(dplyr::select(metrics.lat.lon, featureid, mean30Day
 metrics_arc[is.na(metrics_arc)] <- -9999.99
 write.table(metrics_arc, file = paste0(data_dir, "/derived_site_metrics_arc.csv"), sep = ',', row.names = F)
 
+library(foreign)
+write.dbf(metrics_arc, file = paste0(data_dir, "/derived_site_metrics_arc.dbf"))
+
 
 # filter for ICE
 metrics.lat.lon <- metrics.lat.lon %>%
   dplyr::left_join(df_covariates_upstream) %>%
-  dplyr::mutate(impoundArea = allonnet * AreaSqKM) %>%
+  dplyr::mutate(impoundArea = allonnet * AreaSqKM / 100) %>%
   dplyr::filter(AreaSqKM > 0.001,
-                AreaSqKM <= 300,
-                allonnet < 70)
+                AreaSqKM <= 200,
+                allonnet < 50)
+
+# add all featureid back to fill with NA
+metrics.lat.lon <- dplyr::select(featureid_lat_lon, featureid) %>%
+  left_join(metrics.lat.lon)
 
 saveRDS(metrics.lat.lon, file = paste0(data_dir, "/derived_site_metrics.RData"))
-write.table(metrics.lat.lon, file = paste0(data_dir, "/derived_site_metrics.csv"), sep = ',', row.names = F)
 
+# remove extra columns to reduce size of csv
+metrics.lat.lon <- metrics.lat.lon %>%
+  dplyr::select(-forest, -zone, -riparian_distance_ft, -agriculture, -alloffnet, -allonnet, -AreaSqKM, -devel_hi, -developed, -forest_all, -herbaceous, -surfcoarse, -impoundArea)
+
+write.table(metrics.lat.lon, file = paste0(data_dir, "/derived_site_metrics.csv"), sep = ',', row.names = F)
 
 gc()
 #--------------------
+
+
 
 ################ TEST ###################
 
