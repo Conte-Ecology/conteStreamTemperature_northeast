@@ -69,7 +69,7 @@ point of each catchment.
 
 
 | Variable | Description | Source | Processing | GitHub Repository |
-|:--------:| ----------- | ------ | ---------- | ----------------- |
+|:--------:| --------------------------- | --------------- | ------------------------- | ----------------- |
 | Total Drainage Area | The total contributing drainage area from the entire upstream network | [The SHEDS Data project](http://conte-ecology.github.io/shedsData/) | The individual polygon areas are summed for all of the catchments in the contributing network| [NHDHRDV2](https://github.com/Conte-Ecology/shedsData/tree/master/NHDHRDV2) |
 | Riparian Forest Cover | The percentage of the upstream 200ft riparian buffer area that is covered by trees taller than 5 meters | [The National LandCover Database (NLCD)](http://www.mrlc.gov/nlcd06_data.php) | All of the NLCD forest type classifications are combined and attributed to each riparian buffer polygon  using GIS tools. All upstream polygon values are then aggregated.| [nlcdLandCover](https://github.com/Conte-Ecology/shedsData/tree/master/basinCharacteristics/rasterPrep/nlcdLandCover) |
 | Daily Precipition | The daily precipitation record for the individual local catchment | [Daymet Daily Surface Weather and Climatological Summaries](https://daymet.ornl.gov/) | Daily precipitation records are spatially assigned to each catchment based on overlapping grid cells using the [zonalDaymet](https://github.com/Conte-Ecology/zonalDaymet) R package| [daymet](https://github.com/Conte-Ecology/shedsData/tree/master/daymet) |
@@ -166,6 +166,8 @@ To estimate all the parameters and their uncertainties, we used a Bayesian analy
 
 To validate our model, we held out 10% stream reaches at random. We also held out 10% of remaining reach-year combinations with observed temperature data at random. Additionally, we excluded all 2010 data because it was an especially warm summer across the northeastern U.S. based on the mean summer daymet air temperatures. This approach was also used by [@DeWeber2014a] and helps to assess the model's predictive ability under future warming conditions. This included reaches with no data located within subbasins with and without data, which will be important if using this model with future climate predictions. The most challenging validation scenario was at reaches within HUC8s without any data in a year without any data. In total, 26.4% of observations and 33.3% of reaches were held out for validation.
 
+![Figure 1.](Figures/locationMap.png)
+
 ### Derived metrics
 
 We use the meteorological data from daymet to predict daily temperatures for all stream reaches (<200 km$^2$) in the region for the synchronized period of the year from 1980-2013. The predictions are conditional on the specific random effects where available and receive the mean effect for reaches, HUC8s, and years when no data was collected. From these daily predictions, we derive a variety of metrics to characterize the stream thermal regime. These include mean (over the 34 years) July temperature, mean summer temperature, mean number of days per year above a thermal threshold (18, 20, 22 C used by default), frequency of years that the mean daily temperature exceeds each of these thresholds, and the maximum 7-day and 30-day moving means for each year and across all years. We also calculated the resistance of water temperature to changes in air temperature during peak air temperature (summer) based on the cumulative difference between the daily temperatures. Finally, we assess the thermal sensitivity for each stream reach as the change in daily stream temperature per 1 C change in daily air temperature. This is essentially the reach-specific air temperature coefficient converted back to the original scale from the standardized scale.
@@ -191,6 +193,8 @@ Most variables and their interactions were significant with 95% Credible Interva
 There was much more unexplained random variation among sites than among HUC8, but the effects of air temperature on water temperature were only slightly more variable among sites compared with HUC8. There was very little random variability among years not explained by other parameters (Table 1).
 
 *Evaluation of model fit and predictive power*
+
+**If use full region add map of average RMSE for streams with data or locations so can see that it works equally well in north and south - since no data in Pa or NY**
 
 The overall Root Mean Squared Error (RMSE) was 0.58 C and the residuals were normally distributed and unbiased (exhibiting no visual heterogeneity), indicating that the model was a good approximation of the process generating the data. These predicted values are adjusted for residual error, but to understand how well the model predicts temperatures when the previous day's observed temperature is unknown it is better to use the predictions prior to adjusting with the residual AR1 term. The RMSE for the fitted data using unadjusted predictions was 0.89 C. All additional predictions and summaries use the unadjusted values to better understand the predictive abilities of the model.
 
