@@ -11,7 +11,7 @@
 library(jsonlite)
 config <- fromJSON('model_config.json')
 
-data_dir <- "localData_2015-12-21" 
+data_dir <- "localData_2016-02-26_newDelineation/localData_2016-02-26_newDelineation"
 
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)

@@ -16,7 +16,7 @@ library(texreg)
 library(stargazer)
 #library(tables)
 
-local_dir <- "/localData_2016-01-19/"
+local_dir <- "/localData_2016-02-26_newDelineation/localData_2016-02-26_newDelineation"
 data_dir <- paste0(getwd(), local_dir)
 
 #df <- readRDS(file.path(data_dir, "obs_predicted.RData"))
@@ -65,11 +65,15 @@ bar <- data.frame(coef = c("intercept"
                     , "AreaSqKM"
                     , "impoundArea"
                     , "forest"
+                    , "agriculture"
+                    , "devel_hi"
                     , "airTemp.prcp2"
                     , "airTemp.prcp30"
                     , "airTemp.da"
                     , "airTemp.impoundArea"
                     , "airTemp.forest"
+                    , "airTemp.agriculture"
+                    , "airTemp.devel_hi"
                     , "prcp2.da"
                     , "prcp30.da"
                     , "airTemp.prcp2.da"
@@ -82,12 +86,16 @@ bar <- data.frame(coef = c("intercept"
                               "30-day Precip",
                               "Drainage Area",
                               "Impounded Area",
-                              "Forest Cover",
+                              "Riparian Forest Cover",
+                              "Agriculture Cover",
+                              "High Development Cover",
                               "AirT x 2-day Precip",
                               "AirT x 30-day Precip",
                               "AirT x Drainage",
                               "AirT x Impounded Area",
                               "AirT x Forest",
+                              "AirT x Agriculture",
+                              "AirT x High Development",
                               "2-day Precip x Drainage",
                               "30-day Precip x Drainage",
                               "AirT x 2-day Precip x Drainage",
@@ -174,6 +182,14 @@ library(gridExtra)
 g <- grid.arrange(g1, g2, g3, g4, nrow = 2, ncol = 2)
 #dev.off()
 ggsave(filename = file.path("manuscripts/Figures", "metrics_histograms.jpg"), plot = g, device = "jpg")
+
+```
+
+
+Locations, Lat, Lon, Fitting, Validation, for Mapping Data Used
+
+```{r locations for mapping data use}
+
 
 ```
 

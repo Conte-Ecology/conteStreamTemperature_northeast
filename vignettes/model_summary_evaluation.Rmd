@@ -33,7 +33,7 @@ theme_set(theme_bw_journal())
 load data
 
 ```{r}
-data_dir <- "localData_2016-01-19" 
+data_dir <- "localData_2016-02-26_newDelineation/localData_2016-02-26_newDelineation" 
 
 load(paste0(data_dir, "/tempDataSync.RData"))
 
