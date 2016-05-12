@@ -42,50 +42,31 @@ Methods
 
 ### Water temperature data
 
-We gathered stream temperature data from state and federal agencies, individual academic researchers, and non-governmental organizations (NGOs). The data were collected using automated temperature loggers. The temporal frequency of recording ranged from every 5 minutes to once per hour. This data was consolidated in a PostgreSQL database linked to a web service at [http://www.db.ecosheds.org](http://www.db.ecosheds.org). Data collectors can upload data at this website and choose whether to make the data publicly available or not. The raw data is stored in the database and users can flag problem values and time series. For our analysis, we performed some automated and visual QAQC on the sub-daily values, summarized to mean daily temperatures and performed additional QAQC on the daily values. The QAQC was intended to flag and remove values associated with logger malfunctions, out-of-water events (including first and last days when loggers were recording but not yet in streams), and days with incomplete data which would alter the daily mean. We developed an R (ref) package for analyzing stream temperature data from our database, including the QAQC functions which can be found at [https://github.com/Conte-Ecology/conteStreamTemperature](https://github.com/Conte-Ecology/conteStreamTemperature). The R scripts using these functions for our analysis are available at [https://github.com/Conte-Ecology/conteStreamTemperature_northeast](https://github.com/Conte-Ecology/conteStreamTemperature_northeast). 
+We gathered stream temperature data from state and federal agencies, individual academic researchers, and non-governmental organizations (NGOs). The data were collected using automated temperature loggers. The temporal frequency of recording ranged from every 5 minutes to once per hour. This data was consolidated in a PostgreSQL database linked to a web service at [http://www.db.ecosheds.org](http://www.db.ecosheds.org). Data collectors can upload data at this website and choose whether to make the data publicly available or not. The raw data is stored in the database and users can flag problem values and time series. For our analysis, we performed some automated and visual quality assurance and quality control (QAQC) on the sub-daily values, summarized to mean daily temperatures and performed additional QAQC on the daily values. The QAQC was intended to flag and remove values associated with logger malfunctions, out-of-water events (including first and last days when loggers were recording but not yet in streams), and days with incomplete data which would alter the daily mean. The QAQC webtool used for flagging questionable data can be found at [http://db.ecosheds.org/qaqc](http://db.ecosheds.org/qaqc) We also developed an R (ref) package for analyzing stream temperature data from our database, including the QAQC functions which can be found at [https://github.com/Conte-Ecology/conteStreamTemperature](https://github.com/Conte-Ecology/conteStreamTemperature). The R scripts using these functions for our analysis are available at [https://github.com/Conte-Ecology/conteStreamTemperature_northeast](https://github.com/Conte-Ecology/conteStreamTemperature_northeast). 
 
 Stream reach (stream section between any two confluences) was our finest spatial resolution for the analysis. In the rare case where we had multiple logger locations within the same reach recording at the same time, we used the mean value from the loggers for a given day. In the future, with sufficient within reach data, it would be possible to use our modeling framework to also estimate variability within reach.
 
 *Stream network delineation and landscape data*
 
-Temperature logger locations were spatially mapped to the stream reaches of a high 
-resolution network of hydrologic catchments developed across the Northeastern 
-United States. The National Hydrography Dataset High Resolution 
+Temperature logger locations were spatially mapped to the stream reaches of a high resolution network of hydrologic catchments developed across the Northeastern United States. The National Hydrography Dataset High Resolution 
 Delineation Version 2 (NHDHRDV2) maintains a higher resolution and catchment 
-areal consistency than the established NHDPlus Version 2 dataset. The main purpose
-of the higher resoultion is to capture small headwaters that may be critical to 
-ecological assessment. A summary of this dataset with links to detailed documentation 
-can be found in the [SHEDS Data project](http://conte-ecology.github.io/shedsData/).
+areal consistency than the established NHDPlus Version 2 dataset. The main purpose of the higher resolution is to capture small headwaters that may be critical to ecological assessment. A summary of this dataset with links to detailed documentation can be found in the [SHEDS Data project](http://conte-ecology.github.io/shedsGISData/).
 
 
-### Meteorological (, Climatic,) and landscape data - separate landscape if use climate data for future projections
+### Meteorological and landscape data
 
-The landscape and meteorological data were assembled from various sources. These 
-variables are spatially attributed to the hydrologic catchments for incorporation 
-into the model. The variables used in the model are described in (Table 0?). All 
-of the variables referenced in the table refer to values calculated for the downstream 
-point of each catchment.
-
+The landscape and meteorological data were assembled from various sources. These variables were spatially attributed to the hydrologic catchments for incorporation into the model. The variables used in the model are described in (Table 0?). All of the variables referenced in the table refer to values calculated for the downstream point of each catchment (confluence pour point).
 
 
 | Variable | Description | Source | Processing | GitHub Repository |
 |:--------:| --------------------------- | --------------- | ------------------------- | ----------------- |
 | Total Drainage Area | The total contributing drainage area from the entire upstream network | [The SHEDS Data project](http://conte-ecology.github.io/shedsData/) | The individual polygon areas are summed for all of the catchments in the contributing network| [NHDHRDV2](https://github.com/Conte-Ecology/shedsData/tree/master/NHDHRDV2) |
-| Riparian Forest Cover | The percentage of the upstream 200ft riparian buffer area that is covered by trees taller than 5 meters | [The National LandCover Database (NLCD)](http://www.mrlc.gov/nlcd06_data.php) | All of the NLCD forest type classifications are combined and attributed to each riparian buffer polygon  using GIS tools. All upstream polygon values are then aggregated.| [nlcdLandCover](https://github.com/Conte-Ecology/shedsData/tree/master/basinCharacteristics/rasterPrep/nlcdLandCover) |
+| Riparian Forest Cover | The percentage of the upstream 61 m (200 ft) riparian buffer area that is covered by trees taller than 5 meters | [The National LandCover Database (NLCD)](http://www.mrlc.gov/nlcd06_data.php) | All of the NLCD forest type classifications are combined and attributed to each riparian buffer polygon  using GIS tools. All upstream polygon values are then aggregated.| [nlcdLandCover](https://github.com/Conte-Ecology/shedsData/tree/master/basinCharacteristics/rasterPrep/nlcdLandCover) |
 | Daily Precipition | The daily precipitation record for the individual local catchment | [Daymet Daily Surface Weather and Climatological Summaries](https://daymet.ornl.gov/) | Daily precipitation records are spatially assigned to each catchment based on overlapping grid cells using the [zonalDaymet](https://github.com/Conte-Ecology/zonalDaymet) R package| [daymet](https://github.com/Conte-Ecology/shedsData/tree/master/daymet) |
 | Upstream Impounded Area| The total area in the contributing drainage basin that is covered by wetlands, lakes, or ponds that intersect the stream network | [U.S. Fish & Wildlife Service (FWS) National Wetlands Inventory](http://www.fws.gov/wetlands/Data/Data-Download.html)| All freshwater surface water bodies are attributed to each catchment using GIS tools. All upstream polygon values are then aggregated.| [fwsWetlands](https://github.com/Conte-Ecology/shedsData/tree/master/basinCharacteristics/rasterPrep/fwsWetlands) |
 | Percent Agriculture | The percentage of the contributing drainage area that is covered by agricultural land (e.g. cultivated crops, orchards, and pasture) including fallow land. | [The National LandCover Database](http://www.mrlc.gov/nlcd06_data.php)| All of the NLCD agricutlural classifications are combined and attributed to each catchment polygon using GIS tools. All upstream polygon values are then aggregated.| [nlcdLandCover](https://github.com/Conte-Ecology/shedsData/tree/master/basinCharacteristics/rasterPrep/nlcdLandCover) |
 | Percent High Intensity Developed | The percentage of the contributing drainage area covered by places where people work or live in high numbers (typically defined as areas  covered by more than 80% impervious surface) | [The National LandCover Database](http://www.mrlc.gov/nlcd06_data.php)| The NLCD high intensity developed classification is attributed to each catchment polygon using GIS tools. All upstream polygon values are then aggregated. | [nlcdLandCover](https://github.com/Conte-Ecology/shedsData/tree/master/basinCharacteristics/rasterPrep/nlcdLandCover) |
 
-
-
-
-
-
-
-**Kyle** - Where the data came from with any necessary citations and any processing done (minimally descriptive) along with links to webpages, repos, README, and packages as appropriate.
-
-**Table of Variables?** - include part of the model they're in (fixed, site, huc, year)
 
 ### Statistical model
 
@@ -99,9 +80,9 @@ We assumed stream temperature measurements were normally distributed following,
 
 **need to decide how to handle naming subscripts vs. indexing subscripts and superscripts**
 
-* maybe do naming as subscripts and indexing in bracketted subscripts
+* maybe do naming as subscripts and indexing in bracketed subscripts
 * drawback would be random vs. fixed subscripts still
-* another alternative is to have different varible names for everything so don't reuse X, and B, mu, beta, or sigma
+* another alternative is to have different variable names for everything so don't reuse X, and B, mu, beta, or sigma
 * This might be easier when I reduce the complexity of the year random effects
 
 $$ t_{h,r,y,d} \sim \mathcal{N}(\mu_{h,r,y,d}, \sigma) $$
@@ -132,7 +113,9 @@ $B_{h,r}$ is the $R \times K_{R}$ matrix of regression coefficients where $R$ is
 
 $$ B_{h,r} \sim \mathcal{N}(0,\sigma_{k_{r}}), \text{for $k_{r} = 1,...,K_{R}$,} $$
 
-$$ \sigma_{r_0} = 100 $$
+with a uniform prior on the standard deviation [Gelman2006]
+
+$$ \sigma_{r_0} \sim uniform(0,100) $$
 
 $X_{h}$ is the matrix of parameters that vary by HUC8. We allowed for correlation among the effects of these HUC8 coefficients as described by Gelman and Hill [-@Gelman2007].
 
@@ -148,17 +131,11 @@ $$ \mu_{1}^h = 0; \mu_{2:K_h}^h \sim \mathcal{N}(0, 100) $$
 
 $$ \Sigma_{B_{h}} \sim \text{Inv-Wishart}(diag(K_{h}), K_{h}+1) $$
 
-Similarly, we allowed the some effects of some parameters ($X_{y}$) to vary randomly by year with potential correlation among the coefficients. The intercept, day of the year ($day$), $day^2$, and $day^3$ all varied randomly with year such that $K_{y} = 4$. We assumed prior distributions of
+We also allowed for the intercept to vary randomly by year. We assumed a prior distributions of
 
-$$ B_{y} \sim \mathcal{N}(M_{y},\Sigma_{B_{y}}), \text{for $y = 1,...,Y$} $$
+$$ B_{y} \sim \mathcal{N}(0,\sigma_{y}) $$
 
-where $M_{y}$ is a vector of length $K_{Y}$ and $\Sigma_{B_{y}}$ represents the $K_{Y} \times K_{Y}$ covariance matrix.
-
-$$ M_{y} \sim MVN(\mu_{1:K_y}^y, \sigma_{1:K_y}^y) $$
-
-$$ \mu_{1}^y = 0; \mu_{2:K_y}^y \sim \mathcal{N}(0, 100) $$
-
-$$ \Sigma_{B_{y}} \sim \text{Inv-Wishart}(diag(K_{y}), K_{y}+1) $$
+$$ \sigma_{y} \sim uniform(0,100) $$
 
 To estimate all the parameters and their uncertainties, we used a Bayesian analysis with a Gibbs sampler implemented in JAGS (ref) through R (ref) using the rjags package (ref). This approach was beneficial for hierarchical model flexibility and tractability for large datasets. We used vague priors for all parameters so all inferences would be based on the data. We ran 13,000 iterations on each of three chains with independent random starting values. We discarded the first 10,000 iterations, then thinned; saving every third iteration for a total of 3,000 iterations across 3 chains to use for inference.
 
@@ -171,8 +148,6 @@ To validate our model, we held out 10% stream reaches at random. We also held ou
 ### Derived metrics
 
 We use the meteorological data from daymet to predict daily temperatures for all stream reaches (<200 km$^2$) in the region for the synchronized period of the year from 1980-2013. The predictions are conditional on the specific random effects where available and receive the mean effect for reaches, HUC8s, and years when no data was collected. From these daily predictions, we derive a variety of metrics to characterize the stream thermal regime. These include mean (over the 34 years) July temperature, mean summer temperature, mean number of days per year above a thermal threshold (18, 20, 22 C used by default), frequency of years that the mean daily temperature exceeds each of these thresholds, and the maximum 7-day and 30-day moving means for each year and across all years. We also calculated the resistance of water temperature to changes in air temperature during peak air temperature (summer) based on the cumulative difference between the daily temperatures. Finally, we assess the thermal sensitivity for each stream reach as the change in daily stream temperature per 1 C change in daily air temperature. This is essentially the reach-specific air temperature coefficient converted back to the original scale from the standardized scale.
-
-### Climate change projections (future paper?)
 
 
 Results
@@ -274,7 +249,7 @@ Acknowledgments
 ----------------
 Thanks to A. Rosner for thoughtful discussions related to the analysis and inference.
 
-J. Walker for database management and discussions.
+J. Walker for database creation and management, development of the Interactive Catchment Explorer, and discussions.
 
 Groups who provided data
 
