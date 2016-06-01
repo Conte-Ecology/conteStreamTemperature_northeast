@@ -18,7 +18,7 @@ install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 
 #data_dir <- getOption("SHEDS_DATA")
-data_dir <- paste0("localData_2016-02-26_newDelineation")
+data_dir <- paste0("localData_2016-05-29_newDelineation")
 
 if(!file.exists(file.path(getwd(), data_dir))) dir.create(file.path(getwd(), data_dir))
   
@@ -73,7 +73,7 @@ df_agencies <- collect(tbl_agencies)
 
 tbl_series <- tbl(db, 'series') %>%
   dplyr::rename(series_id=id) %>%
-  dplyr::select(-created_at, -updated_at)
+  dplyr::select(-created_at, -updated_at, -flags)
 
 tbl_values <- tbl(db, 'values') %>%
   dplyr::rename(value_id=id)
@@ -91,23 +91,40 @@ df_variables <- dplyr::collect(tbl_variables)
 
 ##### Need way to filter data that has a "yes" QAQC flag
 
+#--------------------- Filter to Cleaned locations/series --------------
+
+df_clean_series <- read.csv("all_good_series.csv", header = T, stringsAsFactors = FALSE)
+clean_series <- unique(df_clean_series$series_id)
+#clean_featureid <- as.numeric(gsub(",","", clean_featureid))
+
+# get list of reviewed series to add
+df_series <- tbl_series %>%
+  dplyr::filter(reviewed == "true") %>%
+  # dplyr::select(-flags) %>%
+  dplyr::collect()
+
+series_reviewed <- unique(df_series$series_id)
+
+clean_series <- unique(c(clean_series, series_reviewed))
+
 #------------------------fetch temperature data-------------------
 
 start.time <- Sys.time()
 
-df_values <- tbl_values %>%
-  dplyr::left_join(tbl_series, by = c("series_id")) %>%
-  dplyr::left_join(dplyr::select(tbl_variables, variable_id, variable_name),
-            by=c('variable_id'='variable_id')) %>%
+df_values <- tbl(db, build_sql('SELECT * FROM "values_flags"')) %>%
+  dplyr::left_join(tbl_series) %>%
+  dplyr::left_join(tbl_variables) %>%
+  dplyr::filter(variable_name == "TEMP",
+                series_id %in% clean_series,
+                flagged == FALSE) %>%
   dplyr::select(-file_id) %>%
-  dplyr::filter(variable_name=="TEMP") %>%
-  dplyr::collect %>%
+  dplyr::collect() %>%
   dplyr::mutate(datetime=with_tz(datetime, tzone='EST'),
          date = as.Date(datetime),
          series_id = as.character(series_id)) %>%
   dplyr::rename(temp = value)
 
-Sys.time() - start.time # ~ 6 minutes (gets much longer as data added - 30 minutes with southern data included)
+Sys.time() - start.time # ~ 36 minutes to get 56 million records
 
 # fetch locations
 df_locations <- left_join(df_locations, df_agencies, by=c('agency_id'='agency_id')) %>%
@@ -131,14 +148,7 @@ saveRDS(df_values, file = file.path(getwd(), data_dir, "df_values.RData"))
 
 # df_values <- readRDS(file = file.path(getwd(), data_dir, "df_values.RData"))
 
-#--------------------- Filter to Cleaned locations/series --------------
 
-df_clean_series <- read.csv("all_good_series.csv", header = T, stringsAsFactors = FALSE)
-clean_series <- unique(df_clean_series$series_id)
-#clean_featureid <- as.numeric(gsub(",","", clean_featureid))
-
-df_values <- df_values %>%
-  dplyr::filter(series_id %in% clean_series)
 
 #--------------------------QAQC---------------------------
 
@@ -435,6 +445,13 @@ covariateData <- riparian_200 %>%
 #---------------------daymet climate data-------------------------
 
 # too big/slow to pull through R so make the query and export that. The resulting sql script can then be run via command line or within a bash script or make file
+
+# reduce featureid list to those with drainage areas <=200 sq km
+df_featureid_200 <- covariateData %>%
+  dplyr::filter(AreaSqKM <= 200) %>%
+  dplyr::select(featureid)
+
+featureids <- unique(df_featureid_200$featureid)
 
 featureids_string <- paste(featureids, collapse=', ')
 years_string <- paste(years, collapse=', ')
