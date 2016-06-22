@@ -13,6 +13,6 @@ psql -h <host> -p <port> -u <database>
 psql -h <host> -p <port> -U <username> -W <password> <database>
 
 ## For persistent session
-# log in to server
+# log in to server (wherever running the scripts from and saving the files to)
 # run screen
 # run psql query
