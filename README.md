@@ -24,3 +24,31 @@ Usage: via command line $ psql -d sheds -f code/daymet_query.sql > localData/day
 Script: *breakpoints.R*
 
 Usage: Run code in R
+
+
+## Automated Model Run
+
+**requires permissions to access and write to the sheds database on felek**
+
+1. log into GNU screen via command line on local computer (optional)
+2. Connect to osensei via ssh to run the model (optional: assumes running model on osensei)
+3. Start persistent screen session
+4. Go to `conteStreamTemperature_northeast/` directory (or clone from GitHub if first use)
+5. Run `run_model.sh` bash script
+6. Enter `sheds` database username when prompted then hit enter
+7. Enter `sheds` database password when prompted then hit enter
+
+**Example:**
+
+```
+$ screen -S osensei
+$ ssh dan@osensei.cns.umass.edu
+$ screen -S temperature
+$ cd conteStreamTemperature_northeast
+$ bash run_model.sh
+
+```
+
+*`$` represent commandline prompt
+
+This script will create a new directory called "modelRun_" followed by the date initiated (e.g. `modelRun_2016-06-27`). Within this directory, a log file will be created (`status_log.txt`) which will give an update each time a new part of the script is started.
