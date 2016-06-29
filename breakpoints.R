@@ -21,7 +21,8 @@ library(stringr)
 # install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 
-data_dir <- "localData_2016-02-26_newDelineation"
+# get current model run directory
+data_dir <- as.character(read.table("current_model_run.txt", stringsAsFactors = FALSE)[1,1])
 
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)

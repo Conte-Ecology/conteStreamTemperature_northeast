@@ -28,24 +28,24 @@ Usage: Run code in R
 
 ## Automated Model Run
 
-**requires permissions to access and write to the sheds database on felek**
+**requires:**
+ * **permissions to access and write to the sheds database on felek**
+ * **pgpass file to bypass password to sheds database, instructions at: https://blog.sleeplessbeastie.eu/2014/03/23/how-to-non-interactively-provide-password-for-the-postgresql-interactive-terminal/**
 
-1. log into GNU screen via command line on local computer (optional)
+1. log into GNU screen via command line on local computer (optional - see tutorial https://www.rackaid.com/blog/linux-screen-tutorial-and-how-to/)
 2. Connect to osensei via ssh to run the model (optional: assumes running model on osensei)
 3. Start persistent screen session
 4. Go to `conteStreamTemperature_northeast/` directory (or clone from GitHub if first use)
 5. Run `run_model.sh` bash script
-6. Enter `sheds` database username when prompted then hit enter
-7. Enter `sheds` database password when prompted then hit enter
 
 **Example:**
 
 ```
 $ screen -S osensei
 $ ssh dan@osensei.cns.umass.edu
-$ screen -S temperature
+# $ screen -S temperature
 $ cd conteStreamTemperature_northeast
-$ bash run_model.sh
+$ screen -d -m -S temperature bash run_model.sh
 
 ```
 

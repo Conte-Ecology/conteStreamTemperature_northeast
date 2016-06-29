@@ -4,10 +4,10 @@
 # the 3rd argument is an optional CSV specifying location id's to run
 #   this file has a single column with the header "id"
 
-# usage: $ ./id_impoundment_sites.sh <db name> <db username> <path to output directory> <path to check locations csv>
-# example (specify locations): $ ./id_impoundment_sites.sh sheds dan /home/kyle/qaqc /conte/data/qaqc/check_locations.csv 
-# example (all locations): $ ./id_impoundment_sites.sh sheds dan /home/kyle/qaqc 
-# detail: it will ask for the database password for the user
+# usage: $ ./id_impoundment_sites.sh <db name> <path to output directory> <path to check locations csv>
+# requires: .pgpass file with hostname, user, and password to connect to database
+# example (specify locations): $ ./id_impoundment_sites.sh sheds /home/kyle/qaqc /conte/data/qaqc/check_locations.csv 
+# example (all locations): $ ./id_impoundment_sites.sh sheds /home/kyle/qaqc 
 # detail: log into GNU screen session if not running and saving to same machine to prevent timeout when writing results
 
 set -eu
@@ -15,9 +15,8 @@ set -o pipefail
 
 # Set variables
 DB=$1
-USER=$2
-FOLDER=$3
-CHECK_FILE=${4-"absent"}
+FOLDER=$2
+CHECK_FILE=${3-"absent"}
       
 # Sites to evaluate depends on the existence of the "CHECK_FILE" input
 if [ $CHECK_FILE = "absent" ]; then
@@ -25,7 +24,7 @@ if [ $CHECK_FILE = "absent" ]; then
   # If no sites are specified, evaluate all  
   echo Identifying all sites influenced by impoundments...
   
-  psql -h felek.cns.umass.edu -U $USER -d $DB -c "
+  psql -h felek.cns.umass.edu -d $DB -w -c "
   SELECT * INTO TEMPORARY locations_temp FROM public.locations;
 
   -- Add geometry   
@@ -45,13 +44,11 @@ else
   # If no sites are specified, evaluate all 
   echo Identifying specified sites influenced by impoundments...
 
-  psql -h felek.cns.umass.edu -U $USER -d $DB -c "
+  psql -h felek.cns.umass.edu -d $DB -w -c "
   -- Read in the specified sites to a temporary table
   CREATE TEMPORARY TABLE check_locations (id  int);
 
-  COPY check_locations
-  FROM '$CHECK_FILE'
-  WITH CSV HEADER;
+  \copy check_locations FROM '$CHECK_FILE' DELIMITER ',' CSV HEADER
 
   -- Select only the specified locations to evaluate
   SELECT 

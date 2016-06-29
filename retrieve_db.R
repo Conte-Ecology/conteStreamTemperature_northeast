@@ -18,18 +18,25 @@ install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 
 #data_dir <- getOption("SHEDS_DATA")
-data_dir <- paste0("localData_2016-05-29_newDelineation")
+# data_dir <- paste0("localData_2016-05-29_newDelineation")
+# 
+# if(!file.exists(file.path(getwd(), data_dir))) dir.create(file.path(getwd(), data_dir))
+#   
 
-if(!file.exists(file.path(getwd(), data_dir))) dir.create(file.path(getwd(), data_dir))
-  
+# get current model run directory
+data_dir <- as.character(read.table("current_model_run.txt", stringsAsFactors = FALSE)[1,1])
+
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
 
 # until running as a bash script add the files here
 if(length(args) < 1) {
   print("No arguments imported. Using default input and output files and directories")
-  args <- c(paste0(data_dir, "/temperatureData.RData"), paste0(data_dir, "/covariateData.RData"), paste0(data_dir, "/climateData.RData"), data_dir)
+  args <- c(paste0(data_dir, "/temperatureData.RData"), paste0(data_dir, "/covariateData.RData"), paste0(data_dir, "/climateData.RData"))
 }
+
+# input_file1 <- args[1]
+# data_dir <- as.character(read.table(paste0(input_file1, "/", input_file1, ".txt"), stringsAsFactors = FALSE)[1,1])
 
 output_file1 <- args[1]
 if (file.exists(output_file1)) {
@@ -43,17 +50,16 @@ output_file3 <- args[3]
 if (file.exists(output_file3)) {
   warning(paste0('Output file 3 already exists, overwriting: ', output_file3))
 }
-output_file4 <- args[4]
-if (file.exists(output_file4)) {
-  warning(paste0('Output file 4 already exists, overwriting: ', output_file4))
-}
-
-# save directory so don't have to change in every subsequent file
-save(data_dir, file = paste0(output_file4, "/data_dir.RData"))
+# output_file4 <- args[4]
+# if (file.exists(output_file4)) {
+#   warning(paste0('Output file 4 already exists, overwriting: ', output_file4))
+# }
+# 
+# # save directory so don't have to change in every subsequent file
+# save(data_dir, file = paste0(output_file4, "/data_dir.RData"))
 
 #------------------set up database connections--------------------
-# connect to database source
-  db <- src_postgres(dbname='sheds_new', host='osensei.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+db <- src_postgres(dbname='sheds', host='felek.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
   
 # table references
 tbl_locations <- tbl(db, 'locations') %>%
@@ -61,10 +67,6 @@ tbl_locations <- tbl(db, 'locations') %>%
   dplyr::select(-created_at, -updated_at)
 
 df_locations <- dplyr::collect(tbl_locations)
-
-dbDisconnect(db$con)
-
-db <- src_postgres(dbname='sheds', host='felek.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
 
 tbl_agencies <- tbl(db, 'agencies') %>%
   dplyr::rename(agency_id=id, agency_name=name) %>%
@@ -93,8 +95,8 @@ df_variables <- dplyr::collect(tbl_variables)
 
 #--------------------- Filter to Cleaned locations/series --------------
 
-df_clean_series <- read.csv("all_good_series.csv", header = T, stringsAsFactors = FALSE)
-clean_series <- unique(df_clean_series$series_id)
+# df_clean_series <- read.csv(paste0(data_dir, "/all_good_series.csv"), header = T, stringsAsFactors = FALSE)
+# clean_series <- unique(df_clean_series$series_id)
 #clean_featureid <- as.numeric(gsub(",","", clean_featureid))
 
 # get list of reviewed series to add
@@ -104,8 +106,16 @@ df_series <- tbl_series %>%
   dplyr::collect()
 
 series_reviewed <- unique(df_series$series_id)
+# 
+# clean_series <- unique(c(clean_series, series_reviewed))
 
-clean_series <- unique(c(clean_series, series_reviewed))
+#--------------------- Remove locations with potential impoundment or tidal influence ---------------
+df_impoundments <- read.csv(paste0(data_dir, "/impoundment_sites.csv"), header = TRUE, stringsAsFactors = FALSE)
+df_tidal <- read.csv(paste0(data_dir, "/tidal_sites.csv"), header = TRUE, stringsAsFactors = FALSE)
+exclude_locations <- unique(c(df_impoundments$id, df_tidal$id))
+
+# df_exclude <- read.csv(paste0(data_dir, "/exclude_locations.csv"), header = TRUE, stringsAsFactors = FALSE)
+# exclude_locations <- unique(df_exclude$id)
 
 #------------------------fetch temperature data-------------------
 
@@ -115,7 +125,7 @@ df_values <- tbl(db, build_sql('SELECT * FROM "values_flags"')) %>%
   dplyr::left_join(tbl_series) %>%
   dplyr::left_join(tbl_variables) %>%
   dplyr::filter(variable_name == "TEMP",
-                series_id %in% clean_series,
+                series_id %in% series_reviewed,
                 flagged == FALSE) %>%
   dplyr::select(-file_id) %>%
   dplyr::collect() %>%
@@ -126,7 +136,7 @@ df_values <- tbl(db, build_sql('SELECT * FROM "values_flags"')) %>%
 
 Sys.time() - start.time # ~ 36 minutes to get 56 million records
 
-# fetch locations
+# clean locations
 df_locations <- left_join(df_locations, df_agencies, by=c('agency_id'='agency_id')) %>%
   # filter(agency_name %in% keep_agencies) %>%
   dplyr::filter(agency_name != "TEST") %>%
@@ -139,10 +149,11 @@ unique(df_locations$agency_name)
 df_values <- df_values %>%
   dplyr::left_join(dplyr::select(df_locations, location_id, featureid, latitude, longitude, agency_name))
   
-summary(df_values)
+# summary(df_values)
 
 df_values <- df_values %>%
-  dplyr::filter(!is.na(featureid))
+  dplyr::filter(!is.na(featureid),
+                !(location_id %in% exclude_locations))
 
 saveRDS(df_values, file = file.path(getwd(), data_dir, "df_values.RData"))
 
@@ -256,6 +267,8 @@ length(unique(df_values$series_id))
 
 # get list of bad series for plotting
 bad_series_id <- unique(prob_rate_change$series_id)
+
+length(bad_series_id)
 
 if(!file.exists(paste0(data_dir, "/diagnostics/plots"))) dir.create(file.path(getwd(), data_dir, "diagnostics/plots"), recursive = TRUE)
 
@@ -396,7 +409,7 @@ save.image(paste0(data_dir, "/temp_temp.RData"))
 featureids <- as.integer(featureids)
 
 # connect to database source
-db <- src_postgres(dbname='sheds_new', host='osensei.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+db <- src_postgres(dbname='sheds', host='felek.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
 
 # fetch covariates
 # featureid |  variable  | value | zone  | riparian_distance_ft 
@@ -470,6 +483,8 @@ saveRDS(covariateData, file=output_file2)
 #saveRDS(data_dir, file=)
 #saveRDS(climateData, file=output_file3)
 
+library(foreign)
+write.dbf(data.frame(df_featureid_200, stringsAsFactors = FALSE), file = paste0(data_dir, "/featureid_list_20160602.dbf"))
 
 #---------------cleaning---------------------
 

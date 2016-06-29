@@ -2,8 +2,8 @@
 # requires masterData, covariateData input binary files
 # saves output springFallBPs to binary file
 #
-# usage: $ Rscript breakpoints.R <input temperatureData rdata> <input climateData csv> <input springFallBPs rdata> <input excludeID csv> <output tempDataSync rdata>
-# example: $ Rscript prepare_model_data.R ./temperatureData.RData ./daymet_results.csv ./springFallBPs.RData ./sample_locations_50m ./tempDataSync.RData
+# usage: $ Rscript breakpoints.R <input temperatureData rdata> <input climateData csv> <input springFallBPs rdata> <output tempDataSync rdata>
+# example: $ Rscript prepare_model_data.R ./temperatureData.RData ./daymet_results.csv ./springFallBPs.RData ./tempDataSync.RData
 #
 # NOTE: this has not actually been run, and is mostly just copy and pasted from the analysis vignette
 
@@ -23,18 +23,19 @@ library(devtools)
 library(conteStreamTemperature)
 library(jsonlite)
 
-config <- fromJSON('model_config.json')
+config <- fromJSON('model_config.json') # consider this as an input to the run_model.sh script
 
 # validate = TRUE # get rid of this once model_config.json is ready
 
-data_dir <- "localData_2016-02-26_newDelineation"
+# get current model run directory
+data_dir <- as.character(read.table("current_model_run.txt", stringsAsFactors = FALSE)[1,1])
 
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
 
 # until running as a bash script add the files here
 if(length(args) < 1) {
-  args <- c(paste0(data_dir, "/temperatureData.RData"), paste0(data_dir, "/daymet_results.csv"), paste0(data_dir, "/covariateData.RData"), paste0(data_dir, "/springFallBPs.RData"), paste0(data_dir, "/sample_locations_50m.csv"), paste0(data_dir, "/tempDataSync.RData"))
+  args <- c(paste0(data_dir, "/temperatureData.RData"), paste0(data_dir, "/daymet_results.csv"), paste0(data_dir, "/covariateData.RData"), paste0(data_dir, "/springFallBPs.RData"), paste0(data_dir, "/tempDataSync.RData")) # paste0(data_dir, "/sample_locations_50m.csv")
 }
 
 
@@ -64,13 +65,13 @@ if (!file.exists(springFallBPs_file)) {
 }
 springFallBPs <- readRDS(springFallBPs_file)
 
-exclude_file <- args[5]
-if (!file.exists(exclude_file)) {
-  stop(paste0('Could not find exclude binary file: ', exclude_file))
-}
-exclude_sites <- fread(exclude_file, header = TRUE, stringsAsFactors = FALSE, sep = ",")
+# exclude_file <- args[5]
+# if (!file.exists(exclude_file)) {
+#   stop(paste0('Could not find exclude binary file: ', exclude_file))
+# }
+# exclude_sites <- fread(exclude_file, header = TRUE, stringsAsFactors = FALSE, sep = ",")
 
-output_file <- args[6]
+output_file <- args[5]
 if (file.exists(output_file)) {
   warning(paste0('Output file already exists, overwriting: ', output_file))
 }
@@ -81,12 +82,14 @@ tempData <- climateData %>%
                 airTemp = (tmax + tmin) / 2)
 
 #------ REMOVE SITES WITHIN 50 m OF AN IMPOUNDMENT - A. Roy unpublished data --------#
-exclude = FALSE
-if(exclude == TRUE) {
-exclude_ids <- as.numeric(gsub(",", "", unique(exclude_sites$catchment_id)))
-tempData <- tempData %>%
-  dplyr::filter(!(featureid %in% exclude_ids))
-}
+# now done in initial data fetch with 100 m
+
+# exclude = FALSE
+# if(exclude == TRUE) {
+# exclude_ids <- as.numeric(gsub(",", "", unique(exclude_sites$catchment_id)))
+# tempData <- tempData %>%
+#   dplyr::filter(!(featureid %in% exclude_ids))
+# }
 
 
 #-------------------------------------------------------------------------------------
