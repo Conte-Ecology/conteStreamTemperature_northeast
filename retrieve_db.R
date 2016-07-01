@@ -25,6 +25,7 @@ library(conteStreamTemperature)
 
 library(jsonlite)
 config <- fromJSON('model_config.json')
+mad_tf <- config$mad_tf
 
 # get current model run directory
 data_dir <- as.character(read.table("current_model_run.txt", stringsAsFactors = FALSE)[1,1])
