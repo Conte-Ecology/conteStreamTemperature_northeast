@@ -4,9 +4,8 @@
 # the 3rd argument is an optional CSV specifying location id's to run
 #   this file has a single column with the header "id"
 
-# usage: $ ./id_impoundment_sites.sh <db name> <path to output directory> <path to check locations csv>
+# usage: $ ./id_impoundment_sites.sh <db name> <path to output directory>
 # requires: .pgpass file with hostname, user, and password to connect to database
-# example (specify locations): $ ./id_impoundment_sites.sh sheds /home/kyle/qaqc /conte/data/qaqc/check_locations.csv 
 # example (all locations): $ ./id_impoundment_sites.sh sheds /home/kyle/qaqc 
 # detail: log into GNU screen session if not running and saving to same machine to prevent timeout when writing results
 
@@ -16,59 +15,27 @@ set -o pipefail
 # Set variables
 DB=$1
 FOLDER=$2
-CHECK_FILE=${3-"absent"}
-      
-# Sites to evaluate depends on the existence of the "CHECK_FILE" input
-if [ $CHECK_FILE = "absent" ]; then
 
-  # If no sites are specified, evaluate all  
+ # If no sites are specified, evaluate all  
   echo Identifying all sites influenced by impoundments...
   
   psql -h felek.cns.umass.edu -d $DB -w -c "
-  SELECT * INTO TEMPORARY locations_temp FROM public.locations;
+SELECT * INTO TEMPORARY locations_temp FROM public.locations;
 
-  -- Add geometry   
-  ALTER TABLE locations_temp ADD COLUMN geom geometry(POINT,4326);
-  UPDATE locations_temp SET geom = ST_SetSRID(ST_MakePoint(longitude,latitude),4326);
-  CREATE INDEX idx_loc_dum_geom ON locations_temp USING GIST(geom);
+-- Add geometry   
+ALTER TABLE locations_temp ADD COLUMN geom geometry(POINT,4326);
+UPDATE locations_temp SET geom = ST_SetSRID(ST_MakePoint(longitude,latitude),4326);
+CREATE INDEX idx_locations_temp_geom ON locations_temp USING GIST(geom);
 
-  -- Select points near impoundment zones
-  COPY (
-  SELECT id
-    FROM locations_temp, impoundment_zones_100m
-    WHERE ST_Intersects(ST_Buffer(locations_temp.geom::geography, 10), impoundment_zones_100m.geom)
-  ) TO STDOUT WITH CSV HEADER" > $FOLDER/impoundment_sites.csv
+ALTER TABLE locations_temp ADD COLUMN buffer geometry(POLYGON,4326);
+UPDATE locations_temp SET buffer = ST_Buffer(locations_temp.geom::geography, 10)::geometry;
+CREATE INDEX idx_locations_temp_buffer ON locations_temp USING GIST(buffer);
+
+
+-- Select points near impoundment zones
+COPY (
+SELECT id
+  FROM locations_temp, gis.impoundment_zones_100m
+  WHERE ST_Intersects(locations_temp.buffer, gis.impoundment_zones_100m.geom)
+) TO STDOUT WITH CSV HEADER" > $FOLDER/impoundment_sites.csv
   
-else
-   
-  # If no sites are specified, evaluate all 
-  echo Identifying specified sites influenced by impoundments...
-
-  psql -h felek.cns.umass.edu -d $DB -w -c "
-  -- Read in the specified sites to a temporary table
-  CREATE TEMPORARY TABLE check_locations (id  int);
-
-  \copy check_locations FROM '$CHECK_FILE' DELIMITER ',' CSV HEADER
-
-  -- Select only the specified locations to evaluate
-  SELECT 
-     loc.id, loc.latitude, loc.longitude
-   INTO TEMPORARY locations_temp
-  FROM 
-     public.locations loc, 
-     check_locations chk 
-  WHERE 
-     loc.id = chk.id;
-  
-  -- Add geometry  
-  ALTER TABLE locations_temp ADD COLUMN geom geometry(POINT,4326);
-  UPDATE locations_temp SET geom = ST_SetSRID(ST_MakePoint(longitude,latitude),4326);
-  CREATE INDEX idx_loc_dum_geom ON locations_temp USING GIST(geom);
-
-  -- Select points near impoundment zones
-  COPY (
-  SELECT id
-    FROM locations_temp, impoundment_zones_100m
-    WHERE ST_Intersects(ST_Buffer(locations_temp.geom::geography, 10), impoundment_zones_100m.geom)
-  ) TO STDOUT WITH CSV HEADER " > $FOLDER/impoundment_sites.csv
-fi
