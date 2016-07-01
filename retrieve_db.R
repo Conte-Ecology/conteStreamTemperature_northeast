@@ -14,7 +14,7 @@ library(lubridate)
 library(RPostgreSQL)
 library(ggplot2)
 library(devtools)
-install_github("Conte-Ecology/conteStreamTemperature")
+install_github("Conte-Ecology/conteStreamTemperature", quiet = TRUE)
 library(conteStreamTemperature)
 
 #data_dir <- getOption("SHEDS_DATA")
@@ -22,6 +22,9 @@ library(conteStreamTemperature)
 # 
 # if(!file.exists(file.path(getwd(), data_dir))) dir.create(file.path(getwd(), data_dir))
 #   
+
+library(jsonlite)
+config <- fromJSON('model_config.json')
 
 # get current model run directory
 data_dir <- as.character(read.table("current_model_run.txt", stringsAsFactors = FALSE)[1,1])
@@ -77,8 +80,8 @@ tbl_series <- tbl(db, 'series') %>%
   dplyr::rename(series_id=id) %>%
   dplyr::select(-created_at, -updated_at, -flags)
 
-tbl_values <- tbl(db, 'values') %>%
-  dplyr::rename(value_id=id)
+# tbl_values <- tbl(db, 'values') %>%
+#   dplyr::rename(value_id=id)
 
 tbl_variables <- tbl(db, 'variables') %>%
   dplyr::rename(variable_id=id, variable_name=name, variable_description=description) %>%
@@ -128,7 +131,7 @@ df_values <- tbl(db, build_sql('SELECT * FROM "values_flags"')) %>%
                 series_id %in% series_reviewed,
                 flagged == FALSE) %>%
   dplyr::select(-file_id) %>%
-  dplyr::collect() %>%
+  dplyr::collect(n = Inf) %>%
   dplyr::mutate(datetime=with_tz(datetime, tzone='EST'),
          date = as.Date(datetime),
          series_id = as.character(series_id)) %>%
@@ -212,18 +215,22 @@ write.csv(sd_flags, file = file.path(getwd(), data_dir, "subdaily_flags.csv"))
 # )
 
 
+df_values <- df_values %>%
+  dplyr::group_by(series_id) 
 
 # Median Absolute Deviations for spike detection
+
+if(mad_tf == TRUE) {
 df_values <- df_values %>%
-  dplyr::group_by(series_id) %>%
   dplyr::mutate(MAD_normalized = MAD.roller(temp, median(median_freq)*10),
                 MAD_normalized_30 = MAD.roller(temp, median(median_freq)*30),
                 flag_MAD = ifelse(MAD_normalized > 10, TRUE, FALSE)) # 10 day moving window
+}
 
 save.image(file.path(getwd(), data_dir, "df_values_flags.RData"))
 
 # plots for testing manually
-if(TRUE) {
+if(mad_tf == TRUE) {
   
 # identify sites with rate change problems and spikes
 # ignore beginning, end, and winter for MAD because so many false positives
@@ -291,7 +298,8 @@ for(i in 1:length(bad_series_id)) {
   g <- g + geom_point(aes(colour = MAD_normalized)) + scale_colour_gradient(high = "red", low = "black", limits = c(0, 4)) + theme_bw()
   ggsave(paste0(data_dir, "/diagnostics/plots/series_", bad_series_id[i], ".png"), plot = g)
 }
-}
+
+} # end MAD check
 
 
 
@@ -303,8 +311,12 @@ df_values2 <- df_values %>%
          flag_cold_obs == "FALSE",
          flag_hot_obs == "FALSE",
          flag_interval == "FALSE" | is.na(flag_interval),
-         abs(d_temp) < 5 | is.na(d_temp),
-         MAD_normalized < 5)
+         abs(d_temp) < 5 | is.na(d_temp))
+         
+if(mad_tf == TRUE) {
+  df_values2 <- df_values2 %>%
+    dplyr::filter(MAD_normalized < 5)
+}
 
 
 # examine vs. auto filter hourly_rise?
@@ -340,20 +352,28 @@ d_flags <- df_values3 %>%
                   flag_extreme_days == TRUE) %>%
   dplyr::select(-row, -temp_prev, -series_prev, -series_start, -median_freq, -min_n90)
 
-# Median Absolute Deviations for spike detection
 df_values3 <- df_values3 %>%
-  dplyr::group_by(series_id) %>%
+  dplyr::group_by(series_id)
+  
+# Median Absolute Deviations for spike detection
+if(mad_tf == TRUE) {
+df_values3 <- df_values3 %>%
   dplyr::mutate(MAD_normalized = MAD.roller(temp, median(median_freq)*10)) #,
                 #MAD_normalized_30 = MAD.roller(temp, median(median_freq)*30),
                 #flag_MAD = ifelse(MAD_normalized > 10, TRUE, FALSE)) # 10 day moving window
+}
 
 write.csv(d_flags, file = file.path(getwd(), data_dir, "daily_flags.csv"))
 
 # filter for use in the model
 df_values3 <- df_values3 %>%
   dplyr::filter(flag_cold_days == "FALSE",
-                abs(d_temp) < 10 | is.na(d_temp),
-                MAD_normalized < 8)
+                abs(d_temp) < 10 | is.na(d_temp))
+
+if(mad_tf == TRUE) {
+  df_values3 <- df_values3 %>%
+    dplyr::filter(MAD_normalized < 8)
+}
 
 # End QAQC
 
