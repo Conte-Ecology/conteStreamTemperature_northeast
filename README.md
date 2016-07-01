@@ -50,10 +50,10 @@ This script will create a new directory called "modelRun_" followed by the date 
  
 Follow these steps to run the model manually:
 
-`CL` = command line in the `conteStreamTemperature_northeast` directory on osensei or local machine
+`CL` = command line in the `conteStreamTemperature_northeast` directory on osensei or local machine. These should be run in screen session otherwise the connection to the database will time out (more info: https://www.rackaid.com/blog/linux-screen-tutorial-and-how-to/)
 
 1. Set the model configuration (`model_config.json`)
-2. Set the model run directory in the file "current_model_run.txt". This should be a single line naming the subdirectory (e.g. `modelRun_2016-06-30`)
+2. Set the model run directory in the file "current_model_run.txt". This should be a single line naming the subdirectory (e.g. `modelRun/modelRun_2016-06-30`). You will also need to great this subdirectory in the folder.
 3. determine what locations are near impoundments (CL: `bash id_impoundment_sites.sh sheds <subdirecotry/>`)
 4. determine what locations are potentially tidally influenced (e.g. CL: `bash id_tidal_sites.sh sheds <username> <subdirectory/>`)
 5. Fetch data that are reviewed (`retrieve_db.R`)
