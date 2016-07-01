@@ -1,9 +1,8 @@
 # Summarize model
-# requires jags input binary file (M.ar1 dataframe), covariate-list (cov.list), and tempDataSync
-# saves output coef.list to binary file coef.RData
+# requires jags input binary file (M.ar1 dataframe)
 #
-# usage: $ Rscript summarize_model.R <input tempDataSync rdata> <input jags rdata> <input cov.list rdata> <output coef rdata>
-# example: $ Rscript summarize_model.R ./tempDataSync.RData ./jags.RData ./covariate-list.RData ./coef.RData
+# usage: $ Rscript mcmc_diagnostics.R <input jags rdata>
+# example: $ Rscript mcmc_diagnostics ./jags.RData 
 
 # NOTE: this has not actually been run, and is mostly just copy and pasted from the analysis vignette
 
@@ -17,19 +16,14 @@ library(ggmcmc)
 #library(dplyr)
 library(rjags)
 
-data_dir <- "localData_2016-01-19" 
+# get current model run directory
+data_dir <- as.character(read.table("current_model_run.txt", stringsAsFactors = FALSE)[1,1]) 
 
 args <- commandArgs(trailingOnly = TRUE)
 
 if(length(args) < 1) {
-  args <- c(paste0(data_dir, "/tempDataSync.RData"), paste0(data_dir, "/jags.RData")) # "localData/covariateData.RData",
+  args <- c(paste0(data_dir, "/jags.RData")) # "localData/covariateData.RData",
 }
-
-tempDataSync_file <- args[1]
-if (!file.exists(tempDataSync_file)) {
-  stop(paste0('Could not find tempDataSync binary file: ', tempDataSync_file))
-}
-load(tempDataSync_file)
 
 jags_file <- args[2]
 if (!file.exists(jags_file)) {
@@ -37,23 +31,39 @@ if (!file.exists(jags_file)) {
 }
 M.ar1 <- readRDS(jags_file)
 
-covlist_file <- args[3]
-if (!file.exists(covlist_file)) {
-  stop(paste0('Could not find covariate-list binary file: ', covlist_file))
-}
-cov.list <- readRDS(covlist_file)
-
-output_file <- args[4]
-if (file.exists(output_file)) {
-  warning(paste0('Output file already exists, overwriting: ', output_file))
-}
-
 # ----
 
 if (!file.exists(paste0(data_dir, "/figures/"))) {
   dir.create(paste0(data_dir, "/figures/"))
 }
 
+
+#--------- basic ---------
+if(FALSE) { # shut off unless running manually
+# plot(M.ar1[ , c("xi.huc[1]", "xi.huc[2]", "xi.huc[3]")])
+# plot(M.ar1[ , c("xi.year[1]", "xi.year[2]")])
+# plot(M.ar1[ , c("xi.year[3]", "xi.year[4]")])
+
+plot(M.ar1[ , c("B.0[1]", "sigma.b.huc[2]", "sigma.b.huc[3]")])
+plot(M.ar1[ , c("sigma.b.site[1]", "sigma.b.site[2]", "sigma.b.site[3]")])
+plot(M.ar1[ , c("mu.huc[2]", "mu.huc[3]")])
+#plot(M.ar1[ , c("sigma.b.site[4]", "sigma.b.site[5]", "sigma.b.site[6]")])
+plot(M.ar1[ , c("B.0[2]", "B.0[3]", "B.0[4]")])
+plot(M.ar1[ , c("sigma.b.year")])
+#plot(M.ar1[ , c("sigma.b.year[2]", "sigma.b.year[3]", "sigma.b.year[4]")])
+plot(M.ar1[ , c("sigma")])
+
+plot(M.ar1[ , c("tau.B.huc.raw[1,1]", "tau.B.huc.raw[2,2]", "tau.B.huc.raw[3,3]")])
+#plot(M.ar1[ , c("tau.B.year.raw[1,1]", "tau.B.year.raw[2,2]", "tau.B.year.raw[3,3]", "tau.B.year.raw[4,4]")])
+
+# plot(M.ar1[ , c("trend.reduced[1]", "trend.reduced[2]", "trend.reduced[100]")])
+# plot(M.ar1[ , c("pred.reduced[2]", "pred.reduced[20]", "pred.reduced[100]")])
+
+plot(M.ar1[ , c("trend[1]", "trend[300]", "trend[600]")])
+plot(M.ar1[ , c("stream.mu[2]", "stream.mu[400]", "stream.mu[1000]")])
+}
+
+#-------------------------
 # JAGS object is too large, need to cut daily predictions
 mcmc_small <- mcmc.list()
 for(i in 1:length(M.ar1)) {
