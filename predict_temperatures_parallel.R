@@ -21,7 +21,8 @@ library(devtools)
 #install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 
-data_dir <- "localData_2016-02-26_newDelineation" 
+# get current model run directory
+data_dir <- as.character(read.table("current_model_run.txt", stringsAsFactors = FALSE)[1,1])
 
 args <- commandArgs(TRUE)
 
@@ -56,7 +57,7 @@ springFallBPs <- readRDS(input_file)
 
 ########## connect to database ##########
 drv <- dbDriver("PostgreSQL")
-con <- dbConnect(drv, dbname="sheds_new", host='osensei.cns.umass.edu', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+con <- dbConnect(drv, dbname="sheds", host='felek.cns.umass.edu', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
 
 ########## Get List of featureid to predict ##########
 # Get list of unique catchments with daymet data
@@ -98,7 +99,7 @@ dbUnloadDriver(drv)
 # get covariates outside loop then subset within loop rather than pull from database each iteration
 
 # connect to database source
-db <- src_postgres(dbname='sheds_new', host='osensei.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+db <- src_postgres(dbname='sheds', host='felek.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
 
 # fetch covariates
 # featureid |  variable  | value | zone  | riparian_distance_ft 
