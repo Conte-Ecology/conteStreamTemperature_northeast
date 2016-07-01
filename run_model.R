@@ -15,13 +15,14 @@ library(devtools)
 #install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 
-data_dir <- "localData_2016-02-26_newDelineation"
+# get current model run directory
+data_dir <- as.character(read.table("current_model_run.txt", stringsAsFactors = FALSE)[1,1])
 
 # parse command line arguments
 args <- commandArgs(trailingOnly = TRUE)
 
 if(length(args) < 1) {
-  args <- c(paste0(data_dir, "/tempDataSync.RData"), paste0(data_dir, "/jags.RData"), paste0(data_dir, "/covariate_list.RData")) # "localData/covariateData.RData",
+  args <- c(paste0(data_dir, "/tempDataSync.RData"), paste0(data_dir, "/jags.RData"), paste0(data_dir, "/covariate_list.RData"))
 }
 
 tempDataSync_file <- args[1]
@@ -35,8 +36,8 @@ if (file.exists(output_file)) {
   warning(paste0('Output file already exists, overwriting: ', output_file))
 }
 
-output2_file <- args[3]
-if (file.exists(output2_file)) {
+output_file2 <- args[3]
+if (file.exists(output_file2)) {
   warning(paste0('Output2 file already exists, overwriting: ', output2_file))
 }
 
@@ -154,27 +155,6 @@ system.time(M.ar1 <- modelRegionalTempAR1SimpleYear(tempDataSyncS, cov.list=cov.
 
 # save to rdata
 saveRDS(M.ar1, file = output_file)
-saveRDS(cov.list, file = output2_file)
+saveRDS(cov.list, file = output_file2)
 
 
-# plot(M.ar1[ , c("xi.huc[1]", "xi.huc[2]", "xi.huc[3]")])
-# plot(M.ar1[ , c("xi.year[1]", "xi.year[2]")])
-# plot(M.ar1[ , c("xi.year[3]", "xi.year[4]")])
-
-plot(M.ar1[ , c("B.0[1]", "sigma.b.huc[2]", "sigma.b.huc[3]")])
-plot(M.ar1[ , c("sigma.b.site[1]", "sigma.b.site[2]", "sigma.b.site[3]")])
-plot(M.ar1[ , c("mu.huc[2]", "mu.huc[3]")])
-#plot(M.ar1[ , c("sigma.b.site[4]", "sigma.b.site[5]", "sigma.b.site[6]")])
-plot(M.ar1[ , c("B.0[2]", "B.0[3]", "B.0[4]")])
-plot(M.ar1[ , c("sigma.b.year")])
-#plot(M.ar1[ , c("sigma.b.year[2]", "sigma.b.year[3]", "sigma.b.year[4]")])
-plot(M.ar1[ , c("sigma")])
-
-plot(M.ar1[ , c("tau.B.huc.raw[1,1]", "tau.B.huc.raw[2,2]", "tau.B.huc.raw[3,3]")])
-#plot(M.ar1[ , c("tau.B.year.raw[1,1]", "tau.B.year.raw[2,2]", "tau.B.year.raw[3,3]", "tau.B.year.raw[4,4]")])
-
-# plot(M.ar1[ , c("trend.reduced[1]", "trend.reduced[2]", "trend.reduced[100]")])
-# plot(M.ar1[ , c("pred.reduced[2]", "pred.reduced[20]", "pred.reduced[100]")])
-
-plot(M.ar1[ , c("trend[1]", "trend[300]", "trend[600]")])
-plot(M.ar1[ , c("stream.mu[2]", "stream.mu[400]", "stream.mu[1000]")])
