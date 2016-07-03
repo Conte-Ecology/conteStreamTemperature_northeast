@@ -11,7 +11,7 @@ set -o pipefail
 # create directory for the model run
 now=$(date +"%Y-%m-%d")
 # rm -r "modelRun_"$now
-mkdir -p -r "modelRun/modelRun_"$now 
+mkdir -p "modelRun/modelRun_"$now 
 
 dirname="modelRun/modelRun_"$now
 
@@ -40,7 +40,7 @@ Rscript retrieve_db.R $dirname"/temperatureData.RData" $dirname"/covariateData.R
 # Fetch daymet data
 dt=$(date '+%Y-%m-%d %H:%M:%S');
 echo "starting daymet query (daymet_query.sql): "$dt >> $dirname"/status_log.txt"
-psql -f $dirname/code/daymet_query.sql -d sheds -w > $dirname/daymet_results.csv
+psql -f $dirname/code/daymet_query.sql -h felek.cns.umass.edu -d sheds -w > $dirname/daymet_results.csv
 
 # Determine breakpoints of synchronized season
 dt=$(date '+%Y-%m-%d %H:%M:%S');
