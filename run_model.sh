@@ -50,7 +50,7 @@ Rscript breakpoints.R $dirname"/temperatureData.RData" $dirname"/daymet_results.
 # prepare data for use in model (filter and standardize)
 dt=$(date '+%Y-%m-%d %H:%M:%S');
 echo "starting model data prep (prepare_model_data.R): "$dt >> $dirname"/status_log.txt"
-Rscript prepare_model_data.R $dirname"/temperatureData.RData" $dirname"/daymet_results.csv" $dirname"/springFallBPs.RData" $dirname"/tempDataSync.RData"
+Rscript prepare_model_data.R $dirname"/temperatureData.RData" $dirname"/daymet_results.csv" $dirname"/covariateData.RData" $dirname"/springFallBPs.RData" $dirname"/tempDataSync.RData"
 
 # run the model
 dt=$(date '+%Y-%m-%d %H:%M:%S');
