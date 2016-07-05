@@ -69,8 +69,8 @@ Rscript summarize_iterations.R $dirname"/tempDataSync.RData" $dirname"/jags.RDat
 
 # validate model
 dt=$(date '+%Y-%m-%d %H:%M:%S');
-echo "starting validation (validate_model.R): "$dt >> $dirname"/status_log.txt"
-Rscript validate_model.R $dirname"/tempDataSync.RData" $dirname"/covariate_list.RData" $dirname"/coef.RData" $dirname"/rmse_table.RData"
+echo "re-starting validation (validate_model.R): "$dt >> $dirname"/status_log.txt"
+Rscript validate_model.R $dirname"/tempDataSync.RData" $dirname"/covariate_list.RData" $dirname"/coef.RData" $dirname"/rmse_table.RData" $dirname"/valid_results.RData"
 
 # calculate derived metrics for all catchments
 dt=$(date '+%Y-%m-%d %H:%M:%S');

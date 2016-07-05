@@ -70,9 +70,9 @@ library(rjags)
     dplyr::distinct() %>%
     dplyr::mutate(site = as.character(site))
   
-tempDataSyncS <- predictTemp(data = tempDataSyncS, coef.list = coef.list, cov.list = cov.list, featureid_site = featureid_site, validate = FALSE)
+tempDataSyncS <- predictTemp(data = tempDataSyncS, coef.list = coef.list, cov.list = cov.list, rand_ids = rand_ids) #, featureid_site = featureid_site, validate = FALSE)
 
-tempDataSyncValidS <- predictTemp(data = tempDataSyncValidS, coef.list = coef.list, cov.list = cov.list, featureid_site = featureid_site, validate = TRUE)
+tempDataSyncValidS <- predictTemp(data = tempDataSyncValidS, coef.list = coef.list, cov.list = cov.list, rand_ids = rand_ids) #, featureid_site = featureid_site, validate = TRUE)
 
 
 
@@ -112,17 +112,14 @@ saveRDS(tempDataSyncValidS, paste0(data_dir, "/valid_results.RData"))
 
 }
 
-rm(list = ls())
-gc()
 
-
-
+if(FALSE) {
 #--------------- old stuff to incorporate -------------
-pred <- predictTemp(fullDataSyncS = tempDataSyncS, coef.list = coef.list, rand_ids = rand_ids)
+pred <- predictTemp(data = tempDataSyncS, coef.list = coef.list, rand_ids = rand_ids)
 rmse(pred$temp - pred$tempPredicted)
 rmse(pred$temp - pred$trend)
 
-pred_valid <- predictTemp(fullDataSyncS = tempDataSyncValidS, coef.list = coef.list, rand_ids = rand_ids)
+pred_valid <- predictTemp(data = tempDataSyncValidS, coef.list = coef.list, rand_ids = rand_ids)
 rmse(pred_valid$temp - pred_valid$tempPredicted)
 rmse(pred_valid$temp - pred_valid$trend)
 
@@ -220,4 +217,4 @@ summary(df_poor)
 # bar <- left_join(coef.list$B.site, rand_ids$df_site)
 # dplyr::filter(bar, site == "853196")
 
-
+}

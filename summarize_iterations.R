@@ -58,7 +58,7 @@ if (!file.exists(paste0(data_dir, "/figures/"))) {
 
 df.ar1 <- as.data.frame(as.matrix(M.ar1)) # massive
 
-test_jags_pred <- TRUE
+test_jags_pred <- FALSE
 if(test_jags_pred) {
   #plot(M.ar1[ , 1])
   #str(df.ar1)
@@ -102,10 +102,10 @@ row.names(tau.b.huc.raw) <- cov.list$huc.ef
 tau.b.huc.raw <- round(tau.b.huc.raw, digits=3)
 tau.b.huc.raw
 
-xi.huc <- df.ar1 %>%
-  dplyr::select(starts_with("xi.huc")) %>%
-  colMeans()
-xi.huc
+# xi.huc <- df.ar1 %>%
+#   dplyr::select(starts_with("xi.huc")) %>%
+#   colMeans()
+# xi.huc
 
 # xi.year <- df.ar1 %>%
 #   dplyr::select(starts_with("xi.year")) %>%
@@ -321,14 +321,16 @@ sigma.b.year$LCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.025, na.rm 
 sigma.b.year$UCRI <- apply(foo, 2, function(x) quantile(x, probs = 0.975, na.rm = T))
 }
 
-if(FALSE) { # turn off but could add option later
-######## Random AR1 Effects #########
-# extract site effect coefficients
+#---------- AR1 ------------
 B.ar1.iter <- df.ar1 %>%
   dplyr::select(starts_with("B.ar1"))
 str(B.ar1.iter)
 B.ar1.iter <- as.data.frame(t(B.ar1.iter)) # site by row, iteration by column
 str(B.ar1.iter)
+
+if(FALSE) { # turn off but could add option later
+######## Random AR1 Effects #########
+# extract site effect coefficients
 B.ar1.iter$sitef <- B.site.list[[1]]$sitef
 
 B.ar1 <- data.frame(sitef = B.ar1.iter$sitef)
@@ -346,6 +348,11 @@ mu.ar1 <- data.frame(coef = "ar1", mean = mean(mu.ar1.iter$mu.ar1), sd = sd(mu.a
 sigma.ar1 <- df.ar1 %>%
   dplyr::select(starts_with("sigma.ar1")) %>%
   colMeans()
+
+B.ar1 <- data.frame(coef = "ar1", mean = rowMeans(B.ar1.iter[1,]), sd = sd(B.ar1.iter[1, ]), LCRI = quantile(as.numeric(B.ar1.iter[1,]), probs = c(0.025)), UCRI = quantile(as.numeric(B.ar1.iter[1,]), probs = c(0.975))) 
+
+mu.ar1 <- B.ar1
+
 } else {
 ############### if AR1 not random by site ###########
 B.ar1 <- data.frame(coef = "ar1", mean = rowMeans(B.ar1.iter[1,]), sd = sd(B.ar1.iter[1, ]), LCRI = quantile(as.numeric(B.ar1.iter[1,]), probs = c(0.025)), UCRI = quantile(as.numeric(B.ar1.iter[1,]), probs = c(0.975))) 
@@ -390,9 +397,9 @@ coef.list <- list(fix.ef = fix.ef
                   , sigma.site = sigma.b.site
                   , sigma.huc = sigma.b.huc
                   , sigma.year = sigma.b.year
-                  , sigma.ar1 = sigma.ar1
+                  #, sigma.ar1 = sigma.ar1
                   , cor.huc = cor.huc
-                  , cor.year = cor.year
+                  #, cor.year = cor.year
                   , B.site = B.site
                   , B.huc = B.huc
                   , B.year = B.year

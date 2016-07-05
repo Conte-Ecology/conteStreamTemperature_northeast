@@ -125,7 +125,7 @@ param_list <- c("forest",
 start.time <- Sys.time()
 tbl_covariates <- tbl(db, 'covariates') %>%
   dplyr::filter(variable %in% param_list)
-df_covariates_long <- dplyr::collect(tbl_covariates)
+df_covariates_long <- dplyr::collect(tbl_covariates, n = Inf)
 Sys.time() - start.time
 
 df_covariates <- df_covariates_long %>%
@@ -172,7 +172,7 @@ catchmentid <- df_covariates_upstream %>%
   #dplyr::mutate(impoundArea = allonnet * AreaSqKM / 100) %>%
   dplyr::filter(#featureid %in% daymet_catchments, # causes it to hang indefinitely - no longer needed anyway
                 AreaSqKM <= 200,
-                allonnet < 50,
+                allonnet < 70,
                 !is.na(forest),
                 !is.na(allonnet),
                 !is.na(agriculture)) %>%
