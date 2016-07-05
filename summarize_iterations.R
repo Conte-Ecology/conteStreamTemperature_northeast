@@ -84,14 +84,14 @@ cov.list
 
 ########## raw tau and xi ##########
 
-tau.b.year.raw <- df.ar1 %>%
-  dplyr::select(starts_with("tau.B.year.raw")) %>%
-  colMeans()
-tau.b.year.raw <- as.data.frame(matrix(tau.b.year.raw, sqrt(length(tau.b.year.raw)), sqrt(length(tau.b.year.raw))))
-names(tau.b.year.raw) <- cov.list$year.ef
-row.names(tau.b.year.raw) <- cov.list$year.ef
-tau.b.year.raw <- round(tau.b.year.raw, digits=3)
-tau.b.year.raw
+# tau.b.year.raw <- df.ar1 %>%
+#   dplyr::select(starts_with("tau.B.year.raw")) %>%
+#   colMeans()
+# tau.b.year.raw <- as.data.frame(matrix(tau.b.year.raw, sqrt(length(tau.b.year.raw)), sqrt(length(tau.b.year.raw))))
+# names(tau.b.year.raw) <- cov.list$year.ef
+# row.names(tau.b.year.raw) <- cov.list$year.ef
+# tau.b.year.raw <- round(tau.b.year.raw, digits=3)
+# tau.b.year.raw
 
 tau.b.huc.raw <- df.ar1 %>%
   dplyr::select(starts_with("tau.B.huc.raw")) %>%
@@ -107,12 +107,12 @@ xi.huc <- df.ar1 %>%
   colMeans()
 xi.huc
 
-xi.year <- df.ar1 %>%
-  dplyr::select(starts_with("xi.year")) %>%
-  colMeans()
-xi.year
+# xi.year <- df.ar1 %>%
+#   dplyr::select(starts_with("xi.year")) %>%
+#   colMeans()
+# xi.year
 
-saveRDS(list(tau.b.huc.raw=tau.b.huc.raw, tau.b.year.raw=tau.b.year.raw, xi.huc=xi.huc, xi.year=xi.year), file = paste0(data_dir, "/raw_scale_est.RData"))
+# saveRDS(list(tau.b.huc.raw=tau.b.huc.raw, tau.b.year.raw=tau.b.year.raw, xi.huc=xi.huc, xi.year=xi.year), file = paste0(data_dir, "/raw_scale_est.RData"))
 
 ########## Fixed Effects ##############
 # Extract fixed effects coefficients (all iterations as rows)
@@ -367,15 +367,15 @@ cor.huc[upper.tri(cor.huc, diag=TRUE)] <- ''
 cor.huc
 
 # Make correlation matrix of random year effects
-cor.year <- df.ar1 %>%
-  dplyr::select(starts_with("rho.B.year")) %>%
-  colMeans()
-cor.year <- as.data.frame(matrix(cor.year, length(cov.list$year.ef), length(cov.list$year.ef)))
-names(cor.year) <- cov.list$year.ef
-row.names(cor.year) <- cov.list$year.ef
-cor.year <- round(cor.year, digits=3)
-cor.year[upper.tri(cor.year, diag=TRUE)] <- ''
-cor.year
+# cor.year <- df.ar1 %>%
+#   dplyr::select(starts_with("rho.B.year")) %>%
+#   colMeans()
+# cor.year <- as.data.frame(matrix(cor.year, length(cov.list$year.ef), length(cov.list$year.ef)))
+# names(cor.year) <- cov.list$year.ef
+# row.names(cor.year) <- cov.list$year.ef
+# cor.year <- round(cor.year, digits=3)
+# cor.year[upper.tri(cor.year, diag=TRUE)] <- ''
+# cor.year
 
 
 ########### Make Coef List #########
