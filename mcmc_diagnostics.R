@@ -10,7 +10,7 @@
 rm(list = ls())
 gc()
 
-detach("package:dplyr", unload = TRUE)
+# detach("package:dplyr", unload = TRUE)
 
 library(ggmcmc)
 #library(dplyr)
@@ -25,7 +25,7 @@ if(length(args) < 1) {
   args <- c(paste0(data_dir, "/jags.RData")) # "localData/covariateData.RData",
 }
 
-jags_file <- args[2]
+jags_file <- args[1]
 if (!file.exists(jags_file)) {
   stop(paste0('Could not find jags binary file: ', jags_file))
 }
@@ -68,7 +68,7 @@ plot(M.ar1[ , c("stream.mu[2]", "stream.mu[400]", "stream.mu[1000]")])
 mcmc_small <- mcmc.list()
 for(i in 1:length(M.ar1)) {
   bar <- attr(M.ar1[[i]], which = "dimnames")[[2]] #[2000:2200]
-  sna <- M.ar1[[i]][1:3000, which(!grepl("stream.mu", bar) & !grepl("trend", bar))]
+  sna <- M.ar1[[i]][ , which(!grepl("stream.mu", bar) & !grepl("trend", bar))]
   mcmc_small[[i]] <- as.mcmc(sna)
 }
 
@@ -77,7 +77,7 @@ reject <- rejectionRate(mcmc_small)
 mcmc_tiny <- mcmc.list()
 for(i in 1:length(M.ar1)) {
   bar <- attr(M.ar1[[i]], which = "dimnames")[[2]] #[2000:2200]
-  sna <- M.ar1[[i]][1:3000, which(grepl("B.0", bar) | grepl("sigma", bar))]
+  sna <- M.ar1[[i]][ , which(grepl("B.0", bar) | grepl("sigma", bar))]
   mcmc_tiny[[i]] <- as.mcmc(sna)
 }
 gelman.diag(mcmc_tiny)
