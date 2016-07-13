@@ -332,9 +332,64 @@ metrics.lat.lon <- metrics.lat.lon %>%
 
 write.table(metrics.lat.lon, file = paste0(data_dir, "/derived_site_metrics.csv"), sep = ',', row.names = F)
 
-gc()
-#--------------------
+#---------- CT Export -----------
+db <- src_postgres(dbname='sheds', host='felek.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
 
+tbl_states <- tbl(db, 'catchment_state')
+
+df_states <- dplyr::collect(tbl_states, n = Inf) %>%
+  dplyr::rename(state = stusps) %>%
+  dplyr::mutate(featureid = as.integer(featureid))
+
+closeAllConnections()
+
+metrics_ct <- metrics.lat.lon %>%
+  dplyr::select(featureid, meanMaxTemp, meanJulyTemp, meanSummerTemp, mean30DayMax, freqMaxTemp.23.5) %>%
+  dplyr::mutate(featureid = as.integer(featureid)) %>%
+  dplyr::left_join(df_states) %>%
+  dplyr::filter(state == "CT") %>%
+  dplyr::select(-state)
+  
+# export
+write.table(metrics_ct, file = paste0(data_dir, "/derived_metrics_ct.csv"), sep = ',', row.names = F)
+
+# for Maps in ArcGIS
+library(foreign)
+metrics_ct_arc <- as.data.frame(metrics_ct)
+metrics_ct_arc[is.na(metrics_ct_arc)] <- -9999.99
+write.dbf(metrics_ct_arc, file = paste0(data_dir, "/derived_metrics_ct_arc.dbf"))
+
+
+#----------- Export by HUC2 ----------
+featureids <- as.integer(unique(metrics.lat.lon$featureid))
+db <- src_postgres(dbname='sheds', host='felek.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+
+tbl_huc12 <- tbl(db, 'catchment_huc12') %>%
+  dplyr::filter(featureid %in% featureids) %>%
+  dplyr::mutate(HUC2=substr(huc12, as.integer(1), as.integer(2)))
+
+df_huc <- tbl_huc12 %>%
+  dplyr::collect(n = Inf) %>%
+  dplyr::select(-huc12) %>%
+  dplyr::mutate(featureid = as.integer(featureid))
+
+closeAllConnections()
+
+df_metrics <- metrics.lat.lon %>%
+  dplyr::left_join(df_huc)
+
+huc2 <- unique(df_huc$HUC2)
+
+library(readr)
+for(i in 1:length(huc2)) {
+  df_metrics_huc <- df_metrics %>%
+    dplyr::filter(HUC2 == huc2[i]) %>%
+    dplyr::mutate(featureid = as.integer(featureid))
+  write_csv(df_metrics_huc, paste0(getwd(), "/", data_dir, "/derived_metrics_huc", huc2[i], ".csv"))
+}
+
+#--------------------
+gc()
 
 
 ################ TEST ###################
