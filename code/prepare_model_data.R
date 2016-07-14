@@ -22,6 +22,8 @@ library(devtools)
 #install_github("Conte-Ecology/conteStreamTemperature")
 library(conteStreamTemperature)
 library(jsonlite)
+library(foreign)
+library(readr)
 
 config <- fromJSON('model_config.json') # consider this as an input to the run_model.sh script
 
@@ -37,9 +39,6 @@ args <- commandArgs(trailingOnly = TRUE)
 if(length(args) < 1) {
   args <- c(paste0(data_dir, "/temperatureData.RData"), paste0(data_dir, "/daymet_results.csv"), paste0(data_dir, "/covariateData.RData"), paste0(data_dir, "/springFallBPs.RData"), paste0(data_dir, "/tempDataSync.RData")) # paste0(data_dir, "/sample_locations_50m.csv")
 }
-
-
-######### add wd argument
 
 temperatureData_file <- args[1]
 if (!file.exists(temperatureData_file)) {
@@ -487,8 +486,6 @@ if (config[['validate']]) {
     dplyr::left_join(featureid_use)
   
   # write out
-  library(foreign)
-  library(readr)
   write_csv(df_locations_used, paste0(data_dir, "/location_use.csv"))
   write.dbf(as.data.frame(df_locations_used, stringsAsFactors = FALSE), paste0(data_dir, "/location_use.dbf"))
   
