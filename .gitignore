@@ -44,6 +44,8 @@ AGUJournal*
 *.log
 *.out
 *.aux
+*.dvi
+*.bbl
 plots/
 *.bst
 extras/
