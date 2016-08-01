@@ -36,4 +36,13 @@ Data_Raw/
 *localData*
 DFW*
 modelRun*
-
+dataIn/
+*.dbf
+AGUJournal*
+*.blg
+*.aux
+*.log
+*.out
+*.aux
+plots/
+*.bst
