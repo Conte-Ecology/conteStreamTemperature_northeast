@@ -16,8 +16,8 @@ library(texreg)
 library(stargazer)
 #library(tables)
 
-local_dir <- "/localData_2016-02-26_newDelineation/localData_2016-02-26_newDelineation"
-data_dir <- paste0(getwd(), local_dir)
+data_dir <- as.character(read.table("current_model_run.txt", stringsAsFactors = FALSE)[1,1])
+local_dir <- data_dir
 
 #df <- readRDS(file.path(data_dir, "obs_predicted.RData"))
 coefs <- readRDS(file.path(data_dir, "coef.RData"))
@@ -51,6 +51,96 @@ theme_bw_journal <- function (base_family = "") {
 theme_set(theme_bw_journal())
 ```
 
+## Summary of data used
+
+```{r temperature data summary, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
+# str(tempDataSync)
+# str(tempDataSyncValid)
+
+df_series <- read.csv(file = file.path(data_dir, "series_used.csv"), stringsAsFactors = FALSE)
+series_used <- unique(df_series$series_id)
+
+df_values <- readRDS(file = file.path(data_dir, "df_values.RData"))
+
+library(RPostgreSQL)
+db <- src_postgres(dbname='sheds', host='felek.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+
+tbl_states <- tbl(db, 'catchment_state')
+
+df_states <- dplyr::collect(tbl_states) %>%
+  dplyr::rename(state = stusps) %>%
+  dplyr::mutate(featureid = as.integer(featureid))
+# str(df_states)
+
+# dbDisconnect(db$con)
+
+agency_summary <- df_values %>%
+  dplyr::filter(series_id %in% series_used) %>%
+  dplyr::mutate(featureid = as.integer(featureid)) %>%
+  dplyr::left_join(df_states) %>%
+  dplyr::group_by(state, agency_name) %>%
+  dplyr::mutate(year = year(date)) %>%
+  dplyr::summarise(n_records = n(),
+                   n_years = length(unique(year)),
+                   n_locations = length(unique(location_id)),
+                   n_streams = length(unique(featureid))) %>%
+  dplyr::filter(!(state %in% c(NA, "NA", "NC", "TN")))
+# print(as.data.frame(state_summary, stringsAsFactors = FALSE))
+
+totals <- df_values %>%
+  dplyr::filter(series_id %in% series_used) %>%
+  dplyr::mutate(featureid = as.integer(featureid)) %>%
+  dplyr::left_join(df_states) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate(year = year(date)) %>%
+  dplyr::filter(!(state %in% c(NA, "NA", "NC", "TN"))) %>%
+  dplyr::summarise(n_records = n(),
+                   n_years = length(unique(year)),
+                   n_locations = length(unique(location_id)),
+                   n_streams = length(unique(featureid)))
+df_total <- data.frame(" ", "Totals: ", totals, stringsAsFactors = FALSE)
+names(df_total) <- names(state_summary)
+
+state_summary <- agency_summary %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(state) %>%
+  dplyr::select(-agency_name) %>%
+  dplyr::summarise_each(funs(sum)) %>%
+  dplyr::bind_rows(df_total)
+
+agency_summary <- dplyr::bind_rows(agency_summary, df_total)
+      
+pandoc.table(format(agency_summary, 
+                    digits = 1,
+                    scientific = FALSE),
+             justify = "right", 
+             style = "rmarkdown", 
+             split.table = Inf, 
+             split.cells = c(1, 2, 2, 1, 2, 2))
+      
+pandoc.table(format(state_summary, 
+                    digits = 1,
+                    scientific = FALSE),
+             justify = "right", 
+             style = "rmarkdown", 
+             split.table = Inf, 
+             split.cells = c(1, 2, 2, 1, 2, 2))
+
+```
+
+## Data used for fitting and validation
+
+```{r data for fitting and validation, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
+
+# valid_results <- readRDS(file.path(data_dir, "valid_results.RData"))
+
+fit_summary <- data.frame(Use = "Fit", Days = nrow(tempDataSyncS), Reaches =  length(unique(tempDataSyncS$featureid)), HUC8 =  length(unique(tempDataSyncS$huc)), Years =  length(unique(tempDataSyncS$year)), stringsAsFactors = FALSE)
+
+valid_summary <- data.frame(Use = "Validate", Days = nrow(tempDataSyncValidS), Reaches =  length(unique(tempDataSyncValidS$featureid)), HUC8 =  length(unique(tempDataSyncValidS$huc)), Years =  length(unique(tempDataSyncValidS$year)), stringsAsFactors = FALSE)
+
+dplyr::bind_rows(fit_summary, valid_summary)
+
+```
 
 ```{r coefficient table, echo=FALSE}
 df_foo <- coefs$fix.ef %>%
