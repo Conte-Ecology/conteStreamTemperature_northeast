@@ -31,7 +31,7 @@ bash code/id_impoundment_sites.sh sheds $dirname"/"
 dt=$(date '+%Y-%m-%d %H:%M:%S');
 echo "starting tidal script (id_tidal_sites.sh): "$dt >> $dirname"/status_log.txt"
 bash code/id_tidal_sites.sh sheds dan $dirname"/"
- 
+
 # Fetch data that are reviewed (exclude tidal & impounded)
 dt=$(date '+%Y-%m-%d %H:%M:%S');
 echo "starting temperature data retreival (retrieve_db.R): "$dt >> $dirname"/status_log.txt"
@@ -69,7 +69,7 @@ Rscript code/summarize_iterations.R $dirname"/tempDataSync.RData" $dirname"/jags
 
 # validate model
 dt=$(date '+%Y-%m-%d %H:%M:%S');
-echo "re-starting validation (validate_model.R): "$dt >> $dirname"/status_log.txt"
+echo "starting validation (validate_model.R): "$dt >> $dirname"/status_log.txt"
 Rscript code/validate_model.R $dirname"/tempDataSync.RData" $dirname"/covariate_list.RData" $dirname"/coef.RData" $dirname"/rmse_table.RData" $dirname"/valid_results.RData"
 
 # calculate derived metrics for all catchments

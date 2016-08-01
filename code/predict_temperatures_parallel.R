@@ -132,7 +132,7 @@ df_covariates <- df_covariates_long %>%
   tidyr::spread(variable, value) %>%
   dplyr::mutate(featureid = as.integer(featureid)) # convert from long to wide by variable
 
-summary(df_covariates)
+# summary(df_covariates)
 
 # need to organize covariates into upstream or local by featureid
 upstream <- df_covariates %>%
@@ -154,7 +154,6 @@ riparian_200 <- df_covariates %>%
 df_covariates_upstream  <- riparian_200 %>%
   dplyr::select(-riparian_distance_ft) %>%
   dplyr::left_join(upstream)
-
 
 closeAllConnections()
 
@@ -183,8 +182,10 @@ n.catches <- length(catchmentid)
 
 ########## Temporary save for testing ########## 
 # temporary save entire environment so don't have to pull from dataframe for testing
-save.image(file.path(getwd(), paste0(data_dir, "/db_pull_for_predictions.RData")))
-
+testing <- FALSE
+if(testing) {
+  save.image(file.path(getwd(), paste0(data_dir, "/db_pull_for_predictions.RData")))
+}
 
 #dbListConnections(drv)
 
@@ -216,9 +217,9 @@ registerDoParallel(cl)
 
 # setup to write out to monitor progress
 logFile = paste0(data_dir, "/log_file.txt")
-logFile_Finish = paste0(data_dir, "/log_file_finish.txt")
+#logFile_Finish = paste0(data_dir, "/log_file_finish.txt")
 cat("Monitoring progress of prediction loop in parallel", file=logFile, append=FALSE, sep = "\n")
-cat("Monitoring the finish of each loop", file=logFile_Finish, append=FALSE, sep = "\n")
+#cat("Monitoring the finish of each loop", file=logFile_Finish, append=FALSE, sep = "\n")
 
 ########## Run Parallel Loop ########## 
 # start loop
@@ -242,11 +243,6 @@ derived.site.metrics <- foreach(i = 1:n.loops,
   #for(i in 1:n.loops) {
   dbClearResult(rs)
   dbDisconnect(con)
-  #dbUnloadDriver(drv)
-  ########## Set up database connection ##########
-  #   drv <- dbDriver("PostgreSQL")
-  #   con <- dbConnect(drv, dbname='sheds', host='osensei.cns.umass.edu', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
-  
   # write start of each iteration
   start.time <- Sys.time()
   cat(paste(start.time, ": Starting iteration", i, " of ", n.loops, "\n"), file = logFile, append = TRUE)

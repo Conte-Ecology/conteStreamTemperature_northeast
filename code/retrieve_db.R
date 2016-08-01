@@ -7,7 +7,6 @@
 # usage: $ Rscript derive_metrics.R <input ??? json> <output temperatureData rdata> <output covariateData rdata> <output climateData rdata>
 # example: $ Rscript retrieve_db.R ./wd??? ./temperatureData.RData ./covariateData.RData ./climateData.RData
 
-library(jsonlite)
 library(dplyr)
 library(tidyr)
 library(lubridate)
@@ -17,6 +16,7 @@ library(devtools)
 install_github("Conte-Ecology/conteStreamTemperature", quiet = TRUE)
 library(conteStreamTemperature)
 library(jsonlite)
+library(readr)
 
 # get model configuration info
 config <- fromJSON('model_config.json')
@@ -47,6 +47,11 @@ if (file.exists(output_file3)) {
   warning(paste0('Output file 3 already exists, overwriting: ', output_file3))
 }
 
+#--------- log file for testing before break up script -------
+logFile <- paste0(data_dir, "/retreive_log.txt")
+cat("Testing when script fails", file = logFile, append = FALSE, sep = "\n")
+start.time <- Sys.time()
+cat(paste0("Starting database connections: ", start.time), file = logFile, append = TRUE, sep = "\n")
 #------------------set up database connections--------------------
 db <- src_postgres(dbname='sheds', host='felek.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
 
@@ -73,9 +78,11 @@ tbl_variables <- tbl(db, 'variables') %>%
   dplyr::rename(variable_id=id, variable_name=name, variable_description=description) %>%
   dplyr::select(-created_at, -updated_at)
 
-df_variables <- dplyr::collect(tbl_variables)
+df_variables <- dplyr::collect(tbl_variables, n = Inf)
 
 #--------------------- Filter to Cleaned locations/series --------------
+start.time <- Sys.time()
+cat(paste0("Filtering to reviewed: ", start.time), file = logFile, append = TRUE, sep = "\n")
 # get list of reviewed series to add
 df_series <- tbl_series %>%
   dplyr::filter(reviewed == "true") %>%
@@ -85,6 +92,8 @@ df_series <- tbl_series %>%
 series_reviewed <- unique(df_series$series_id)
 
 #--------------------- Remove locations with potential impoundment or tidal influence ---------------
+start.time <- Sys.time()
+cat(paste0("Filtering impound and tidal: ", start.time), file = logFile, append = TRUE, sep = "\n")
 df_impoundments <- read.csv(paste0(data_dir, "/impoundment_sites.csv"), header = TRUE, stringsAsFactors = FALSE)
 df_tidal <- read.csv(paste0(data_dir, "/tidal_sites.csv"), header = TRUE, stringsAsFactors = FALSE)
 exclude_locations <- unique(c(df_impoundments$id, df_tidal$id))
@@ -93,6 +102,8 @@ exclude_locations <- unique(c(df_impoundments$id, df_tidal$id))
 # exclude_locations <- unique(df_exclude$id)
 
 #------------------------fetch temperature data-------------------
+start.time <- Sys.time()
+cat(paste0("Starting temperature db query: ", start.time), file = logFile, append = TRUE, sep = "\n")
 
 start.time <- Sys.time()
 
@@ -134,9 +145,9 @@ saveRDS(df_values, file = file.path(getwd(), data_dir, "df_values.RData"))
 
 # df_values <- readRDS(file = file.path(getwd(), data_dir, "df_values.RData"))
 
-
-
 #--------------------------QAQC---------------------------
+start.time <- Sys.time()
+cat(paste0("Starting QAQC: ", start.time), file = logFile, append = TRUE, sep = "\n")
 
 #df_values <- obs_freq(df_values)
 
@@ -165,8 +176,7 @@ sd_flags <- df_values %>%
                   flag_interval == TRUE) %>%
   dplyr::select(-temp, -obs_per_day, -median_freq, -min_n90, -d_temp, -time_prev, -date)
 
-library(readr)
-write_csv(sd_flags, file = file.path(getwd(), data_dir, "subdaily_flags.csv"))
+write_csv(sd_flags, file.path(getwd(), data_dir, "subdaily_flags.csv"))
 
 # split into sub-timeseries if there are any breaks in the timeseries greater than 1 day
 # df_values <- as.data.frame(df_values)
@@ -275,7 +285,9 @@ if(mad_tf == TRUE) {
 } # end MAD check
 
 
-
+#------------ Filter subdaily -------
+start.time <- Sys.time()
+cat(paste0("Starting subdaily filter: ", start.time), file = logFile, append = TRUE, sep = "\n")
 
 # Filter based on subdaily flags
 df_values2 <- df_values %>%
@@ -295,7 +307,10 @@ if(mad_tf == TRUE) {
 # examine vs. auto filter hourly_rise?
 
 
-# Convert to daily
+#------------- Convert to daily --------------
+start.time <- Sys.time()
+cat(paste0("Converting to daily: ", start.time), file = logFile, append = TRUE, sep = "\n")
+
 df_values3 <- df_values2 %>%
   dplyr::group_by(series_id, date, location_id, agency_id) %>%
   dplyr::filter(flagged == "FALSE") %>%
@@ -308,7 +323,9 @@ df_values3 <- df_values2 %>%
 summary(df_values3)
 dim(df_values3)
 
-######## QAQC on daily#######
+#---------------- QAQC on daily ---------------#
+start.time <- Sys.time()
+cat(paste0("QAQC on daily: ", start.time), file = logFile, append = TRUE, sep = "\n")
 
 df_values3 <- df_values3 %>%
   flag_daily_rise(.) %>%
@@ -336,11 +353,15 @@ if(mad_tf == TRUE) {
   #flag_MAD = ifelse(MAD_normalized > 10, TRUE, FALSE)) # 10 day moving window
 }
 
-write_csv(d_flags, file = file.path(getwd(), data_dir, "daily_flags.csv"))
+write_csv(d_flags, file.path(getwd(), data_dir, "daily_flags.csv"))
+
+#---------- filter daily flags ------------
+start.time <- Sys.time()
+cat(paste0("Filtering daily flags: ", start.time), file = logFile, append = TRUE, sep = "\n")
 
 # filter for use in the model
 df_values3 <- df_values3 %>%
-  dplyr::filter(flag_cold_days == "FALSE",
+  dplyr::filter(flag_cold_days == FALSE,
                 abs(d_temp) < 10 | is.na(d_temp))
 
 if(mad_tf == TRUE) {
@@ -351,6 +372,9 @@ if(mad_tf == TRUE) {
 # End QAQC
 
 #------------ get location and agency data ----------
+start.time <- Sys.time()
+cat(paste0("Location query: ", start.time), file = logFile, append = TRUE, sep = "\n")
+
 # Get location and agency data and join to temperature data
 # df_locations <- collect(select(tbl_locations, location_id, location_name, latitude, longitude, featureid=catchment_id))
 temperatureData <- df_values3 %>%
@@ -366,10 +390,13 @@ summary(temperatureData)
 
 # save series used
 df_series <- data.frame(series_id = unique(df_values3$series_id), stringsAsFactors = FALSE)
-write_csv(df_series, file = paste0(data_dir, "/series_used.csv"), row.names = FALSE)
+write_csv(df_series, paste0(data_dir, "/series_used.csv"))
 
 
-#Summarise to featureid
+#----------- Summarise to featureid ----------
+start.time <- Sys.time()
+cat(paste0("Reducing to featureid: ", start.time), file = logFile, append = TRUE, sep = "\n")
+
 # for all current analyses just need mean within reach (featureid)
 
 # does mean make sense because could result in discontinuities in time series within a reach if one logger was in a seep and other not
@@ -399,6 +426,9 @@ gc()
 save.image(paste0(data_dir, "/temp_temp.RData"))
 
 #-----------------------fetch covariates-----------------------
+start.time <- Sys.time()
+cat(paste0("Covariates Query: ", start.time), file = logFile, append = TRUE, sep = "\n")
+
 featureids <- as.integer(featureids)
 
 # connect to database source
@@ -449,6 +479,8 @@ covariateData <- riparian_200 %>%
 
 
 #---------------------daymet climate data-------------------------
+start.time <- Sys.time()
+cat(paste0("Make daymet query: ", start.time), file = logFile, append = TRUE, sep = "\n")
 
 # too big/slow to pull through R so make the query and export that. The resulting sql script can then be run via command line or within a bash script or make file
 
@@ -469,6 +501,8 @@ cat(qry, file = paste0(data_dir, "/code/daymet_query.sql"))
 
 
 #----------------save files---------------------
+start.time <- Sys.time()
+cat(paste0("Saving final files: ", start.time), file = logFile, append = TRUE, sep = "\n")
 
 saveRDS(temperatureData2, file=output_file1)
 #saveRDS(upstream, file=output_file2)

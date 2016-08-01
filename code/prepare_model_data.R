@@ -152,7 +152,9 @@ if(bp_test) {
 #---------------------------------
 
 # Clip to syncronized season
-tempDataSync <- dplyr::filter(tempDataBP, dOY >= finalSpringBP & dOY <= finalFallBP)
+tempDataSync <- tempDataBP %>%
+  dplyr::group_by(featureid) %>%
+  dplyr::filter(dOY >= finalSpringBP & dOY <= finalFallBP)
 
 # Filter by Drainage area
 tempDataSync <- tempDataSync %>%
@@ -212,7 +214,7 @@ tempDataSync <- tempDataSync %>%
                 !is.na(prcp30),
                 !is.na(airTemp),
                 !is.na(agriculture),
-                !is.na(alloffnet),
+                !is.na(allonnet),
                 !is.na(surfcoarse))
 
 #------------- cut first and last day of each time series ----------------------
