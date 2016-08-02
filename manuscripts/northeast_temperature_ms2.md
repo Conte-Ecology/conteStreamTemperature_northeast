@@ -66,7 +66,26 @@ We describe a novel statistical model of daily stream temperature that incorpora
 
 We gathered stream temperature data from state and federal agencies, individual academic researchers, and non-governmental organizations (NGOs) from Maine to Virginia (Figure 1). The data were collected using automated temperature loggers. The temporal frequency of recording ranged from every 5 minutes to once per hour. This data was consolidated in a PostgreSQL database linked to a web service at [http://www.db.ecosheds.org](http://www.db.ecosheds.org). Data collectors can upload data at this website and choose whether to make the data publicly available or not. The raw data is stored in the database and users can flag problem values and time series. Only user-reviewed data are used in the analysis and flagged values are excluded. For our analysis, we performed some additional automated and visual quality assurance and quality control (QAQC) on the sub-daily values, summarized to mean daily temperatures and performed additional QAQC on the daily values. The QAQC was intended to flag and remove values associated with logger malfunctions, out-of-water events (including first and last days when loggers were recording but not yet in streams), and days with incomplete data which would alter the daily mean. The QAQC webtool used for flagging questionable data can be found at [http://db.ecosheds.org/qaqc](http://db.ecosheds.org/qaqc) We also developed an R (ref) package for analyzing stream temperature data from our database, including the QAQC functions which can be found at [https://github.com/Conte-Ecology/conteStreamTemperature](https://github.com/Conte-Ecology/conteStreamTemperature). The R scripts using these functions for our analysis are available at [https://github.com/Conte-Ecology/conteStreamTemperature_northeast](https://github.com/Conte-Ecology/conteStreamTemperature_northeast). 
 
-Stream reach (stream section between any two confluences) was our finest spatial resolution for the analysis. In the rare case where we had multiple logger locations within the same reach (1,672 locations from 1,377 reaches) recording at the same time, we used the mean value from the loggers for a given day. In the future, with sufficient within reach data, it would be possible to use our modeling framework to also estimate variability within reach by adding one more level to the hierarchical structure of the model (see Statistical Model description below).
+Stream reach (stream section between any two confluences) was our finest spatial resolution for the analysis. In the rare case where we had multiple logger locations within the same reach (1,672 locations from 1,352 reaches **these are just from the fitted data**) recording at the same time, we used the mean value from the loggers for a given day. In the future, with sufficient within reach data, it would be possible to use our modeling framework to also estimate variability within reach by adding one more level to the hierarchical structure of the model (see Statistical Model description below).
+
+Table **for manuscript??? since we have map and these values don't line up because some sites were missing covariates - I guess**
+
+|   state |   n_records |   n_years |   n_locations |   n_streams |
+|--------:|------------:|----------:|--------------:|------------:|
+|      CT |     5,007,479 |        19 |           515 |         418 |
+|      DE |      294,591 |        10 |             1 |           1 |
+|      MA |     3,212,204 |        20 |           628 |         546 |
+|      MD |      258,076 |        13 |           497 |         402 |
+|      ME |     5,522,845 |        22 |           274 |         189 |
+|      NH |    17,191,459 |         9 |           151 |         124 |
+|      NJ |      247,974 |         4 |            61 |          42 |
+|      NY |     6,357,709 |        20 |           292 |         266 |
+|      PA |    17,280,353 |        10 |           162 |         142 |
+|      RI |        2,615 |         3 |             4 |           4 |
+|      VA |      159,334 |         2 |            41 |          41 |
+|      VT |       21,161 |        13 |            54 |          53 |
+|      WV |      835,882 |         8 |           214 |         185 |
+| Totals: |    56,391,682 |        22 |          2894 |        2413 |
 
 ### Stream network delineation
 
@@ -97,22 +116,17 @@ Statistical models of stream temperature often rely on the close relationship be
 
 We calculate the $Index_{sync}$ for each day of the year at each reach for each year with observed data. We then calculate the 99.9% confidence interval of $Index_{sync}$ for days between the 125 and 275 days of the year (05 May and 02 October). Then moving from the middle of the year (day 180) to the beginning of the year, we searched for the first time when 10 consecutive days were not within the 99.9% CI. This was selected as the spring breakpoint. Similarly moving from the middle to the end of the year, the first event with fewer than 16 consecutive days within the 99.9% CI was assigned as the autumn breakpoint. Independent breakpoints were estimated for each reach-year combination. For reach-years with insufficient data to generate continuous trends and confidence intervals, we used the mean break points across years for that reach. If there was not sufficient local reach information, we used the mean breakpoints from the smallest hydrologic unit the reach is nested in (i.e. check for mean from HUC12, then HUC10, HUC8, etc.). More details regarding the identification of the synchronized period can be found in Letcher et al. [-@Letcher2016t]. The portion of the year between the spring and autumn breakpoints was used for modeling the non-winter, approximately ice-free stream temperatures.
 
-We used a generalized linear mixed model to account for correlation in space (stream reach nested within HUC8). This allowed us to incorporate short time series as well as long time series from different reaches and disjunct time series from the same reaches without risk of pseudoreplication (ref: Hurlbert). By limited stream drainage area to <200 $km^2$ and only modeling the synchronized period of the year, we were able to use a linear model, avoiding the non-linearities that occur at very high temperatures due to evaporative cooling and near 0 C due to phase change [@Mohseni1999. 
+We used a generalized linear mixed model to account for correlation in space (stream reach nested within HUC8). This allowed us to incorporate short time series as well as long time series from different reaches and disjunct time series from the same reaches without risk of pseudoreplication (ref: Hurlbert). By limited stream drainage area to <200 $km^2$ and only modeling the synchronized period of the year, we were able to use a linear model, avoiding the non-linearities that occur at very high temperatures due to evaporative cooling and near 0 C due to phase change [@Mohseni1999]. 
 
 We assumed stream temperature measurements were normally distributed following,
 
-**need to decide how to handle naming subscripts vs. indexing subscripts and superscripts**
+$$ t_{h,r,y,d} \sim \mathcal{N}(\mu_{h,r,y,d}, \sigma_{[t]}) $$
 
-* maybe do naming as subscripts and indexing in bracketed subscripts
-* drawback would be random vs. fixed subscripts still
-* another alternative is to have different variable names for everything so don't reuse X, and B, mu, beta, or sigma
-* This might be easier when I reduce the complexity of the year random effects
+where $t_{h,r,y,d}$ is the observed stream water temperature at the reach ($r$) within the sub-basin identified by the 8-digit Hydrologic Unit Code (HUC8; $h$) for each day ($d$) in each year ($y$). The expected mean temperature is $\mu_{h,r,y,d}$ and $\sigma_{[t]}$ is the standard deviation. Subscripts represent the levels at which the value varies. Bracketed subscripts are solely for additional naming purposes, for example to distinguish means and variances from different levels of the hierarchical model. 
 
-$$ t_{h,r,y,d} \sim \mathcal{N}(\mu_{h,r,y,d}, \sigma) $$
+The mean temperature is modeled to follow a linear trend
 
-where $t_{h,r,y,d}$ is the observed stream water temperature at the reach ($r$) within the sub-basin identified by the 8-digit Hydrologic Unit Code (HUC8; $h$) for each day ($d$) in each year ($y$). We describe the normal distribution based on the mean ($mu_{h,r,y,d}$) and standard deviation ($\sigma$) and assign a vague prior of $\sigma = 100$. The mean temperature is modeled to follow a linear trend
-
-$$ \omega_{h,r,y,d} = X_0 B_0 + X_{h,r} B_{h,r} + X_{h} B_{h} + X_{y} B_{y} $$
+$$ \omega_{h,r,y,d} = X_{[0]} B_{[0]} + X_{h,r} B_{h,r} + X_{h} B_{h} + X_{y} B_{y} $$
 
 but the expected mean temperature ($\mu_{h,r,y,d}$) was also adjusted based on the residual error from the previous day
 
@@ -124,39 +138,45 @@ $$ \mu_{h,r,y,d} = \begin{cases}
 
 where $\delta$ is an autoregressive [AR(1)] coefficient and $\omega_{h,r,y,d}$ is the expected temperature before accounting for temporal autocorrelation in the error structure.
 
-$X_{0}$ is the $n \times K_0$ matrix of predictor values. $B_0$ is the vector of $K_0$ coefficients, where $K_0$ is the number of fixed effects parameters including the overall intercept. We used 15 fixed effect parameters including the overall intercept and interactions. These were 2-day total precipitation, 30-day cumulative precipitation, drainage area, upstream impounded area, percent forest cover within the catchment and upstream catchments and various two- and three-way interactions (Table 1?). We assumed the following distributions and vague priors for the fixed effects coefficients
+$X_{[0]}$ is the $n \times K$ matrix of predictor values. $B_{[0]}$ is the vector of $K$ coefficients, where $K$ is the number of fixed effects parameters including the overall intercept. We used 14 fixed effect parameters including interaction terms but not the overall intercept. These were 2-day total precipitation, 30-day cumulative precipitation, drainage area, upstream impounded area, percent forest cover within the catchment and upstream catchments and various two- and three-way interactions (Table 1?). We assumed the following distributions and vague priors for the fixed effects coefficients
 
-$$ B_0 \sim \mathcal{N}(0,\sigma_{k_0}), \text{for $k_0 = 1,...,K_0$,} $$
+$$ 
+B_{[0]} = \beta_{[1]},...,\beta_{[K]} \sim \mathcal{N}(0, 100) 
+$$
 
-$$ B_0 = \beta_{0}^{1},...,\beta_{0}^{K_{0}} \sim \mathcal{N}(0, 100) $$
+$B_{h,r}$ is the $R \times L$ matrix of regression coefficients where $R$ is the number of unique reaches and $L$ is the number of regression coefficients that vary randomly by reach within HUC8. In this case, we included a random intercept, and random slopes for the air temperature and 7-day air temperature ($L = 3$; Table 1). We assumed prior distributions of
 
-$$ \sigma_{k_0} = 100 $$
+$$ 
+B_{h,r} = \left( \begin{array}{c} \beta_{h,r,[0]} \\ \beta_{h,r,[1]} \\ \beta_{h,r,[2]} \end{array} \right) \sim \mathcal{N}\left(\left(\begin{array}{c} 0 \\ 0 \\ 0 \end{array} \right), \left( \begin{array}{ccc} \sigma_{[r0]}^2 & 0 & 0 \\ 0 & \sigma_{[r1]}^2 & 0 \\ 0 & 0 & \sigma_{[r2]}^2 \end{array} \right) \right)
+$$
 
-$B_{h,r}$ is the $R \times K_{R}$ matrix of regression coefficients where $R$ is the number of unique reaches and $K_{R}$ is the number of regression coefficients that vary randomly by reach within HUC8. The effects of daily air temperature and mean air temperature over the previous 7 days varied randomly with reach and HUC8 (Table 1). We assumed prior distributions of
+where $B_{h,r}$ is an $R \times L$ matrix, $\beta_{h,r}$ are normally distributed vectors of coefficients with a mean of 0 and length of $R$, for the intercept ($\beta_{h,r,[0]}$) and random slopes. We assumed an independent uniform prior on each standard deviation [Gelman2006],
 
-$$ B_{h,r} \sim \mathcal{N}(0,\sigma_{k_{r}}), \text{for $k_{r} = 1,...,K_{R}$,} $$
+$$ 
+\sigma_{[r]} \sim uniform(0,100)
+$$
 
-with a uniform prior on the standard deviation [Gelman2006]
+For the random HUC8 level component, $X_{h}$ is the matrix of parameters that vary by HUC8. $B_{h}$ is the $H \times L$ matrix of coefficients where $H$ is the number of HUC8 groups. We allowed for correlation among the effects of these HUC8 coefficients as described by Gelman and Hill [-@Gelman2007]. As such, we assumed priors distributions of
 
-$$ \sigma_{r_0} \sim uniform(0,100) $$
+$$ B_{h} \sim \mathcal{N}(M_{[h]},\Sigma_{[h]}), \text{for $h = 1,...,H$} $$
 
-$X_{h}$ is the matrix of parameters that vary by HUC8. We allowed for correlation among the effects of these HUC8 coefficients as described by Gelman and Hill [-@Gelman2007].
+where $M_{[h]}$ is a vector of the means of length $L$ and $\Sigma_{[h]}$ is the $L \times L$ covariance matrix. We assumed the means followed a multivariate normal distribution,
 
-$B_{h}$ is the $H \times K_{H}$ matrix of coefficients where $H$ is the number of HUC8 groups and $K_H$ is the number of parameters that vary by HUC8 including a constant term. In our model, $K_{H} = K_{R}$ and we assumed priors distributions of
+$$ M_{[h]} \sim MVN(\mu_{[h(1:L)}, \sigma_{[h(1:L)]}) $$
 
-$$ B_{h} \sim \mathcal{N}(M_{h},\Sigma_{B_{h}}), \text{for $h = 1,...,H$} $$
+with a vague normally distributed prior on the means,
 
-where $M_{h}$ is a vector of length $K_{H}$ and $\Sigma_{B_{h}}$ is the $K_{H} \times K_{H}$ covariance matrix.
+$$ \left( \begin{array}{c} \mu_{[h0]} \\ \mu_{[h1]} \\ \mu_{[h2]} \end{array} \right) \sim \mathcal{N}(0, 100) $$
 
-$$ M_{h} \sim MVN(\mu_{1:K_h}^h, \sigma_{1:K_h}^h) $$
+We used a vague inverse-Wishart prior to describe the covariance matrix,
 
-$$ \mu_{1}^h = 0; \mu_{2:K_h}^h \sim \mathcal{N}(0, 100) $$
+$$ \Sigma_{B_{h}} = \left( \begin{array}{ccc} \sigma_{[h0]}^2 & \rho_{1}\sigma_{[h0]}\sigma_{[h1]} & \rho_{2}\sigma_{[h0]}\sigma_{[h2]} \\ \rho_{1}\sigma_{[h0]}\sigma_{[h1]} & \sigma_{[h1]}^2 & \rho_{3}\sigma_{[h1]}\sigma_{[h2]} \\ \rho_{2}\sigma_{[h0]}\sigma_{[h2]} & \rho_{3}\sigma_{[h1]}\sigma_{[h2]} & \sigma_{[h2]}^2 \end{array} \right) \sim \text{Inv-Wishart}(diag(L), L+1) $$
 
-$$ \Sigma_{B_{h}} \sim \text{Inv-Wishart}(diag(K_{h}), K_{h}+1) $$
+where $\sigma_{[h1]}$, $\sigma_{[h1]}$ and $\sigma_{[h2]}$ are the standard deviations of the random HUC8 effects and $\rho_{1:3}$ are the correlation coefficients. In addition to random reach and HUC effects, we also allowed for the intercept to vary randomly by year. We assumed a prior distribution of
 
-We also allowed for the intercept to vary randomly by year. We assumed a prior distributions of
+$$ B_{y} \sim \mathcal{N}(0,\sigma_{[y]}) $$
 
-$$ B_{y} \sim \mathcal{N}(0,\sigma_{y}) $$
+for the random year effects with the standard deviation following a vague uniform distribution, 
 
 $$ \sigma_{y} \sim uniform(0,100) $$
 
