@@ -57,7 +57,7 @@ springFallBPs <- readRDS(input_file)
 
 ########## connect to database ##########
 drv <- dbDriver("PostgreSQL")
-con <- dbConnect(drv, dbname="sheds", host='felek.cns.umass.edu', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+con <- dbConnect(drv, dbname="sheds_new", host='osensei.cns.umass.edu', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
 
 ########## Get List of featureid to predict ##########
 # Get list of unique catchments with daymet data
@@ -99,7 +99,7 @@ dbUnloadDriver(drv)
 # get covariates outside loop then subset within loop rather than pull from database each iteration
 
 # connect to database source
-db <- src_postgres(dbname='sheds', host='felek.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+db <- src_postgres(dbname='sheds_new', host='osensei.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
 
 # fetch covariates
 # featureid |  variable  | value | zone  | riparian_distance_ft 
@@ -207,11 +207,11 @@ library(doParallel)
 library(RPostgreSQL)
 
 # size of chunks
-chunk.size <- 25
+chunk.size <- 250
 n.loops <- ceiling(n.catches / chunk.size)
 
 # set up parallel backend & make database connection available to all workers
-nc <- min(c(detectCores()-1, 16)) # use the maximum number of cores minus 1 or up to 15 because max 16 database connections - changed to 12 since Evan also often using osensei on multiple cores
+nc <- min(c(detectCores()-1, 13)) # use the maximum number of cores minus 1 or up to 15 because max 16 database connections - changed to 12 since Evan also often using osensei on multiple cores
 cl <- makeCluster(nc, type = "PSOCK") # try PSOCK instead of more memory efficient "FORK" to prevent hanging at end: http://www.stat.berkeley.edu/scf/paciorek-parallel-2014.pdf
 registerDoParallel(cl)
 
@@ -256,7 +256,7 @@ derived.site.metrics <- foreach(i = 1:n.loops,
   }
   catches_string <- paste(catches, collapse = ', ')
   
-  data_list <- prepData(catches_string=catches_string, springFallBPs=springFallBPs, df_covariates_upstream=df_covariates_upstream, tempDataSync=tempDataSync, featureid_lat_lon=featureid_lat_lon, featureid_huc8=featureid_huc8, rand_ids=rand_ids, df_stds = df_stds)
+  data_list <- prepData(catches=catches, springFallBPs=springFallBPs, df_covariates_upstream=df_covariates_upstream, tempDataSync=tempDataSync, featureid_lat_lon=featureid_lat_lon, featureid_huc8=featureid_huc8, rand_ids=rand_ids, df_stds = df_stds)
   
   fullDataSyncS <- predictTemp(data = data_list$fullDataSyncS, coef.list= coef.list, cov.list = cov.list, rand_ids=rand_ids)
   
@@ -273,7 +273,7 @@ derived.site.metrics <- foreach(i = 1:n.loops,
   metrics <- deriveMetrics(data = fullDataSync)
   
   end.time <- Sys.time()
-  cat(paste0(end.time, ": Finishing job ", i, " of ", n.loops, "\n"), file = logFile_Finish, append = TRUE)
+  # cat(paste0(end.time, ": Finishing job ", i, " of ", n.loops, "\n"), file = logFile_Finish, append = TRUE)
   
   return(metrics)
 } # end dopar
@@ -329,7 +329,7 @@ metrics.lat.lon <- metrics.lat.lon %>%
 write.table(metrics.lat.lon, file = paste0(data_dir, "/derived_site_metrics.csv"), sep = ',', row.names = F)
 
 #---------- CT Export -----------
-db <- src_postgres(dbname='sheds', host='felek.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
+db <- src_postgres(dbname='sheds_new', host='osensei.cns.umass.edu', port='5432', user=options('SHEDS_USERNAME'), password=options('SHEDS_PASSWORD'))
 
 tbl_states <- tbl(db, 'catchment_state')
 
