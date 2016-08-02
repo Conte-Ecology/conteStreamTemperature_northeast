@@ -77,4 +77,8 @@ dt=$(date '+%Y-%m-%d %H:%M:%S');
 echo "starting predictions (predict_temperature_parallel.R): "$dt >> $dirname"/status_log.txt"
 Rscript code/predict_temperatures_parallel.R $dirname"/coef.RData" $dirname"/tempDataSync.RData" $dirname"/covariate_list.RData" $dirname"/springFallBPs.RData"
 
+# calculate data used by state and agency
+dt=$(date '+%Y-%m-%d %H:%M:%S');
+echo "starting data summary (data_summary.R): "$dt >> $dirname"/status_log.txt"
+Rscript code/data_summary.R
 
