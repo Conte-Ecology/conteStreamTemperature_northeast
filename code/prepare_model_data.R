@@ -485,7 +485,8 @@ if (config[['validate']]) {
   
   # combine locations and use in model by featureid
   df_locations_used <- df_location_summary %>%
-    dplyr::left_join(featureid_use)
+    dplyr::left_join(featureid_use) %>%
+    dplyr::filter(!is.na(use))
   
   # write out
   write_csv(df_locations_used, paste0(data_dir, "/location_use.csv"))
@@ -570,7 +571,8 @@ if (config[['validate']]) {
   
   # combine locations and use in model by featureid
   df_locations_used <- df_location_summary %>%
-    dplyr::left_join(featureid_use)
+    dplyr::left_join(featureid_use) %>%
+    dplyr::filter(!is.na(use))
   
   # write out
   library(foreign)
