@@ -84,6 +84,7 @@ if(config[["validate"]]) {
   tempDataSyncValidS$resid.r.ar1 <- tempDataSyncValidS$temp - tempDataSyncValidS$tempPredicted
   (rmse.valid.ar1 <- rmse(tempDataSyncValidS$resid.r.ar1))
   
+  (rmse.trend <- rmse(tempDataSyncS$temp - tempDataSyncS$trend))
   
   #library(ggplot2)
   #ggplot(tempDataSyncS, aes(temp, tempPredicted)) + geom_point() + geom_abline(aes(1,1), colour = 'blue')

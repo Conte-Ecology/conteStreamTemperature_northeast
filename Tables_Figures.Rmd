@@ -82,6 +82,8 @@ pandoc.table(format(state_summary,
 
 ```
 
+We had data from `r nrow(state_summary) -1` and `r nrow(agency_summary)-1` organizations.
+
 ## Data used for fitting and validation
 
 ```{r data for fitting and validation, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
@@ -92,8 +94,11 @@ fit_summary <- data.frame(Use = "Fit", Days = nrow(tempDataSyncS), Reaches =  le
 
 valid_summary <- data.frame(Use = "Validate", Days = nrow(tempDataSyncValidS), Reaches =  length(unique(tempDataSyncValidS$featureid)), HUC8 =  length(unique(tempDataSyncValidS$huc)), Years =  length(unique(tempDataSyncValidS$year)), stringsAsFactors = FALSE)
 
-dplyr::bind_rows(fit_summary, valid_summary)
+data_summary <- dplyr::bind_rows(fit_summary, valid_summary)
+data_summary
 
+range(df_valid$year)
+df_rmse
 ```
 
 ```{r coefficient table, echo=FALSE}
