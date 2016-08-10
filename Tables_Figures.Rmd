@@ -25,7 +25,9 @@ covs <- readRDS(file.path(data_dir, "covariate_list.RData"))
 df_breaks <- readRDS(file.path(data_dir, "springFallBPs.RData"))
 df_rmse <- readRDS(file.path(data_dir, "rmse_table.RData"))
 df_valid <- readRDS(file.path(data_dir, "valid_results.RData"))
+rmse_tab <- readRDS(paste0(data_dir, "/RMSE_table.Rds"))
 load(file.path(data_dir, "tempDataSync.RData"))
+df_metrics <- readRDS(paste0(data_dir, "/derived_site_metrics.RData"))
 
 df_breaks <- df_breaks %>%
   dplyr::mutate(featureid = as.character(site))
@@ -101,7 +103,33 @@ range(df_valid$year)
 df_rmse
 ```
 
-```{r coefficient table, echo=FALSE}
+Validation Table
+
+```{r validation table, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
+
+  pandoc.table(format(rmse_tab, 
+                      digits = 2,
+                      scientific = FALSE),
+               justify = "right", 
+               style = "rmarkdown",
+               split.table = Inf)
+```
+
+Validation of derived metrics
+
+```{r meanJuly validation, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
+rmse(df_metrics$meanJulyObs - df_metrics$meanJulyTemp)
+
+# number of reaches with sufficient observed data to calculate meanJulyObs
+df_metrics %>%
+  dplyr::filter(!is.na(meanJulyObs)) %>%
+  nrow()
+
+```
+
+Coefficients
+
+```{r coefficient table, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
 df_foo <- coefs$fix.ef %>%
   dplyr::mutate(sig = ifelse(LCRI < 0 & 0 < UCRI, "", "*")) %>%
   dplyr::filter(coef != "B.huc_intercept.site", coef != "B.year_intercept.year") 
@@ -213,18 +241,99 @@ stargazer(df_foo, ran.ef,
 
 ```
 
+## Derived metrics
+
+```{r derived metrics definitions, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
+metric_vec <- c("meanMaxTemp",
+                "maxMaxTemp",
+                "meanJulyTemp",
+                "meanAugTemp",
+                "meanSummerTemp",
+                "mean30DayMax",
+                "meanDays.18",
+                "meanDays.22",
+                "freqMaxTemp.18",
+                "freqMaxTemp.22",
+                "meanResist",
+                "TS")
+
+metric_names <- c("Mean maximum temperature",
+                   "Max maximum temperature",
+                   "Mean July temperature",
+                   "Mean August temperature",
+                   "Mean summer temperature",
+                   "Mean 30-day maximum temperature",
+                   "Mean number of days over 18 C",
+                   "Mean number of days over 22 C",
+                  "Annual frequency of exceeding 18 C",
+                  "Annual frequency of exceeding 22 C",
+                  "Mean annual resistance",
+                  "Thermal sensitivity")
+
+metric_descriptions <- c("Maximum daily mean water temperature (C) averaged over 36 years (1980 - 2015)",
+                  "Maximum over years of the maximum daily mean temperature",
+                  "Mean daily July temperature over years",
+                  "Mean daily August temperature over years",
+                  "Mean daily summer temperature over years",
+                  "Maximum 30-day temperature for each year averaged over years",
+                  "Mean number of days per year the mean daily temperature exceeds 18 C",
+                  "Mean number of days per year the mean daily temperature exceeds 22 C",
+                  "Frequency of years the mean daily temperature ever exceeds 18 C",
+                  "Frequency of years the mean daily temperature ever exceeds 22 C",
+                  "Mean annual resistance of water temperature to peak (summer) air temperature",
+                  "Thermal sensitivity of water temperature to changes in air temperature")
+
+metric_mean <- df_metrics %>%
+  dplyr::select(one_of(metric_vec)) %>%
+  dplyr::summarise_each(funs(mean(., na.rm = TRUE))) %>%
+  t()
+
+metric_min <- df_metrics %>%
+  dplyr::select(one_of(metric_vec)) %>%
+  dplyr::summarise_each(funs(min(., na.rm = TRUE))) %>%
+  t()
+
+metric_max <- df_metrics %>%
+  dplyr::select(one_of(metric_vec)) %>%
+  dplyr::summarise_each(funs(max(., na.rm = TRUE))) %>%
+  t()
+
+df_metric_summary_repo <- data.frame(Object = metric_vec, Short = metric_names, stringsAsFactors = FALSE)
+  
+df_metric_summary_repo <- df_metric_summary_repo %>%
+  dplyr::bind_cols(as.data.frame(metric_mean)) %>%
+  dplyr::bind_cols(as.data.frame(metric_min)) %>%
+  dplyr::bind_cols(as.data.frame(metric_max)) %>%
+  dplyr::bind_cols(as.data.frame(metric_descriptions))
+
+colnames(df_metric_summary_repo) <- c("Object", "Metric", "Mean", "Min", "Max", "Description")
+
+    pandoc.table(format(df_metric_summary_repo, 
+                      digits = 2,
+                      scientific = FALSE),
+               justify = "right", 
+               style = "rmarkdown",
+               split.table = Inf)
+    
+  pandoc.table(format(dplyr::select(df_metric_summary_repo, -Object), 
+                      digits = 2,
+                      scientific = FALSE),
+               justify = "right", 
+               style = "rmarkdown",
+               split.table = Inf)
+```
+
 
 ```{r box plots and histograms of derived metrics}
-
-metrics <- metrics.lat.lon %>%
+metrics <- df_metrics %>%
   dplyr::select(mean30DayMax,
                 freqMaxTemp.22,
                 meanResist,
                 TS)
-g1 <- ggplot(metrics, aes(mean30DayMax)) + geom_histogram() + xlab("Annual 30-day maximum temperature (mean 1980-2013)") + theme_bw_journal()
+g1 <- ggplot(metrics, aes(mean30DayMax)) + geom_histogram() + xlab("Annual 30-day maximum of mean daily temperature") + theme_bw_journal()
 g2 <- ggplot(metrics, aes(freqMaxTemp.22)) + geom_histogram() + xlab("Frequency of years the max temperature exceeds 22 C") + theme_bw_journal()
-g3 <- ggplot(metrics, aes(meanResist)) + geom_histogram() + xlab("Resistance to changes in summer air temperature (mean 1980-2013)") + theme_bw_journal()
-g4 <- ggplot(metrics, aes(TS)) + geom_histogram() + xlab("Thermal sensitivity (mean 1980-2013)") + theme_bw_journal()
+g3 <- ggplot(metrics, aes(meanResist)) + geom_histogram() + xlab("Resistance to changes in summer air temperature") + theme_bw_journal()
+g4 <- ggplot(metrics, aes(TS)) + geom_histogram() + xlab("Thermal sensitivity") + theme_bw_journal()
 
 library(gridExtra)
 #pdf(file = file.path("manuscripts/Figures", "metrics_histograms.jpg"), width = 12, height = 17, family = "Helvetica")
