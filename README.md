@@ -77,3 +77,21 @@ Follow these steps to run the model manually:
 | Upstream Impounded Area| The total area in the contributing drainage basin that is covered by wetlands, lakes, or ponds that intersect the stream network | [U.S. Fish & Wildlife Service (FWS) National Wetlands Inventory](http://www.fws.gov/wetlands/Data/Data-Download.html)| All freshwater surface water bodies are attributed to each catchment using GIS tools. All upstream polygon values are then aggregated.| [fwsWetlands](https://github.com/Conte-Ecology/shedsData/tree/master/basinCharacteristics/rasterPrep/fwsWetlands) |
 | Percent Agriculture | The percentage of the contributing drainage area that is covered by agricultural land (e.g. cultivated crops, orchards, and pasture) including fallow land. | [The National LandCover Database](http://www.mrlc.gov/nlcd06_data.php)| All of the NLCD agricutlural classifications are combined and attributed to each catchment polygon using GIS tools. All upstream polygon values are then aggregated.| [nlcdLandCover](https://github.com/Conte-Ecology/shedsData/tree/master/basinCharacteristics/rasterPrep/nlcdLandCover) |
 | Percent High Intensity Developed | The percentage of the contributing drainage area covered by places where people work or live in high numbers (typically defined as areas  covered by more than 80% impervious surface) | [The National LandCover Database](http://www.mrlc.gov/nlcd06_data.php)| The NLCD high intensity developed classification is attributed to each catchment polygon using GIS tools. All upstream polygon values are then aggregated. | [nlcdLandCover](https://github.com/Conte-Ecology/shedsData/tree/master/basinCharacteristics/rasterPrep/nlcdLandCover) |
+
+
+## Derived Metrics
+
+|         Object |                             Metric |                                                                   Description |
+|---------------:|-----------------------------------:|------------------------------------------------------------------------------:|
+|    meanMaxTemp |           Mean maximum temperature | Maximum daily mean water temperature (C) averaged over 36 years (1980 - 2015) |
+|     maxMaxTemp |            Max maximum temperature |                      Maximum over years of the maximum daily mean temperature |
+|   meanJulyTemp |              Mean July temperature |                                        Mean daily July temperature over years |
+|    meanAugTemp |            Mean August temperature |                                      Mean daily August temperature over years |
+| meanSummerTemp |            Mean summer temperature |                                      Mean daily summer temperature over years |
+|   mean30DayMax |    Mean 30-day maximum temperature |                  Maximum 30-day temperature for each year averaged over years |
+|    meanDays.18 |      Mean number of days over 18 C |          Mean number of days per year the mean daily temperature exceeds 18 C |
+|    meanDays.22 |      Mean number of days over 22 C |          Mean number of days per year the mean daily temperature exceeds 22 C |
+| freqMaxTemp.18 | Annual frequency of exceeding 18 C |               Frequency of years the mean daily temperature ever exceeds 18 C |
+| freqMaxTemp.22 | Annual frequency of exceeding 22 C |               Frequency of years the mean daily temperature ever exceeds 22 C |
+|     meanResist |             Mean annual resistance |  Mean annual resistance of water temperature to peak (summer) air temperature |
+|             TS |                Thermal sensitivity |        Thermal sensitivity of water temperature to changes in air temperature |

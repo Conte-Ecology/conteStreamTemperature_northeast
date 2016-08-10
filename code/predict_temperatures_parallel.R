@@ -300,7 +300,7 @@ metrics.lat.lon <- featureid_lat_lon %>%
   left_join(derived.site.metrics) # reverse this join or full join so get NA for all missing catchments? - doesn't seem to be working correctly yet - check again
 
 # for Maps in ArcGIS
-metrics_arc <- as.data.frame(dplyr::select(metrics.lat.lon, featureid, mean30DayMax, meanDays.18, freqMaxTemp.23.5, meanResist, TS))
+metrics_arc <- as.data.frame(dplyr::select(metrics.lat.lon, featureid, meanJulyTemp, mean30DayMax, meanDays.18, freqMaxTemp.23.5, meanResist, TS))
 metrics_arc[is.na(metrics_arc)] <- -9999.99
 write.table(metrics_arc, file = paste0(data_dir, "/derived_site_metrics_arc.csv"), sep = ',', row.names = F)
 
