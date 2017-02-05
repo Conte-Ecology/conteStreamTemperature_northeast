@@ -49,4 +49,6 @@ AGUJournal*
 plots/
 *.bst
 extras/
+!manuscripts/northeast_temperature_ms.pdf
+!northeast_temperature_ms.pdf
 
