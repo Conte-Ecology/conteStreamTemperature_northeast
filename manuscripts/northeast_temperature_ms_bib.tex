@@ -161,11 +161,11 @@ networks {[}\emph{Isaak et al.}, 2010; \emph{Peterson et al.}, 2010,
 network geostatistical models, they are best used for modeling single
 temperature values across space (e.g.~summer maximum, July mean, etc.)
 rather than daily temperatures {[}\emph{Peterson et al.}, 2007, 2010;
-\emph{Ver Hoef and Peterson}, 2010{]}. Additionally, statistical machine
-learning techniques such as artificial neural networks have been used to
-model stream temperatures when unclear interactions, nonlinearities, and
-spatial relationships are of particular concern {[}\emph{Sivri et al.},
-2007, 2009; \emph{DeWeber and Wagner}, 2014b{]}.
+\emph{{Ver Hoef} and Peterson}, 2010{]}. Additionally, statistical
+machine learning techniques such as artificial neural networks have been
+used to model stream temperatures when unclear interactions,
+nonlinearities, and spatial relationships are of particular concern
+{[}\emph{Sivri et al.}, 2007, 2009; \emph{DeWeber and Wagner}, 2014b{]}.
 
 In contrast with deterministic approaches, statistical models require
 less detailed site-level data and therefore can be applied over greater
@@ -246,35 +246,34 @@ scripts using these functions for our analysis are available at
 
 \begin{figure}[htbp]
 \centering
-\includegraphics{Figures/locationMap.png}
-\caption{Map of the mean annual maximum 30-day mean stream temperature
-(mean temperature during the warmest 30-day period each year). The inset
-shows how much local variation there is that is not clearly visible on
-the regional map. Gray areas have no predictions, usually because they
-are in larger streams, outside the bounds of the data used in the model
-(\textgreater{}200 \(km^2\) drainage area). Results are presented as
-catchments delineated based on the stream reaches because at this scale
-stream lines would blend together and not provide a smooth visual map
-surface - \emph{not sure if I need to include this, maybe wait to see if
-reviewers say anything}}
+\includegraphics{Figures/Locations_Map.png}
+\caption{Map of the sampling locations including data used in model
+fitting (calibration), withheld for validation, and used in both fitting
+and validation. Locations used in both fitting and validation indicate
+that some years of data were used for one purpose and some for another,
+no day-location combination was used in both fitting and validation. See
+text for description of how validation data were chosen.}
 \end{figure}
 
 Stream reach (stream section between any two confluences) was our finest
 spatial resolution for the analysis. In the rare case where we had
 multiple logger locations within the same reach (2,894 locations from
 2,413 reaches) recording at the same time, we used the mean value from
-the loggers for a given day. In the future, with sufficient within reach
-data, it would be possible to use our modeling framework to also
-estimate variability within reach by adding one more level to the
+the loggers for a given day (Table 1). In the future, with sufficient
+within reach data, it would be possible to use our modeling framework to
+also estimate variability within reach by adding one more level to the
 hierarchical structure of the model (see Statistical Model description
 below).
 
-Table \textbf{for manuscript??? since we have map and these values don't
-line up because some sites were missing covariates}
+Table 1. Summary of data used to model daily stream temperature. The
+number of records represents the number of raw temperature measurements
+(sub-daily) and locations used to create the daily water temperature
+timeseries for \(N_{years}\) at 2,413 stream reaches (catchments).
 
-\begin{longtable}[]{@{}rrrrr@{}}
+\begin{longtable}[c]{@{}rrrrr@{}}
 \toprule
-state & n\_records & n\_years & n\_locations & n\_streams\tabularnewline
+State & \(N_{records}\) & \(N_{years}\) & \(N_{locations}\) &
+\(N_{reaches}\)\tabularnewline
 \midrule
 \endhead
 CT & 5,007,479 & 19 & 515 & 418\tabularnewline
@@ -323,82 +322,41 @@ point of each catchment (confluence pour point).
 
 Table 1. Description and original source of variables used in the model.
 
-\begin{longtable}[]{@{}cll@{}}
+\begin{longtable}[c]{@{}cll@{}}
 \toprule
-\begin{minipage}[b]{0.19\columnwidth}\centering\strut
-Variable\strut
-\end{minipage} & \begin{minipage}[b]{0.43\columnwidth}\raggedright\strut
-Description\strut
-\end{minipage} & \begin{minipage}[b]{0.23\columnwidth}\raggedright\strut
-Source\strut
-\end{minipage}\tabularnewline
+Variable & Description & Source\tabularnewline
 \midrule
 \endhead
-\begin{minipage}[t]{0.19\columnwidth}\centering\strut
-Total Drainage Area\strut
-\end{minipage} & \begin{minipage}[t]{0.43\columnwidth}\raggedright\strut
-The total contributing drainage area from the entire upstream
-network\strut
-\end{minipage} & \begin{minipage}[t]{0.23\columnwidth}\raggedright\strut
+Total Drainage Area & The total contributing drainage area from the
+entire upstream network &
 \href{http://conte-ecology.github.io/shedsData/}{The SHEDS Data
-project}\strut
-\end{minipage}\tabularnewline
-\begin{minipage}[t]{0.19\columnwidth}\centering\strut
-Riparian Forest Cover\strut
-\end{minipage} & \begin{minipage}[t]{0.43\columnwidth}\raggedright\strut
-The percentage of the upstream 61 m (200 ft) riparian buffer area that
-is covered by trees taller than 5 meters\strut
-\end{minipage} & \begin{minipage}[t]{0.23\columnwidth}\raggedright\strut
+project}\tabularnewline
+Riparian Forest Cover & The percentage of the upstream 61 m (200 ft)
+riparian buffer area that is covered by trees taller than 5 meters &
 \href{http://www.mrlc.gov/nlcd06_data.php}{The National LandCover
-Database (NLCD)}\strut
-\end{minipage}\tabularnewline
-\begin{minipage}[t]{0.19\columnwidth}\centering\strut
-Daily Precipition\strut
-\end{minipage} & \begin{minipage}[t]{0.43\columnwidth}\raggedright\strut
-The daily precipitation record for the individual local catchment\strut
-\end{minipage} & \begin{minipage}[t]{0.23\columnwidth}\raggedright\strut
-\href{https://daymet.ornl.gov/}{Daymet Daily Surface Weather and
-Climatological Summaries}\strut
-\end{minipage}\tabularnewline
-\begin{minipage}[t]{0.19\columnwidth}\centering\strut
-Daily Air Temperature\strut
-\end{minipage} & \begin{minipage}[t]{0.43\columnwidth}\raggedright\strut
-The daily mean air temperature record for the individual local catchment
-as the mean of the minimum and maximum daily temperature from
-Daymet\strut
-\end{minipage} & \begin{minipage}[t]{0.23\columnwidth}\raggedright\strut
-\href{https://daymet.ornl.gov/}{Daymet Daily Surface Weather and
-Climatological Summaries}\strut
-\end{minipage}\tabularnewline
-\begin{minipage}[t]{0.19\columnwidth}\centering\strut
-Upstream Impounded Area\strut
-\end{minipage} & \begin{minipage}[t]{0.43\columnwidth}\raggedright\strut
-The total area in the contributing drainage basin that is covered by
-wetlands, lakes, or ponds that intersect the stream network\strut
-\end{minipage} & \begin{minipage}[t]{0.23\columnwidth}\raggedright\strut
+Database (NLCD)}\tabularnewline
+Daily Precipition & The daily precipitation record for the individual
+local catchment & \href{https://daymet.ornl.gov/}{Daymet Daily Surface
+Weather and Climatological Summaries}\tabularnewline
+Daily Air Temperature & The daily mean air temperature record for the
+individual local catchment as the mean of the minimum and maximum daily
+temperature from Daymet & \href{https://daymet.ornl.gov/}{Daymet Daily
+Surface Weather and Climatological Summaries}\tabularnewline
+Upstream Impounded Area & The total area in the contributing drainage
+basin that is covered by wetlands, lakes, or ponds that intersect the
+stream network &
 \href{http://www.fws.gov/wetlands/Data/Data-Download.html}{U.S. Fish \&
-Wildlife Service (FWS) National Wetlands Inventory}\strut
-\end{minipage}\tabularnewline
-\begin{minipage}[t]{0.19\columnwidth}\centering\strut
-Percent Agriculture\strut
-\end{minipage} & \begin{minipage}[t]{0.43\columnwidth}\raggedright\strut
-The percentage of the contributing drainage area that is covered by
-agricultural land (e.g.~cultivated crops, orchards, and pasture)
-including fallow land.\strut
-\end{minipage} & \begin{minipage}[t]{0.23\columnwidth}\raggedright\strut
+Wildlife Service (FWS) National Wetlands Inventory}\tabularnewline
+Percent Agriculture & The percentage of the contributing drainage area
+that is covered by agricultural land (e.g.~cultivated crops, orchards,
+and pasture) including fallow land. &
 \href{http://www.mrlc.gov/nlcd06_data.php}{The National LandCover
-Database}\strut
-\end{minipage}\tabularnewline
-\begin{minipage}[t]{0.19\columnwidth}\centering\strut
-Percent High-Intensity Development\strut
-\end{minipage} & \begin{minipage}[t]{0.43\columnwidth}\raggedright\strut
-The percentage of the contributing drainage area covered by places where
-people work or live in high numbers (typically defined as areas covered
-by more than 80\% impervious surface)\strut
-\end{minipage} & \begin{minipage}[t]{0.23\columnwidth}\raggedright\strut
-\href{http://www.mrlc.gov/nlcd06_data.php}{The National LandCover
-Database}\strut
-\end{minipage}\tabularnewline
+Database}\tabularnewline
+Percent High-Intensity Development & The percentage of the contributing
+drainage area covered by places where people work or live in high
+numbers (typically defined as areas covered by more than 80\% impervious
+surface) & \href{http://www.mrlc.gov/nlcd06_data.php}{The National
+LandCover Database}\tabularnewline
 \bottomrule
 \end{longtable}
 
@@ -601,17 +559,16 @@ the mean effect for reaches, HUC8s, and years when no data was
 collected. From these daily predictions, we derive a variety of metrics
 to characterize the stream thermal regime. These include mean (over the
 36 years) July temperature, mean summer temperature, mean number of days
-per year above a thermal threshold (18, 20, 22 C used by default),
-frequency of years that the mean daily temperature exceeds each of these
-thresholds, and the maximum 7-day and 30-day moving means for each year
-and across all years. We also calculated the resistance of water
-temperature to changes in air temperature during peak air temperature
-(summer) based on the cumulative difference between the daily
-temperatures. Finally, we assess the thermal sensitivity for each stream
-reach as the change in daily stream temperature per 1 C change in daily
-air temperature. This is essentially the reach-specific air temperature
-coefficient converted back to the original scale from the standardized
-scale.
+per year above a thermal threshold (18, 22 C used by default), frequency
+of years that the mean daily temperature exceeds each of these
+thresholds, and the maximum 30-day moving means averaged across all
+years. We also calculated the resistance of water temperature to changes
+in air temperature during peak air temperature (summer) based on the
+cumulative difference between the daily temperatures. Finally, we assess
+the thermal sensitivity for each stream reach as the change in daily
+stream temperature per 1 C change in daily air temperature. This is
+essentially the reach-specific air temperature coefficient converted
+back to the original scale from the standardized scale.
 
 \section{Results}\label{results}
 
@@ -651,345 +608,447 @@ the mean, standard deviation (SD), and 95\% credible intervals (LCRI =
 
 \textbf{Fixed effects:}
 
-\begin{longtable}[]{@{}rrrrr@{}}
+\begin{longtable}[c]{@{}rrrrr@{}}
 \toprule
 \begin{minipage}[b]{0.37\columnwidth}\raggedleft\strut
-Parameter\strut
-\end{minipage} & \begin{minipage}[b]{0.08\columnwidth}\raggedleft\strut
-Mean\strut
-\end{minipage} & \begin{minipage}[b]{0.07\columnwidth}\raggedleft\strut
-SD\strut
-\end{minipage} & \begin{minipage}[b]{0.10\columnwidth}\raggedleft\strut
-LCRI\strut
-\end{minipage} & \begin{minipage}[b]{0.10\columnwidth}\raggedleft\strut
-UCRI\strut
-\end{minipage}\tabularnewline
+Parameter
+\strut\end{minipage} &
+\begin{minipage}[b]{0.08\columnwidth}\raggedleft\strut
+Mean
+\strut\end{minipage} &
+\begin{minipage}[b]{0.07\columnwidth}\raggedleft\strut
+SD
+\strut\end{minipage} &
+\begin{minipage}[b]{0.10\columnwidth}\raggedleft\strut
+LCRI
+\strut\end{minipage} &
+\begin{minipage}[b]{0.10\columnwidth}\raggedleft\strut
+UCRI
+\strut\end{minipage}\tabularnewline
 \midrule
 \endhead
 \begin{minipage}[t]{0.37\columnwidth}\raggedleft\strut
-Intercept\strut
-\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
-16.69\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
-0.135\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-16.4182\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-16.949\strut
-\end{minipage}\tabularnewline
+Intercept
+\strut\end{minipage} &
+\begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
+16.69
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
+0.135
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+16.4182
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+16.949
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.37\columnwidth}\raggedleft\strut
-AirT\strut
-\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
-1.91\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
-0.022\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-1.8620\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-1.950\strut
-\end{minipage}\tabularnewline
+AirT
+\strut\end{minipage} &
+\begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
+1.91
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
+0.022
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+1.8620
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+1.950
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.37\columnwidth}\raggedleft\strut
-7-day AirT\strut
-\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
-1.36\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
-0.029\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-1.3015\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-1.417\strut
-\end{minipage}\tabularnewline
+7-day AirT
+\strut\end{minipage} &
+\begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
+1.36
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
+0.029
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+1.3015
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+1.417
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.37\columnwidth}\raggedleft\strut
-2-day Precip\strut
-\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
-0.06\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
-0.002\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-0.0546\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-0.063\strut
-\end{minipage}\tabularnewline
+2-day Precip
+\strut\end{minipage} &
+\begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
+0.06
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
+0.002
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+0.0546
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+0.063
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.37\columnwidth}\raggedleft\strut
-30-day Precip\strut
-\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
-0.01\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
-0.006\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-0.0005\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-0.026\strut
-\end{minipage}\tabularnewline
+30-day Precip
+\strut\end{minipage} &
+\begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
+0.01
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
+0.006
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+0.0005
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+0.026
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.37\columnwidth}\raggedleft\strut
-Drainage Area\strut
-\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
-0.04\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
-0.096\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
--0.1452\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-0.232\strut
-\end{minipage}\tabularnewline
+Drainage Area
+\strut\end{minipage} &
+\begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
+0.04
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
+0.096
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+-0.1452
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+0.232
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.37\columnwidth}\raggedleft\strut
-Impounded Area\strut
-\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
-0.50\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
-0.095\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-0.3181\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-0.691\strut
-\end{minipage}\tabularnewline
+Impounded Area
+\strut\end{minipage} &
+\begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
+0.50
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
+0.095
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+0.3181
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+0.691
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.37\columnwidth}\raggedleft\strut
-Forest Cover\strut
-\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
--0.15\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
-0.047\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
--0.2455\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
--0.059\strut
-\end{minipage}\tabularnewline
+Forest Cover
+\strut\end{minipage} &
+\begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
+-0.15
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
+0.047
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+-0.2455
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+-0.059
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.37\columnwidth}\raggedleft\strut
-AirT x 2-day Precip\strut
-\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
-0.02\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
-0.002\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-0.0195\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-0.028\strut
-\end{minipage}\tabularnewline
+AirT x 2-day Precip
+\strut\end{minipage} &
+\begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
+0.02
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
+0.002
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+0.0195
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+0.028
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.37\columnwidth}\raggedleft\strut
-AirT x 30-day Precip\strut
-\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
--0.01\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
-0.004\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
--0.0224\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
--0.007\strut
-\end{minipage}\tabularnewline
+AirT x 30-day Precip
+\strut\end{minipage} &
+\begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
+-0.01
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
+0.004
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+-0.0224
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+-0.007
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.37\columnwidth}\raggedleft\strut
-AirT x Drainage\strut
-\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
--0.06\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
-0.029\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
--0.1170\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
--0.006\strut
-\end{minipage}\tabularnewline
+AirT x Drainage
+\strut\end{minipage} &
+\begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
+-0.06
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
+0.029
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+-0.1170
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+-0.006
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.37\columnwidth}\raggedleft\strut
-AirT x Impounded Area\strut
-\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
-0.02\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
-0.029\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
--0.0345\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-0.077\strut
-\end{minipage}\tabularnewline
+AirT x Impounded Area
+\strut\end{minipage} &
+\begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
+0.02
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
+0.029
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+-0.0345
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+0.077
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.37\columnwidth}\raggedleft\strut
-AirT x Forest\strut
-\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
--0.02\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
-0.015\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
--0.0508\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-0.009\strut
-\end{minipage}\tabularnewline
+AirT x Forest
+\strut\end{minipage} &
+\begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
+-0.02
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
+0.015
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+-0.0508
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+0.009
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.37\columnwidth}\raggedleft\strut
-2-day Precip x Drainage\strut
-\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
--0.04\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
-0.002\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
--0.0424\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
--0.034\strut
-\end{minipage}\tabularnewline
+2-day Precip x Drainage
+\strut\end{minipage} &
+\begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
+-0.04
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
+0.002
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+-0.0424
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+-0.034
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.37\columnwidth}\raggedleft\strut
-30-day Precip x Drainage\strut
-\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
--0.06\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
-0.006\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
--0.0709\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
--0.046\strut
-\end{minipage}\tabularnewline
+30-day Precip x Drainage
+\strut\end{minipage} &
+\begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
+-0.06
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
+0.006
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+-0.0709
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+-0.046
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.37\columnwidth}\raggedleft\strut
-AirT x 2-day Precip x Drainage\strut
-\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
--0.01\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
-0.002\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
--0.0156\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
--0.008\strut
-\end{minipage}\tabularnewline
+AirT x 2-day Precip x Drainage
+\strut\end{minipage} &
+\begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
+-0.01
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
+0.002
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+-0.0156
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+-0.008
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.37\columnwidth}\raggedleft\strut
-AirT x 30-day Precip x Drainage\strut
-\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
--0.01\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
-0.004\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
--0.0193\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
--0.004\strut
-\end{minipage}\tabularnewline
+AirT x 30-day Precip x Drainage
+\strut\end{minipage} &
+\begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
+-0.01
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
+0.004
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+-0.0193
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+-0.004
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.37\columnwidth}\raggedleft\strut
-AR1\strut
-\end{minipage} & \begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
-0.77\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
-0.002\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-0.7681\strut
-\end{minipage} & \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-0.776\strut
-\end{minipage}\tabularnewline
+AR1
+\strut\end{minipage} &
+\begin{minipage}[t]{0.08\columnwidth}\raggedleft\strut
+0.77
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\raggedleft\strut
+0.002
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+0.7681
+\strut\end{minipage} &
+\begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
+0.776
+\strut\end{minipage}\tabularnewline
 \bottomrule
 \end{longtable}
 
 \textbf{Random effects:}
 
-\begin{longtable}[]{@{}rrcc@{}}
+\begin{longtable}[c]{@{}rrcc@{}}
 \toprule
 \begin{minipage}[b]{0.10\columnwidth}\raggedleft\strut
-Group\strut
-\end{minipage} & \begin{minipage}[b]{0.14\columnwidth}\raggedleft\strut
-Coef\strut
-\end{minipage} & \begin{minipage}[b]{0.07\columnwidth}\centering\strut
-SD\strut
-\end{minipage} & \begin{minipage}[b]{0.12\columnwidth}\centering\strut
-Variance\strut
-\end{minipage}\tabularnewline
+Group
+\strut\end{minipage} &
+\begin{minipage}[b]{0.14\columnwidth}\raggedleft\strut
+Coef
+\strut\end{minipage} &
+\begin{minipage}[b]{0.07\columnwidth}\centering\strut
+SD
+\strut\end{minipage} &
+\begin{minipage}[b]{0.12\columnwidth}\centering\strut
+Variance
+\strut\end{minipage}\tabularnewline
 \midrule
 \endhead
 \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-Site\strut
-\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedleft\strut
-Intercept\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\centering\strut
-1.03\strut
-\end{minipage} & \begin{minipage}[t]{0.12\columnwidth}\centering\strut
-1.060\strut
-\end{minipage}\tabularnewline
+Site
+\strut\end{minipage} &
+\begin{minipage}[t]{0.14\columnwidth}\raggedleft\strut
+Intercept
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\centering\strut
+1.03
+\strut\end{minipage} &
+\begin{minipage}[t]{0.12\columnwidth}\centering\strut
+1.060
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-\strut
-\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedleft\strut
-AirT\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\centering\strut
-0.29\strut
-\end{minipage} & \begin{minipage}[t]{0.12\columnwidth}\centering\strut
-0.083\strut
-\end{minipage}\tabularnewline
+\strut\end{minipage} &
+\begin{minipage}[t]{0.14\columnwidth}\raggedleft\strut
+AirT
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\centering\strut
+0.29
+\strut\end{minipage} &
+\begin{minipage}[t]{0.12\columnwidth}\centering\strut
+0.083
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-\strut
-\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedleft\strut
-7-day AirT\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\centering\strut
-0.35\strut
-\end{minipage} & \begin{minipage}[t]{0.12\columnwidth}\centering\strut
-0.120\strut
-\end{minipage}\tabularnewline
+\strut\end{minipage} &
+\begin{minipage}[t]{0.14\columnwidth}\raggedleft\strut
+7-day AirT
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\centering\strut
+0.35
+\strut\end{minipage} &
+\begin{minipage}[t]{0.12\columnwidth}\centering\strut
+0.120
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-HUC8\strut
-\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedleft\strut
-Intercept\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\centering\strut
-0.59\strut
-\end{minipage} & \begin{minipage}[t]{0.12\columnwidth}\centering\strut
-0.345\strut
-\end{minipage}\tabularnewline
+HUC8
+\strut\end{minipage} &
+\begin{minipage}[t]{0.14\columnwidth}\raggedleft\strut
+Intercept
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\centering\strut
+0.59
+\strut\end{minipage} &
+\begin{minipage}[t]{0.12\columnwidth}\centering\strut
+0.345
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-\strut
-\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedleft\strut
-AirT\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\centering\strut
-0.27\strut
-\end{minipage} & \begin{minipage}[t]{0.12\columnwidth}\centering\strut
-0.072\strut
-\end{minipage}\tabularnewline
+\strut\end{minipage} &
+\begin{minipage}[t]{0.14\columnwidth}\raggedleft\strut
+AirT
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\centering\strut
+0.27
+\strut\end{minipage} &
+\begin{minipage}[t]{0.12\columnwidth}\centering\strut
+0.072
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-\strut
-\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedleft\strut
-7-day AirT\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\centering\strut
-0.26\strut
-\end{minipage} & \begin{minipage}[t]{0.12\columnwidth}\centering\strut
-0.066\strut
-\end{minipage}\tabularnewline
+\strut\end{minipage} &
+\begin{minipage}[t]{0.14\columnwidth}\raggedleft\strut
+7-day AirT
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\centering\strut
+0.26
+\strut\end{minipage} &
+\begin{minipage}[t]{0.12\columnwidth}\centering\strut
+0.066
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.10\columnwidth}\raggedleft\strut
-Year\strut
-\end{minipage} & \begin{minipage}[t]{0.14\columnwidth}\raggedleft\strut
-Intercept\strut
-\end{minipage} & \begin{minipage}[t]{0.07\columnwidth}\centering\strut
-0.28\strut
-\end{minipage} & \begin{minipage}[t]{0.12\columnwidth}\centering\strut
-0.076\strut
-\end{minipage}\tabularnewline
+Year
+\strut\end{minipage} &
+\begin{minipage}[t]{0.14\columnwidth}\raggedleft\strut
+Intercept
+\strut\end{minipage} &
+\begin{minipage}[t]{0.07\columnwidth}\centering\strut
+0.28
+\strut\end{minipage} &
+\begin{minipage}[t]{0.12\columnwidth}\centering\strut
+0.076
+\strut\end{minipage}\tabularnewline
 \bottomrule
 \end{longtable}
 
 \textbf{HUC8 coefficient correlations:}
 
-\begin{longtable}[]{@{}rrrr@{}}
+\begin{longtable}[c]{@{}rrrr@{}}
 \toprule
 \begin{minipage}[b]{0.16\columnwidth}\raggedleft\strut
-~\strut
-\end{minipage} & \begin{minipage}[b]{0.15\columnwidth}\raggedleft\strut
-Intercept\strut
-\end{minipage} & \begin{minipage}[b]{0.09\columnwidth}\raggedleft\strut
-AirT\strut
-\end{minipage} & \begin{minipage}[b]{0.15\columnwidth}\raggedleft\strut
-7-day AirT\strut
-\end{minipage}\tabularnewline
+~
+\strut\end{minipage} &
+\begin{minipage}[b]{0.15\columnwidth}\raggedleft\strut
+Intercept
+\strut\end{minipage} &
+\begin{minipage}[b]{0.09\columnwidth}\raggedleft\strut
+AirT
+\strut\end{minipage} &
+\begin{minipage}[b]{0.15\columnwidth}\raggedleft\strut
+7-day AirT
+\strut\end{minipage}\tabularnewline
 \midrule
 \endhead
 \begin{minipage}[t]{0.16\columnwidth}\raggedleft\strut
-Intercept\strut
-\end{minipage} & \begin{minipage}[t]{0.15\columnwidth}\raggedleft\strut
-\strut
-\end{minipage} & \begin{minipage}[t]{0.09\columnwidth}\raggedleft\strut
-\strut
-\end{minipage} & \begin{minipage}[t]{0.15\columnwidth}\raggedleft\strut
-\strut
-\end{minipage}\tabularnewline
+Intercept
+\strut\end{minipage} &
+\begin{minipage}[t]{0.15\columnwidth}\raggedleft\strut
+\strut\end{minipage} &
+\begin{minipage}[t]{0.09\columnwidth}\raggedleft\strut
+\strut\end{minipage} &
+\begin{minipage}[t]{0.15\columnwidth}\raggedleft\strut
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.16\columnwidth}\raggedleft\strut
-AirT\strut
-\end{minipage} & \begin{minipage}[t]{0.15\columnwidth}\raggedleft\strut
-0.64\strut
-\end{minipage} & \begin{minipage}[t]{0.09\columnwidth}\raggedleft\strut
-\strut
-\end{minipage} & \begin{minipage}[t]{0.15\columnwidth}\raggedleft\strut
-\strut
-\end{minipage}\tabularnewline
+AirT
+\strut\end{minipage} &
+\begin{minipage}[t]{0.15\columnwidth}\raggedleft\strut
+0.64
+\strut\end{minipage} &
+\begin{minipage}[t]{0.09\columnwidth}\raggedleft\strut
+\strut\end{minipage} &
+\begin{minipage}[t]{0.15\columnwidth}\raggedleft\strut
+\strut\end{minipage}\tabularnewline
 \begin{minipage}[t]{0.16\columnwidth}\raggedleft\strut
-7-day AirT\strut
-\end{minipage} & \begin{minipage}[t]{0.15\columnwidth}\raggedleft\strut
-0.338\strut
-\end{minipage} & \begin{minipage}[t]{0.09\columnwidth}\raggedleft\strut
-0.234\strut
-\end{minipage} & \begin{minipage}[t]{0.15\columnwidth}\raggedleft\strut
-\strut
-\end{minipage}\tabularnewline
+7-day AirT
+\strut\end{minipage} &
+\begin{minipage}[t]{0.15\columnwidth}\raggedleft\strut
+0.338
+\strut\end{minipage} &
+\begin{minipage}[t]{0.09\columnwidth}\raggedleft\strut
+0.234
+\strut\end{minipage} &
+\begin{minipage}[t]{0.15\columnwidth}\raggedleft\strut
+\strut\end{minipage}\tabularnewline
 \bottomrule
 \end{longtable}
 
@@ -1006,47 +1065,186 @@ little random variability among years not explained by other parameters
 The overall Root Mean Squared Error (RMSE) was 0.61 C and the residuals
 were normally distributed and unbiased (exhibiting no visual
 heterogeneity), indicating that the model was a good approximation of
-the process generating the data. These predicted values are adjusted for
-residual error, but to understand how well the model predicts
-temperatures when the previous day's observed temperature is unknown it
-is better to use the predictions prior to adjusting with the residual
-AR1 term. The RMSE for the fitted data using unadjusted predictions was
-1.08 C. All additional predictions and summaries use the unadjusted
-values to better understand the predictive abilities of the model.
+the process generating the data (Figure 3). These predicted values are
+adjusted for residual error, but to understand how well the model
+predicts temperatures when the previous day's observed temperature is
+unknown it is better to use the predictions prior to adjusting with the
+residual AR1 term. The RMSE for the fitted data using unadjusted
+predictions was 1.08 C. All additional predictions and summaries use the
+unadjusted values to better understand the predictive abilities of the
+model.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics{manuscripts/Figures/Obs_Fitted.pdf}
+\caption{Observed vs.~predicted water temperatures for the fitted data
+showing good model fit and homogeneity of the residuals around the 1:1
+line}
+\end{figure}
 
 Specifically, to evaluate the spatial and temporal predictive power of
 our model, we used independent validation data consisting of 100,909
 daily temperature observations from 723 stream reaches within 101 HUC8
 subbasins over 20 years from 1996 to 2015. The overall unadjusted RMSE
 for all validation data was 2.03 C. Similar to the fitted data, there
-was no bias in the predictions of the validation data, with the
-potential exception of slight over-prediction at very low temperatures
-and possible slight under-prediction at very high temperatures (figure -
-appendix?).
-
-To assess predictive accuracy in warm years without data, we calculated
-the RMSE for all reaches in 2010 (excluded from model fitting) to be
-1.85 C. The RMSE in 2010 for reaches that had data in other years used
-in the modeling fitting was 1.77 C, whereas reaches that had no data in
-other years had an overall RMSE of 1.95 C in 2010 (no information about
-the specific reach or year in a warm year). \textbf{these values need to
-be updated from the recent model run}
-
-Interestingly, there appears to be only a slight improvement in RMSE
-with increases in the amount of data used in the model fitting or years
-of observed data (appendix figure). Similarly, there is no affect of the
-amount of validation data for a reach on the RMSE estimate of that reach
-(appendix figure).
+was generally no bias in the predictions of the validation data, with
+the potential exception of slight over-prediction at very low
+temperatures and possible slight under-prediction at very high
+temperatures (Figure 4).
 
 \begin{figure}[htbp]
 \centering
-\includegraphics{Figures/validation_plot.jpg}
-\caption{trial text}
+\includegraphics{manuscripts/Figures/Obs_Valid.pdf}
+\caption{Observed vs.~predicted water temperature using the validation
+data witheld from model fitting with a red line along the 1:1 line
+indicating a perfect prediction.}
 \end{figure}
+
+Predicting to unsampled reaches in HUC8 with data from other reaches and
+in years with observed data elsewhere resulted in a RMSE of 1.96.
+Prediction for reaches in HUC8 with no data was considerably worse
+(Table XX). To assess predictive accuracy in warm years without data
+(potential for forecasting under climate change), we calculated the RMSE
+for all reaches in 2010 (excluded from model fitting) to be 2.13 C.
+
+Table \#\#. The root-mean-squared error (RMSE) based on the data used
+and excluded from different subsets of the validation data. N is the
+number of daily temperature observations used in each subset of the
+data. Validation data was completely withheld at random from the data
+used in model fitting (calibration).
+
+\begin{longtable}[c]{@{}rrr@{}}
+\toprule
+Data Used & RMSE & N\tabularnewline
+\midrule
+\endhead
+Fitted RMSE & 0.59 & 248517\tabularnewline
+Overall validation RMSE & 2.03 & 100909\tabularnewline
+Missing reach-year but reach, HUC8, and year with data & 1.90 &
+18401\tabularnewline
+Missing reaches but HUC8 and year with data & 1.96 &
+42602\tabularnewline
+Missing HUC8 but year with data & 2.52 & 1081\tabularnewline
+Missing year but reaches and HUC8 with data & 2.06 &
+19090\tabularnewline
+2010 excluded but all other data available & 2.13 & 38825\tabularnewline
+No data for reach, HUC8, or year & 1.83 & 2644\tabularnewline
+\bottomrule
+\end{longtable}
 
 \subsubsection{Derived metrics}\label{derived-metrics-1}
 
-Add summary of derived metrics
+We used the daymet air temperature and precipitation along with
+landscape covariates to predict daily stream temperatures in each reach
+then calculated derived metrics of potential interest to biologists,
+managers, and policy makers (Table \#\#).
+
+Table \#\#. Summary and description of derived metrics for each stream
+reach summarized for predictions from 1980-2015. The mean number of days
+over 18 and 22 C were only calculated for predictions in the middle 194
+days of the year to avoid problems outside the synchronized period of
+the year while keeping the length consistent among reaches across the
+region.
+
+\begin{longtable}[c]{@{}rrrrr@{}}
+\toprule
+Metric & Mean & Min & Max & Description\tabularnewline
+\midrule
+\endhead
+Mean maximum temperature & 20.57 & 12.61 & 34.11 & Maximum daily mean
+water temperature (C) averaged over 36 years (1980 -
+2015)\tabularnewline
+Max maximum temperature & 22.30 & 14.05 & 35.25 & Maximum over years of
+the maximum daily mean temperature\tabularnewline
+Mean July temperature & 18.25 & 8.83 & 32.34 & Mean daily July
+temperature over years\tabularnewline
+Mean August temperature & 17.74 & 8.52 & 31.76 & Mean daily August
+temperature over years\tabularnewline
+Mean summer temperature & 17.49 & 7.92 & 31.77 & Mean daily summer
+temperature over years\tabularnewline
+Mean 30-day maximum temperature & 18.76 & 9.68 & 32.71 & Maximum 30-day
+temperature for each year averaged over years\tabularnewline
+Mean number of days over 18 C & 47.73 & 0.00 & 194.00 & Mean number of
+days per year the mean daily temperature exceeds 18 C\tabularnewline
+Mean number of days over 22 C & 5.17 & 0.00 & 194.00 & Mean number of
+days per year the mean daily temperature exceeds 22 C\tabularnewline
+Annual frequency of exceeding 18 C & 0.86 & 0.00 & 1.00 & Frequency of
+years the mean daily temperature ever exceeds 18 C\tabularnewline
+Annual frequency of exceeding 22 C & 0.28 & 0.00 & 1.00 & Frequency of
+years the mean daily temperature ever exceeds 22 C\tabularnewline
+Mean annual resistance & 311.95 & 69.96 & 789.80 & Mean annual
+resistance of water temperature to peak (summer) air
+temperature\tabularnewline
+Thermal sensitivity & 0.61 & 0.35 & 0.98 & Thermal sensitivity of water
+temperature to changes in air temperature\tabularnewline
+\bottomrule
+\end{longtable}
+
+We generated maps of mean derived metrics from temperatures predicted
+over the daymet record (1980-2015). When scaled to view the entire
+region the patterns generally follow air temperature patterns with
+cooler temperatures at higher elevations and latitudes and warmer
+temperatures in urban, coastal, and lowland areas. An example of this
+can be seen on the mean 30-day maximum of the mean daily stream
+temperature map. However, when zoomed in to view individual catchments
+on the HUC8 or HUC10 scale, it is clear that there is considerable local
+variation in water temperatures (Figure \#) based on forest cover,
+drainage area, and local reach effects (unaccounted for local conditions
+including ground-surface water interactions), as expected based on the
+model coefficients and past research {[}\emph{Kanno et al.}, 2013{]}.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics{Figures/Mean_30Day_Maximum.png}
+\caption{Map of the mean annual 30-day maximum daily mean stream
+temperature (mean temperature during the warmest 30-day period each
+year) averaged over 36 years. This metric of stream thermal conditions
+was derived from model predictions for each day during the synchronized
+period of the year from 1980 to 2015. The inset shows the spatial
+variability among catchments within a single 8-digit hydrologic unit
+(HUC8). Gray areas have no predictions, usually because they are in
+larger streams, outside the bounds of the data used in the model
+(\textgreater{}200 \(km^2\) drainage area). Results are presented as
+catchments delineated based on the stream reaches because at this scale
+stream lines would blend together and not provide a smooth visual map
+surface}
+\end{figure}
+
+In lieu of presenting many small static maps, many of which would look
+somewhat similar when zoomed out to the regional scale, we added maps of
+the derived metrics to our web application which can be found at
+\url{http://ice.ecosheds.org/} \emph{add special manuscript ice link}.
+Users can zoom to specific areas and view information about individual
+stream reaches and associated catchments. There is also the ability to
+filter to locate areas with specific conditions. Our main Interactive
+Catchment Explorer (ICE) for the northeastern and mid-Atlantic regions
+of the U.S. with information about the landscape conditions and Brook
+Trout occupancy in addition to stream temperatures can be found at
+\url{http://ice.ecosheds.org/} and will be regularly updated as new data
+become available. This is part of our web platform for Spatial
+Hydro-Ecological Decision Systems (SHEDS; \url{http://ecosheds.org/})
+where we present visualizations linking datasets, statistical models,
+and decision support tools to help improve natural resource management
+decisions. Interested users can contribute, view, and download (if
+user-designated as publicly available) data at
+\url{http://db.ecosheds.org/}. As noted above, these data will be used
+to further improve model estimates and predictions, which will be
+presented in ICE.
+
+Although many of the derived metrics relating to peak temperatures have
+relatively similar broad-scale spatial patterns, there are some metrics
+that quantify other aspects of the thermal regime. For example, we
+calculated the resistance of water temperature to changes in air
+temperature during peak air temperature (summer) based on the cumulative
+difference between the daily temperatures. The distribution of
+resistance values was more right-skewed than the annual mean 30-day
+maximum temperature (Figure \#).
+
+\begin{figure}[htbp]
+\centering
+\includegraphics{Figures/metrics_histograms.jpg}
+\caption{Figure 6}
+\end{figure}
 
 \section{Discussion}\label{discussion}
 
@@ -1230,7 +1428,7 @@ they could easily be included as site-level predictors.
 \emph{future developments}
 
 \begin{itemize}
-\tightlist
+\itemsep1pt\parskip0pt\parsep0pt
 \item
   groundwater
 \item
@@ -1256,87 +1454,35 @@ they could easily be included as site-level predictors.
 
 \emph{derived metrics}
 
-We used the daymet air temperature and precipitation along with
-landscape covariates to predict daily stream temperatures in each reach
-then calculated derived metrics of potential interest to biologists,
-managers, and policy makers.
+Resistance: This metric is intended as a potential index of ground water
+influence on stream temperature.
 
-We generated maps of mean derived metrics from temperatures predicted
-over the daymet record (1980-2013). When scaled to view the entire
-region the patterns generally follow air temperature patterns with
-cooler temperatures at higher elevations and latitudes and warmer
-temperatures in urban, coastal, and lowland areas. An example of this
-can be seen on the annual 30-day maximum of the mean daily stream
-temperature map. However, when zoomed in to view individual catchments
-on the HUC8 or HUC10 scale, it is clear that there is considerable local
-variation in water temperatures (Figure \#) based on forest cover,
-drainage area, and local reach effects (unaccounted for local conditions
-including ground-surface water interactions), as expected based on the
-model coefficients and past research {[}\emph{Kanno et al.}, 2013{]}.
-
-\begin{figure}[htbp]
-\centering
-\includegraphics{Figures/Inset3.png}
-\caption{This is an old version and will go down to Virginia when
-updated}
-\end{figure}
-
-In lieu of presenting many small static maps, many of which would look
-somewhat similar at the regional scale, we added maps of the derived
-metrics to our web application which can be found at
-\url{http://ice.ecosheds.org/} \emph{add special manuscript ice link}.
-Users can zoom to specific areas and view information about individual
-stream reaches and associated catchments. There is also the ability to
-filter to locate areas with specific conditions. Our main Interactive
-Catchment Explorer (ICE) for the northeastern and mid-Atlantic regions
-of the U.S. with information about the landscape conditions and Brook
-Trout occupancy in addition to stream temperatures can be found at
-\url{http://ice.ecosheds.org/} and will be regularly updated as new data
-become available. This is part of our web platform for Spatial
-Hydro-Ecological Decision Systems (SHEDS; \url{http://ecosheds.org/})
-where we present visualizations linking datasets, statistical models,
-and decision support tools to help improve natural resource management
-decisions. Interested users can contribute, view, and download (if
-user-designated as publicly available) data at
-\url{http://db.ecosheds.org/}. As noted above, these data will be used
-to further improve model estimates and predictions, which will be
-presented in ICE.
-
-Although many of the derived metrics relating to peak temperatures have
-relatively similar broad-scale spatial patterns, there are some metrics
-that quantify other aspects of the thermal regime. For example, we
-calculated the resistance of water temperature to changes in air
-temperature during peak air temperature (summer) based on the cumulative
-difference between the daily temperatures. The distribution of
-resistance values was much more right-skewed than the annual 30-day
-maximum temperature (Figure \#). This metric is intended as a potential
-index of ground water influence on stream temperature. Streams with
-larger resistance values would be expected to have higher ground water
-influence because they would essentially be buffered from changes in air
-temperature during the warmest part of the year (\emph{could make figure
-to depict this for two extreme cases}). This value could be adjusted for
-drainage area or flow since it is possible that larger streams always
-fluctuate less and it could be divided by mean water temperature during
-the summer to make it reflect the relative resistance. We anticipate
-future efforts to quantify the influence of ground water in summer
-stream temperature and explore how well this metric is able to predict
-those values. Similarly, thermal sensitivity (Figure \# - histograms
-above) or the size of the specific reach random effect could serve as
-indicators of ground water influence. In particular, the specific reach
-slope of air temperature suggests that reaches with larger coefficients
-are highly responsive to changes in air temperature (little ground water
-buffering) and reaches with small coefficients are insensitive to
-changes in air temperature and therefore likely to have significant
-ground water influence. These metrics are hypothesized to indicate
-ground water influence but remain to be tested. Given the differences in
-the distributions of these metrics (Figure \# histograms), it is likely
-that some will be considerably more effective as ground water indices
-than other metrics. A similar effort has recently shown promise in
-creating a ground water influence index from stream temperature data
-(ref: snyder, than and colleagues). These indices would currently only
-apply to reaches with observed data, so the next step would be to find
-landscape and geological parameters that could predict the best ground
-water index across the region.
+Streams with larger resistance values would be expected to have higher
+ground water influence because they would essentially be buffered from
+changes in air temperature during the warmest part of the year
+(\emph{could make figure to depict this for two extreme cases}). This
+value could be adjusted for drainage area or flow since it is possible
+that larger streams always fluctuate less and it could be divided by
+mean water temperature during the summer to make it reflect the relative
+resistance. We anticipate future efforts to quantify the influence of
+ground water in summer stream temperature and explore how well this
+metric is able to predict those values. Similarly, thermal sensitivity
+(Figure \# - histograms above) or the size of the specific reach random
+effect could serve as indicators of ground water influence. In
+particular, the specific reach slope of air temperature suggests that
+reaches with larger coefficients are highly responsive to changes in air
+temperature (little ground water buffering) and reaches with small
+coefficients are insensitive to changes in air temperature and therefore
+likely to have significant ground water influence. These metrics are
+hypothesized to indicate ground water influence but remain to be tested.
+Given the differences in the distributions of these metrics (Figure \#
+histograms), it is likely that some will be considerably more effective
+as ground water indices than other metrics. A similar effort has
+recently shown promise in creating a ground water influence index from
+stream temperature data (ref: snyder, than and colleagues). These
+indices would currently only apply to reaches with observed data, so the
+next step would be to find landscape and geological parameters that
+could predict the best ground water index across the region.
 
 \section{Acknowledgments}\label{acknowledgments}
 
@@ -1351,158 +1497,132 @@ Groups who provided data
 \section*{Literature Cited}\label{literature-cited}
 \addcontentsline{toc}{section}{Literature Cited}
 
-\hypertarget{refs}{}
-\hypertarget{ref-Ahmadi-Nedushan2007}{}
 Ahmadi-Nedushan, B., A. St-Hilaire, T. B. M. J. Ouarda, L. Bilodeau, E.
 Robichaud, N. Thiemonge, and B. Bobee (2007), Predicting river water
 temperatures using stochastic models : case study of the Moisie River
 (Quebec , Canada), \emph{Hydrological Processes}, \emph{34}, 21--34,
-doi:\href{https://doi.org/10.1002/hyp}{10.1002/hyp}.
+doi:\href{http://dx.doi.org/10.1002/hyp}{10.1002/hyp}.
 
-\hypertarget{ref-Al-Chokhachy2013a}{}
 Al-Chokhachy, R., J. Alder, S. Hostetler, R. Gresswell, and B. Shepard
 (2013), Thermal controls of Yellowstone cutthroat trout and invasive
 fishes under climate change, \emph{Global change biology},
 \emph{19}(10), 3069--81,
-doi:\href{https://doi.org/10.1111/gcb.12262}{10.1111/gcb.12262}.
+doi:\href{http://dx.doi.org/10.1111/gcb.12262}{10.1111/gcb.12262}.
 
-\hypertarget{ref-Benyahya2007}{}
 Benyahya, L. et al. (2007), A review of statistical water temperature
 models, \emph{Canadian Water Resources Journal}, \emph{32}(3), 179--192.
 
-\hypertarget{ref-Brooks1998}{}
 Brooks, S. P. B., and A. G. Gelman (1998), General methods for
 monitoring convergence of iterative simulations, \emph{Journal of
 computational and graphical statistics}, \emph{7}(4), 434--455,
-doi:\href{https://doi.org/10.2307/1390675}{10.2307/1390675}.
+doi:\href{http://dx.doi.org/10.2307/1390675}{10.2307/1390675}.
 
-\hypertarget{ref-Caissie2006}{}
 Caissie, D. (2006), The thermal regime of rivers: a review,
 \emph{Freshwater Biology}, \emph{51}(8), 1389--1406,
-doi:\href{https://doi.org/10.1111/j.1365-2427.2006.01597.x}{10.1111/j.1365-2427.2006.01597.x}.
+doi:\href{http://dx.doi.org/10.1111/j.1365-2427.2006.01597.x}{10.1111/j.1365-2427.2006.01597.x}.
 
-\hypertarget{ref-Caissie2001}{}
 Caissie, D., N. El-jabi, and M. G. Satish (2001), Modelling of maximum
 daily water temperatures in a small stream, \emph{Journal of Hydrology},
 \emph{251}(2001), 14--28.
 
-\hypertarget{ref-Chang2013}{}
 Chang, H., and M. Psaris (2013), Local landscape predictors of maximum
 stream temperature and thermal sensitivity in the Columbia River Basin,
 USA., \emph{The Science of the total environment}, \emph{461-462},
 587--600,
-doi:\href{https://doi.org/10.1016/j.scitotenv.2013.05.033}{10.1016/j.scitotenv.2013.05.033}.
+doi:\href{http://dx.doi.org/10.1016/j.scitotenv.2013.05.033}{10.1016/j.scitotenv.2013.05.033}.
 
-\hypertarget{ref-DeWeber2014a}{}
 DeWeber, J. T., and T. Wagner (2014a), A regional neural network
 ensemble for predicting mean daily river water temperature,
 \emph{Journal of Hydrology}, \emph{517}, 187--200,
-doi:\href{https://doi.org/10.1016/j.jhydrol.2014.05.035}{10.1016/j.jhydrol.2014.05.035}.
+doi:\href{http://dx.doi.org/10.1016/j.jhydrol.2014.05.035}{10.1016/j.jhydrol.2014.05.035}.
 
-\hypertarget{ref-DeWeber2014}{}
 DeWeber, J. T., and T. Wagner (2014b), Predicting Brook Trout Occurrence
 in Stream Reaches throughout their Native Range in the Eastern United
 States, \emph{Transactions of the American Fisheries Society},
 \emph{144}(1), 11--24,
-doi:\href{https://doi.org/10.1080/00028487.2014.963256}{10.1080/00028487.2014.963256}.
+doi:\href{http://dx.doi.org/10.1080/00028487.2014.963256}{10.1080/00028487.2014.963256}.
 
-\hypertarget{ref-Isaak2010b}{}
 Isaak, D. J. D., C. H. Luce, B. E. B. Rieman, D. E. Nagel, E. E.
 Peterson, D. L. Horan, S. Parkes, and G. L. Chandler (2010), Effects of
 climate change and wildfire on stream temperatures and salmonid thermal
 habitat in a mountain river network., \emph{Ecological applications : a
 publication of the Ecological Society of America}, \emph{20}(5),
 1350--1371,
-doi:\href{https://doi.org/papers2://publication/uuid/8973E71F-5D23-47C7-A085-2AB46FFD8BF0}{papers2://publication/uuid/8973E71F-5D23-47C7-A085-2AB46FFD8BF0}.
+doi:\href{http://dx.doi.org/papers2://publication/uuid/8973E71F-5D23-47C7-A085-2AB46FFD8BF0}{papers2://publication/uuid/8973E71F-5D23-47C7-A085-2AB46FFD8BF0}.
 
-\hypertarget{ref-Kanno2013}{}
 Kanno, Y., J. Vokoun, and B. Letcher (2013), Paired stream-air
 temperature measurements reveal fine-scale thermal heterogeneity within
 headwater Brook Trout stream networks, \emph{River Research and
 Applications}, \emph{30}(6), 745--755,
-doi:\href{https://doi.org/10.1002/rra}{10.1002/rra}.
+doi:\href{http://dx.doi.org/10.1002/rra}{10.1002/rra}.
 
-\hypertarget{ref-Kiraly2002}{}
 Kiraly, A., and I. Janosi (2002), Stochastic modeling of daily
 temperature fluctuations, \emph{Physical Review E}, \emph{65}(5), 1--6,
-doi:\href{https://doi.org/10.1103/PhysRevE.65.051102}{10.1103/PhysRevE.65.051102}.
+doi:\href{http://dx.doi.org/10.1103/PhysRevE.65.051102}{10.1103/PhysRevE.65.051102}.
 
-\hypertarget{ref-Letcher2015}{}
 Letcher, B. H., D. J. Hocking, K. O. Neill, A. R. Whiteley, K. H.
 Nislow, and M. J. O. Donnell (2015), A robust hierarchical model of
 daily stream temperature using air-water temperature synchronization ,
 autocorrelation , and, \emph{Peer J Preprints}, \emph{1578v1}, 1--39,
-doi:\href{https://doi.org/http://doi.org/10.7287/peerj.preprints.1578v1}{http://doi.org/10.7287/peerj.preprints.1578v1}.
+doi:\href{http://dx.doi.org/http://doi.org/10.7287/peerj.preprints.1578v1}{http://doi.org/10.7287/peerj.preprints.1578v1}.
 
-\hypertarget{ref-Mohseni1999}{}
 Mohseni, O., and H. Stefan (1999), Stream temperature/air temperature
 relationship: a physical interpretation, \emph{Journal of Hydrology},
 \emph{218}(3-4), 128--141,
-doi:\href{https://doi.org/10.1016/S0022-1694(99)00034-7}{10.1016/S0022-1694(99)00034-7}.
+doi:\href{http://dx.doi.org/10.1016/S0022-1694(99)00034-7}{10.1016/S0022-1694(99)00034-7}.
 
-\hypertarget{ref-Mohseni1998}{}
 Mohseni, O., H. G. Stefan, and T. R. Erickson (1998), A nonlinear
 regression model for weekay stream temperatures, \emph{Water Resources
 Research}, \emph{34}(10), 2685--2692.
 
-\hypertarget{ref-Peterson2007}{}
-Peterson, E. E., D. M. Theobald, and J. M. Ver Hoef (2007),
+Peterson, E. E., D. M. Theobald, and J. M. {Ver Hoef} (2007),
 Geostatistical modelling on stream networks: developing valid covariance
 matrices based on hydrologic distance and stream flow, \emph{Freshwater
 Biology}, \emph{52}(2), 267--279,
-doi:\href{https://doi.org/10.1111/j.1365-2427.2006.01686.x}{10.1111/j.1365-2427.2006.01686.x}.
+doi:\href{http://dx.doi.org/10.1111/j.1365-2427.2006.01686.x}{10.1111/j.1365-2427.2006.01686.x}.
 
-\hypertarget{ref-Peterson2010}{}
 Peterson, E. E., J. M. V. Hoef, and M. Jay (2010), A mixed-model
 moving-average approach to geostatistical modeling in stream networks,
 \emph{Ecology}, \emph{91}(3), 644--651.
 
-\hypertarget{ref-Peterson2013}{}
 Peterson, E. E. et al. (2013), Modelling dendritic ecological networks
 in space: an integrated network perspective., \emph{Ecology letters},
 \emph{16}(5), 707--19,
-doi:\href{https://doi.org/10.1111/ele.12084}{10.1111/ele.12084}.
+doi:\href{http://dx.doi.org/10.1111/ele.12084}{10.1111/ele.12084}.
 
-\hypertarget{ref-Sivri2007}{}
 Sivri, N., N. Kilic, and O. N. Ucan (2007), Estimation of stream
 temperature in Firtina Creek ( Rize-Turkiye ) using artificial neural
 network model, \emph{Journal of Environmental Biology}, \emph{28}(1),
 67--72.
 
-\hypertarget{ref-Sivri2009}{}
 Sivri, N., H. K. Ozcan, O. N. Ucan, and O. Akincilar (2009), Estimation
 of Stream Temperature in Degirmendere River (Trabzon- Turkey) Using
 Artificial Neural Network Model, \emph{Turkish Journal of Fisheries and
 Aquatic Sciences}, \emph{9}, 145--150,
-doi:\href{https://doi.org/10.4194/trjfas.2009.0204}{10.4194/trjfas.2009.0204}.
+doi:\href{http://dx.doi.org/10.4194/trjfas.2009.0204}{10.4194/trjfas.2009.0204}.
 
-\hypertarget{ref-Sura2006}{}
 Sura, P., M. Newman, and M. A. Alexander (2006), Daily to Decadal Sea
 Surface Temperature Variability Driven by State-Dependent Stochastic
 Heat Fluxes, \emph{Journal of Physical Oceanography}, \emph{36},
 1940--1958.
 
-\hypertarget{ref-VerHoef2010}{}
-Ver Hoef, J. M., and E. E. Peterson (2010), A Moving Average Approach
+{Ver Hoef}, J. M., and E. E. Peterson (2010), A Moving Average Approach
 for Spatial Statistical Models of Stream Networks, \emph{Journal of the
 American Statistical Association}, \emph{105}(489), 6--18,
-doi:\href{https://doi.org/10.1198/jasa.2009.ap08248}{10.1198/jasa.2009.ap08248}.
+doi:\href{http://dx.doi.org/10.1198/jasa.2009.ap08248}{10.1198/jasa.2009.ap08248}.
 
-\hypertarget{ref-Webb2008}{}
 Webb, B., D. Hannah, R. D. Moore, L. E. Brown, and F. Nobilis (2008),
 Recent advances in stream and river temperature research,
 \emph{Hydrological Processes}, \emph{918}, 902--918,
-doi:\href{https://doi.org/10.1002/hyp}{10.1002/hyp}.
+doi:\href{http://dx.doi.org/10.1002/hyp}{10.1002/hyp}.
 
-\hypertarget{ref-Xu2010}{}
 Xu, C., B. H. Letcher, and K. H. Nislow (2010a), Context-specific
 influence of water temperature on brook trout growth rates in the field,
 \emph{Freshwater Biology}, \emph{55}(11), 2253--2264,
-doi:\href{https://doi.org/10.1111/j.1365-2427.2010.02430.x}{10.1111/j.1365-2427.2010.02430.x}.
+doi:\href{http://dx.doi.org/10.1111/j.1365-2427.2010.02430.x}{10.1111/j.1365-2427.2010.02430.x}.
 
-\hypertarget{ref-Xu2010a}{}
 Xu, C. L., B. H. Letcher, and K. H. Nislow (2010b), Size-dependent
 survival of brook trout Salvelinus fontinalis in summer: effects of
 water temperature and stream flow, \emph{Journal of Fish Biology},
 \emph{76}(10), 2342--2369,
-doi:\href{https://doi.org/10.1111/j.1095-8649.2010.02619.x}{10.1111/j.1095-8649.2010.02619.x}.
+doi:\href{http://dx.doi.org/10.1111/j.1095-8649.2010.02619.x}{10.1111/j.1095-8649.2010.02619.x}.
