@@ -51,4 +51,8 @@ plots/
 extras/
 !manuscripts/northeast_temperature_ms.pdf
 !northeast_temperature_ms.pdf
+.DS_Store
+*.DS_Store
+manuscripts.Figures/.DS_Store
+manuscripts/.DS_Store
 
