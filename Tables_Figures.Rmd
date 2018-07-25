@@ -84,8 +84,6 @@ pandoc.table(format(state_summary,
 
 ```
 
-We had data from `r nrow(state_summary) -1` and `r nrow(agency_summary)-1` organizations.
-
 ## Data used for fitting and validation
 
 ```{r data for fitting and validation, echo=FALSE, results='asis', message=FALSE, warning=FALSE}
@@ -96,11 +94,8 @@ fit_summary <- data.frame(Use = "Fit", Days = nrow(tempDataSyncS), Reaches =  le
 
 valid_summary <- data.frame(Use = "Validate", Days = nrow(tempDataSyncValidS), Reaches =  length(unique(tempDataSyncValidS$featureid)), HUC8 =  length(unique(tempDataSyncValidS$huc)), Years =  length(unique(tempDataSyncValidS$year)), stringsAsFactors = FALSE)
 
-data_summary <- dplyr::bind_rows(fit_summary, valid_summary)
-data_summary
+dplyr::bind_rows(fit_summary, valid_summary)
 
-range(df_valid$year)
-df_rmse
 ```
 
 Validation Table
@@ -308,7 +303,7 @@ df_metric_summary_repo <- df_metric_summary_repo %>%
 
 colnames(df_metric_summary_repo) <- c("Object", "Metric", "Mean", "Min", "Max", "Description")
 
-    pandoc.table(format(df_metric_summary_repo, 
+    pandoc.table(format(dplyr::select(df_metric_summary_repo, -Mean, -Min, -Max), 
                       digits = 2,
                       scientific = FALSE),
                justify = "right", 
@@ -330,9 +325,9 @@ metrics <- df_metrics %>%
                 freqMaxTemp.22,
                 meanResist,
                 TS)
-g1 <- ggplot(metrics, aes(mean30DayMax)) + geom_histogram() + xlab("Annual 30-day maximum of mean daily temperature") + theme_bw_journal()
-g2 <- ggplot(metrics, aes(freqMaxTemp.22)) + geom_histogram() + xlab("Frequency of years the max temperature exceeds 22 C") + theme_bw_journal()
-g3 <- ggplot(metrics, aes(meanResist)) + geom_histogram() + xlab("Resistance to changes in summer air temperature") + theme_bw_journal()
+g1 <- ggplot(metrics, aes(mean30DayMax)) + geom_histogram() + xlab("30-day max daily temperature") + theme_bw_journal()
+g2 <- ggplot(metrics, aes(freqMaxTemp.22)) + geom_histogram() + xlab("Annual frequency exceeds 22 C") + theme_bw_journal()
+g3 <- ggplot(metrics, aes(meanResist)) + geom_histogram() + xlab("Resistance") + theme_bw_journal()
 g4 <- ggplot(metrics, aes(TS)) + geom_histogram() + xlab("Thermal sensitivity") + theme_bw_journal()
 
 library(gridExtra)
@@ -346,7 +341,7 @@ ggsave(filename = file.path("manuscripts/Figures", "metrics_histograms.jpg"), pl
 
 Locations, Lat, Lon, Fitting, Validation, for Mapping Data Used
 
-```{r locations for mapping data use}
+```{r locations for mapping data use, eval=FALSE}
 
 
 ```
